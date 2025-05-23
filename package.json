@@ -1,0 +1,34 @@
+{
+  "name": "smiles-campana",
+  "version": "1.0.0",
+  "description": "Primera version de la pagina",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server",
+    "cypress-run": "cypress run",
+    "cypress-dev": "cypress open",
+    "test": "run-p start cypress-run",
+    "test-dev": "run-p start cypres-dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MeatSpin360/Smiles-Campana.git"
+  },
+  "author": "MeatSpin360",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MeatSpin360/Smiles-Campana/issues"
+  },
+  "homepage": "https://github.com/MeatSpin360/Smiles-Campana#readme",
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "http-server": "^14.1.1",
+    "jquery": "^3.7.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "cypress": "^13.17.0",
+    "eslint": "^9.21.0",
+    "globals": "^16.0.0"
+  }
+}

@@ -10,13 +10,14 @@ body{
 }
 
 .main{
-	width: 35%;
-	height: 575px;
+	width: 30%;
+	height:575px;
 	background: red;
 	overflow: hidden;
 	background: url("https://doc-08-2c-docs.googleusercontent.com/docs/securesc/68c90smiglihng9534mvqmq1946dmis5/fo0picsp1nhiucmc0l25s29respgpr4j/1631524275000/03522360960922298374/03522360960922298374/1Sx0jhdpEpnNIydS4rnN4kHSJtU1EyWka?e=view&authuser=0&nonce=gcrocepgbb17m&user=03522360960922298374&hash=tfhgbs86ka6divo3llbvp93mg4csvb38") no-repeat center/ cover;
 	border-radius: 10px;
 	box-shadow: 5px 20px 50px #000;
+	min-width: 400px;
 }
 #chk{
 	display: none;
@@ -69,7 +70,7 @@ button:hover{
 	background: #6d44b8;
 }
 .login{
-	height: 400px;
+	height: 70%;
 	background: #eee;
 	border-radius: 60% / 10%;
 	transform: translateY(-575px);
@@ -110,4 +111,16 @@ button:hover{
 }
 .back-btn:hover {
 	background: rgba(109, 68, 184, 0.9);
+}
+
+@media (max-width: 767px) {
+  /* Mobile styles */
+  .main {width: 90%;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Tablet styles */
+  .main {width: 60%;
+  }
 }

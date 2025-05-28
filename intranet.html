@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <title>Intranet - Smiles Campana</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/animate.css">
+    <link rel="stylesheet" href="css/owl.carousel.css">
+    <link rel="stylesheet" href="css/owl.theme.default.min.css">
+    <link rel="stylesheet" href="css/tooplate-style.css">
+    <link rel="stylesheet" href="css/intranet.css">
+</head>
+
+<body id="top" data-spy="scroll" data-target=".navbar-collapse" data-offset="50">
+
+    <!-- PRE LOADER -->
+    <section class="preloader">
+        <div class="spinner">
+            <span class="spinner-rotate"></span>
+        </div>
+    </section>
+
+    <!-- MENU -->
+    <section class="navbar navbar-default navbar-static-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <button class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon icon-bar"></span>
+                    <span class="icon icon-bar"></span>
+                    <span class="icon icon-bar"></span>
+                </button>
+                <img src="images/Diente.png" />
+                <a id="LogoText">Smiles Campana</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="#" class="smoothScroll">Pacientes</a></li>
+                    <li><a href="#" class="smoothScroll">Turnos</a></li>
+                    <li><a href="#" class="smoothScroll">Contabilidad</a></li>
+                    <li><a href="#" class="smoothScroll">Mantenimiento</a></li>
+                    <li><a href="#" class="smoothScroll">Insumos</a></li>
+                    <li class="appointment-btn"><a href="index.html">Volver al inicio</a></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Formulario de Login -->
+    <div id="login-container">
+        <form id="login-form">
+            <h2>Iniciar sesión</h2>
+            <div>
+                <label for="dni">DNI:</label>
+                <input type="text" id="dni" name="dni" required>
+            </div>
+            <div>
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Ingresar</button>
+            <p id="login-error" style="color:red; display:none;">DNI o contraseña incorrectos.</p>
+        </form>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <section id="intranet-home" class="slider" data-stellar-background-ratio="0.5" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h1>Bienvenido a la Intranet</h1>
+                    <p>Selecciona una sección del menú para comenzar.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="seccion-pacientes" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Pacientes</h2>
+                    <div class="botones-pacientes">
+                    <button class="btn-paciente" id="btn-buscar-paciente">Buscar paciente</button>
+                    <button class="btn-paciente" id="btn-nuevo-paciente">Nuevo paciente</button>
+                </div>
+                <!-- Cuadro de búsqueda oculto por defecto -->
+                <div id="busqueda-paciente" style="display:none; margin-top:30px;">
+                    <form class="form-inline" onsubmit="return false;">
+                        <input type="text" id="input-buscar-paciente" class="form-control" placeholder="Ingrese un dato del paciente" style="width:300px; max-width:90%;">
+                        <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
+                    </form>
+                </div>    
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="seccion-turnos" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Turnos</h2>
+                    <p>Contenido de la sección Turnos.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="seccion-contabilidad" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Contabilidad</h2>
+                    <p>Contenido de la sección Contabilidad.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="seccion-mantenimiento" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Mantenimiento</h2>
+                    <p>Contenido de la sección Mantenimiento.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="seccion-insumos" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Insumos</h2>
+                    <p>Contenido de la sección Insumos.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer data-stellar-background-ratio="5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 col-sm-12 border-top">
+                    <div class="col-md-4 col-sm-6">
+                        <div class="copyright-text">
+                            <p>Copyright &copy; 2025, Smiles Campana &reg; &trade;</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-sm-6">
+                        <div class="footer-link">
+                            <a href="#">Politica del establecimiento</a>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-2 text-align-center">
+                        <div class="angle-up-btn">
+                            <a href="#top" class="smoothScroll wow fadeInUp" data-wow-delay="1.2s"><i
+                                    class="fa fa-angle-up"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script src="js/External/jquery.js"></script>
+    <script src="js/External/bootstrap.min.js"></script>
+    <script src="js/External/jquery.sticky.js"></script>
+    <script src="js/External/jquery.stellar.min.js"></script>
+    <script src="js/External/wow.min.js"></script>
+    <script src="js/External/smoothscroll.js"></script>
+    <script src="js/External/owl.carousel.min.js"></script>
+    <script src="js/External/custom.js"></script>
+    <script src="js/Mi JS/index.js"></script>
+    <script src="js/Mi JS/intranet.js"></script>
+</body>
+
+</html>

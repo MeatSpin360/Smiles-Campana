@@ -9,16 +9,18 @@
 
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/animate.css">
     <link rel="stylesheet" href="css/owl.carousel.css">
     <link rel="stylesheet" href="css/owl.theme.default.min.css">
     <link rel="stylesheet" href="css/tooplate-style.css">
     <link rel="stylesheet" href="css/intranet.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
 </head>
 
 <body id="top" data-spy="scroll" data-target=".navbar-collapse" data-offset="50">
-
     <!-- PRE LOADER -->
     <section class="preloader">
         <div class="spinner">
@@ -86,19 +88,97 @@
                 <div class="col-md-12 text-align-center">
                     <h2>Pacientes</h2>
                     <div class="botones-pacientes">
-                    <button class="btn-paciente" id="btn-buscar-paciente">Buscar paciente</button>
-                    <button class="btn-paciente" id="btn-nuevo-paciente">Nuevo paciente</button>
-                </div>
-                <!-- Cuadro de búsqueda oculto por defecto -->
-                <div id="busqueda-paciente" style="display:none; margin-top:30px;">
-                    <form class="form-inline" onsubmit="return false;">
-                        <input type="text" id="input-buscar-paciente" class="form-control" placeholder="Ingrese un dato del paciente" style="width:300px; max-width:90%;">
-                        <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
-                    </form>
-                </div>    
+                        <button class="btn-paciente" id="btn-buscar-paciente">Buscar paciente</button>
+                        <button class="btn-paciente" id="btn-nuevo-paciente">Nuevo paciente</button>
+                    </div>
+                    <!-- Cuadro de búsqueda oculto por defecto -->
+                    <div id="busqueda-paciente" style="display:none; margin-top:30px;">
+                        <form class="form-inline" onsubmit="return false;">
+                            <input type="text" id="input-buscar-paciente" class="form-control"
+                                placeholder="Ingrese un dato del paciente" style="width:300px; max-width:90%;">
+                            <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
+                        </form>
+                    </div>
+                    <!-- Cuadro de Nuevo Paciente -->
+                    <div id="nuevo-paciente-form" style="display:none; margin-top:30px;">
+                        <form id="form-nuevo-paciente" class="form-horizontal" autocomplete="off"
+                            onsubmit="return false;">
+                            <div class="form-group">
+                                <label for="dni-nuevo" class="col-sm-3 control-label">DNI</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="dni-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="apellido-nuevo" class="col-sm-3 control-label">Apellido/s</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="apellido-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="nombre-nuevo" class="col-sm-3 control-label">Nombre/s</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="nombre-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha-nac-nuevo" class="col-sm-3 control-label">Fecha de Nacimiento</label>
+                                <div class="col-sm-6">
+                                    <input type="date" id="fecha-nac-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="edad-nuevo" class="col-sm-3 control-label">Edad</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="edad-nuevo" class="form-control" readonly>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="nacionalidad-nuevo" class="col-sm-3 control-label">Nacionalidad</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="nacionalidad-nuevo" class="form-control" value="Argentina">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="direccion-nuevo" class="col-sm-3 control-label">Dirección</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="direccion-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="ciudad-nuevo" class="col-sm-3 control-label">Ciudad</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="ciudad-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="provincia-nuevo" class="col-sm-3 control-label">Provincia</label>
+                                <div class="col-sm-6">
+                                    <input type="text" id="provincia-nuevo" class="form-control" value="Buenos Aires">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="telefono-nuevo" class="col-sm-3 control-label">Teléfono</label>
+                                <div class="col-sm-6">
+                                    <input type="tel" id="telefono-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="email-nuevo" class="col-sm-3 control-label">Correo electrónico</label>
+                                <div class="col-sm-6">
+                                    <input type="email" id="email-nuevo" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-sm-offset-3 col-sm-6 text-align-center">
+                                    <button type="submit" class="btn btn-success" id="btn-alta-paciente">Alta de
+                                        usuario</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
     </section>
 
     <section id="seccion-turnos" style="display:none;">
@@ -172,6 +252,13 @@
     </footer>
 
     <!-- SCRIPTS -->
+    <script>
+        const phoneInputField = document.querySelector("#telefono-nuevo");
+        const phoneInput = window.intlTelInput(phoneInputField, {
+            preferredCountries: ["ar"],
+            utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+        });
+    </script>
     <script src="js/External/jquery.js"></script>
     <script src="js/External/bootstrap.min.js"></script>
     <script src="js/External/jquery.sticky.js"></script>

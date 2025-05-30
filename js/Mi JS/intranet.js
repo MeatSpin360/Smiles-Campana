@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- FORMULARIO NUEVO PACIENTE: RESTRICCIONES Y VALIDACIONES ---
+    // --- FORMULARIO NUEVO PACIENTE: RESTRICCIONES, VALIDACIONES Y ENVÍO ---
     function inicializarFormNuevoPaciente() {
         const formNuevoPacienteRestaurado = document.getElementById('form-nuevo-paciente');
         if (!formNuevoPacienteRestaurado) return;
@@ -144,42 +144,8 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // Validación personalizada al enviar el formulario
-        const apellidoNuevo = document.getElementById('apellido-nuevo');
-        const nombreNuevo = document.getElementById('nombre-nuevo');
-
+        // Validación y envío único
         formNuevoPacienteRestaurado.addEventListener('submit', function (e) {
-            const dniVal = dniNuevo ? dniNuevo.value.trim() : '';
-            const apeVal = apellidoNuevo ? apellidoNuevo.value.trim() : '';
-            const nomVal = nombreNuevo ? nombreNuevo.value.trim() : '';
-
-            // Validar que al menos uno de los tres campos tenga valor
-            if (!dniVal && !apeVal && !nomVal) {
-                alert('Debe ingresar al menos DNI, Apellido/s o Nombre/s.');
-                if (dniNuevo) dniNuevo.focus();
-                e.preventDefault();
-                return false;
-            }
-
-            // Si DNI tiene valor, debe ser numérico y tener entre 8 y 9 caracteres
-            if (dniVal && !/^\d{8,9}$/.test(dniVal)) {
-                alert('Si ingresa DNI, debe contener solo números y tener entre 8 y 9 dígitos.');
-                dniNuevo.focus();
-                e.preventDefault();
-                return false;
-            }
-
-            // Aquí puedes agregar el código de envío al backend o simulación
-        });
-    }
-
-    // Inicializar validaciones y eventos del formulario al cargar la página
-    inicializarFormNuevoPaciente();
-
-    // --- ENVÍO DE FORMULARIO Y RESPUESTAS SIMULADAS ---
-    if (formNuevoPaciente) {
-        formNuevoPaciente.addEventListener('submit', function (e) {
-            const dniNuevo = document.getElementById('dni-nuevo');
             const apellidoNuevo = document.getElementById('apellido-nuevo');
             const nombreNuevo = document.getElementById('nombre-nuevo');
             const dniVal = dniNuevo ? dniNuevo.value.trim() : '';
@@ -226,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 responded = true;
                 clearTimeout(timeoutId);
 
+                const nuevoPacienteForm = document.getElementById('nuevo-paciente-form');
                 if (respuestaSimulada === "ok") {
                     // Respuesta 1: Perfil creado
                     nuevoPacienteForm.innerHTML = `
@@ -256,6 +223,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (btnAlta) btnAlta.disabled = false;
                 }
             }, 2000); // Simula respuesta en 2 segundos
+
+            e.preventDefault();
         });
     }
+
+    // Inicializar validaciones y eventos del formulario al cargar la página
+    inicializarFormNuevoPaciente();
 });

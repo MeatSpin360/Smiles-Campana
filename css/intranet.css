@@ -82,3 +82,27 @@ footer {
 .btn-paciente:hover {
     background: #573b8a;
 }
+
+.botones-contabilidad {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin: 40px 0;
+}
+
+.btn-contabilidad {
+    padding: 30px 50px;
+    font-size: 1.5em;
+    border: none;
+    border-radius: 8px;
+    background: #964ec0;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.btn-contabilidad:hover {
+    background: #573b8a;
+}

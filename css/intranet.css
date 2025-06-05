@@ -4,7 +4,7 @@
     padding: 30px 25px;
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 #login-form h2 {
@@ -44,7 +44,8 @@
 }
 
 
-html, body {
+html,
+body {
     height: 100%;
     min-height: 100%;
 }
@@ -76,12 +77,33 @@ footer {
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .btn-paciente:hover {
     background: #573b8a;
 }
+
+@media (max-width: 1000px) {
+  .navbar-header {
+    width: 10%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .navbar-toggle {
+    margin-right: 0;
+    margin-left: auto;
+    float: right !important;
+  }
+  .navbar-brand {
+    margin-left: 0;
+    margin-right: auto;
+    float: left !important;
+  }
+}
+
+/* ESPACIO CONTABILIDAD */
 
 .botones-contabilidad {
     display: flex;
@@ -100,9 +122,75 @@ footer {
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .btn-contabilidad:hover {
     background: #573b8a;
+}
+
+#libro-contable-cuadro {
+    margin-top: 30px;
+}
+
+@media (max-width: 767px) {
+
+    .panel,
+    .table-responsive,
+    .table,
+    .panel-body,
+    .panel-heading {
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+
+    .form-inline .form-group {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    #form-nuevo-movimiento .form-control,
+    #form-buscar-movimientos .form-control {
+        width: 100% !important;
+        min-width: 0;
+        margin-bottom: 10px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        font-size: 14px;
+        padding: 8px 4px;
+        word-break: break-word;
+    }
+
+    .btn,
+    button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .panel-heading,
+    h3,
+    h4 {
+        text-align: center;
+    }
+
+    #btn-ver-mas-movimientos {
+        width: 100%;
+    }
+
+    .botones-contabilidad {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    .btn-contabilidad {
+        width: 100%;
+        padding: 20px 0;
+        font-size: 1.2em;
+        margin: 0;
+    }
 }

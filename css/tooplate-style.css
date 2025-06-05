@@ -268,7 +268,6 @@ a:focus {
 }
 
 
-
 /*---------------------------------------
       MENU              
   -----------------------------------------*/
@@ -974,4 +973,42 @@ footer a:hover {
 
 .modal-body p {
   font-size: 1.1em;
+}
+
+/*---------------------------------------
+     Alineaciones para celus   
+  -----------------------------------------*/
+
+@media (max-width: 767px) {
+  .footer-thumb,
+  .mensajeTurnos,
+  .mensajeHorarios {
+    text-align: center !important;
+    margin-left: auto;
+    margin-right: auto;
+    float: none !important;
+  }
+  .footer-thumb h4,
+  .mensajeTurnos h4,
+  .mensajeHorarios h4 {
+    text-align: center !important;
+  }
+  .footer-thumb ul.social-icon {
+    justify-content: center;
+    display: flex;
+    padding-left: 0;
+  }
+  /* Botones de servicios uno debajo del otro */
+  .item-third .section-btn.btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  .item-third .section-btn.btn:last-child {
+    margin-bottom: 0;
+  }
+  header {
+    display: none !important;
+  }
 }

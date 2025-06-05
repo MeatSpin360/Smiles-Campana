@@ -31,14 +31,18 @@
     $(function() {
       $('.navbar-default a, #home a, footer a').on('click', function(event) {
         var $anchor = $(this);
+        var href = $anchor.attr('href');
+        // Solo aplica smooth scroll si el href es un id existente en la página
+        if (href && href.startsWith('#') && $(href).length) {
           $('html, body').stop().animate({
-            scrollTop: $($anchor.attr('href')).offset().top - 49
+            scrollTop: $(href).offset().top - 49
           }, 1000);
-            event.preventDefault();
+          event.preventDefault();
+        }
+        // Si no, deja el comportamiento por defecto (por ejemplo, links externos o a otras páginas)
       });
     });  
-
-
+    
     // WOW ANIMATION
     new WOW({ mobile: false }).init();
 

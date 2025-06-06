@@ -183,29 +183,35 @@
             <div class="row">
                 <div class="col-md-12 text-align-center">
                     <h2>Turnos</h2>
-                    <p>Contenido de la sección Turnos.</p>
+                    <div class="botones-turnos" style="margin-bottom:20px;">
+                        <button class="btn-turnos" id="btn-ver-agenda">Ver Agenda</button>
+                        <button class="btn-turnos" id="btn-editar-turnos">Editar turnos</button>
+                    </div>
+                    <div id="agenda-turnos-cuadro" style="display:none;"></div>
+                    <div id="editar-turnos-cuadro" style="display:none;"></div>
                 </div>
             </div>
         </div>
     </section>
 
-<section id="seccion-contabilidad" style="display:none;">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12 text-align-center">
-                <h2>Contabilidad</h2>
-                <div class="botones-contabilidad">
-                    <button class="btn-contabilidad" id="btn-libro-contable">Libro contable</button>
-                    <button class="btn-contabilidad" id="btn-resumenes">Resúmenes</button>
-                    <button class="btn-contabilidad" id="btn-facturacion">Facturación</button>
-                    <button class="btn-contabilidad" id="btn-comprobantes">Comprobantes</button>
-                </div>
-                <div id="libro-contable-cuadro" style="display:none;">
+    <section id="seccion-contabilidad" style="display:none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-align-center">
+                    <h2>Contabilidad</h2>
+                    <div class="botones-contabilidad">
+                        <button class="btn-contabilidad" id="btn-libro-contable">Libro contable</button>
+                        <button class="btn-contabilidad" id="btn-resumenes">Resúmenes</button>
+                        <button class="btn-contabilidad" id="btn-comprobantes">Comprobantes</button>
+                    </div>
+                    <div id="libro-contable-cuadro" style="display:none;"></div>
+                    <div id="resumenes-contables-cuadro" style="display:none;"></div>
+                    <div id="facturacion-contable-cuadro" style="display:none;"></div>
+                    <div id="comprobantes-contables-cuadro" style="display:none;"></div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
     <section id="seccion-mantenimiento" style="display:none;">
         <div class="container">

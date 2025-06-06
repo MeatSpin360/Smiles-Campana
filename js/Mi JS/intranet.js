@@ -21,24 +21,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (s) s.style.display = 'none';
     });
 
-    let logueado = false;
+    // let logueado = false;
 
     // --- LOGIN SUBMIT ---
-    loginForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        const dni = document.getElementById('dni').value.trim();
-        const password = document.getElementById('password').value;
+    // loginForm.addEventListener('submit', function (e) {
+    //     e.preventDefault();
+    //     const dni = document.getElementById('dni').value.trim();
+    //     const password = document.getElementById('password').value;
 
-        // Usuario hardcodeado
-        if (dni === '34479253' && password === 'Feoypeste12') {
-            loginContainer.style.display = 'none';
-            if (mainContent) mainContent.style.display = '';
-            logueado = true;
-        } else {
-            loginError.style.display = 'block';
-        }
-    });
+    //     // Usuario hardcodeado
+    //     if (dni === '34479253' && password === 'Feoypeste12') {
+    //         loginContainer.style.display = 'none';
+    //         if (mainContent) mainContent.style.display = '';
+    //         logueado = true;
+    //     } else {
+    //         loginError.style.display = 'block';
+    //     }
+    // });
 
+    // OMITIR LOGIN PROVISORIAMENTE
+    if (loginContainer) loginContainer.style.display = 'none';
+    if (mainContent) mainContent.style.display = '';
+    let logueado = true;
 
     /* 
     --------------------------------------------------------------------------
@@ -248,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Mostrar cuadro de libro contable al hacer click
     const btnLibroContable = document.getElementById('btn-libro-contable');
     const libroContableCuadro = document.getElementById('libro-contable-cuadro');
+    // libroContableCuadro ya está declarado arriba, no volver a declararlo aquí
     if (btnLibroContable && libroContableCuadro) {
         btnLibroContable.addEventListener('click', function () {
             renderLibroContable([]);
@@ -408,38 +413,47 @@ document.addEventListener('DOMContentLoaded', function () {
                                 total: '800'
                             }];
                             resultados.innerHTML = `
-                            <h4 style="margin-bottom:15px;">Movimientos encontrados</h4>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>N°</th>
-                                            <th>Fecha</th>
-                                            <th>Descripcion</th>
-                                            <th>Ingreso</th>
-                                            <th>Gasto</th>
-                                            <th>Total</th>
-                                            <th>Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${movimientosRango.map(mov => `
+                                <h4 style="margin-bottom:15px;">Movimientos encontrados</h4>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-striped">
+                                        <thead>
                                             <tr>
-                                                <td>${mov.id}</td>
-                                                <td>${mov.fecha}</td>
-                                                <td>${mov.descripcion}</td>
-                                                <td>${mov.ingreso}</td>
-                                                <td>${mov.gasto}</td>
-                                                <td>${mov.total}</td>
-                                                <td>
-                                                    <button class="btn-editar-mov btn btn-link" title="Editar" disabled><i class="fa fa-edit"></i></button>
-                                                </td>
+                                                <th>N°</th>
+                                                <th>Fecha</th>
+                                                <th>Descripcion</th>
+                                                <th>Ingreso</th>
+                                                <th>Gasto</th>
+                                                <th>Total</th>
+                                                <th>Acción</th>
                                             </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        `;
+                                        </thead>
+                                        <tbody>
+                                            ${movimientosRango.map(mov => `
+                                                <tr data-id="${mov.id}">
+                                                    <td>${mov.id}</td>
+                                                    <td>${mov.fecha}</td>
+                                                    <td title="${mov.descripcion.replace(/"/g, '&quot;')}">${mov.descripcion}</td>
+                                                    <td>${mov.ingreso !== '' && mov.ingreso !== undefined && mov.ingreso !== null ? `$${parseFloat(mov.ingreso).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
+                                                    <td>${mov.gasto !== '' && mov.gasto !== undefined && mov.gasto !== null ? `$${parseFloat(mov.gasto).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
+                                                    <td>${mov.total !== '' && mov.total !== undefined && mov.total !== null ? `$${parseFloat(mov.total).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
+                                                    <td>
+                                                        <button class="btn-editar-mov btn btn-link" title="Editar"><i class="fa fa-edit"></i></button>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+
+                            // Habilita edición en la tabla de resultados también
+                            resultados.querySelectorAll('.btn-editar-mov').forEach(btn => {
+                                btn.onclick = function () {
+                                    const tr = this.closest('tr');
+                                    const id = tr.getAttribute('data-id');
+                                    editarFilaMovimiento(tr, movimientosRango, id);
+                                };
+                            });
                         }, 1200);
                     };
                 }
@@ -485,16 +499,18 @@ document.addEventListener('DOMContentLoaded', function () {
             actualizarTotalEdit();
         }
 
-        // Botones guardar/cancelar
+        // Botones guardar/cancelar/eliminar
         tds[6].innerHTML = `
             <button class="btn-guardar-mov btn btn-success btn-xs" title="Guardar"><i class="fa fa-check"></i></button>
             <button class="btn-cancelar-mov btn btn-danger btn-xs" title="Cancelar"><i class="fa fa-times"></i></button>
+            <button class="btn-eliminar-mov btn btn-warning btn-xs" title="Eliminar"><i class="fa fa-trash"></i></button>
         `;
 
         // Guardar cambios
         tds[6].querySelector('.btn-guardar-mov').onclick = function () {
             tds[6].querySelector('.btn-guardar-mov').disabled = true;
             tds[6].querySelector('.btn-cancelar-mov').disabled = true;
+            tds[6].querySelector('.btn-eliminar-mov').disabled = true;
             setTimeout(() => {
                 alert('Cambios guardados en el backend (simulado)');
                 renderLibroContable(movimientos);
@@ -510,6 +526,522 @@ document.addEventListener('DOMContentLoaded', function () {
                     editarFilaMovimiento(tr, movimientos, id);
                 };
             }
+        };
+
+        // Eliminar actividad
+        tds[6].querySelector('.btn-eliminar-mov').onclick = function () {
+            if (confirm('¿Está seguro que desea eliminar esta actividad? Esta acción no se puede deshacer.')) {
+                tds[6].querySelector('.btn-guardar-mov').disabled = true;
+                tds[6].querySelector('.btn-cancelar-mov').disabled = true;
+                tds[6].querySelector('.btn-eliminar-mov').disabled = true;
+                // Aquí deberías enviar la solicitud de eliminación al backend
+                setTimeout(() => {
+                    alert('Actividad eliminada en el backend (simulado)');
+                    // Recargar el listado actualizado desde el backend
+                    renderLibroContable(movimientos);
+                }, 1000);
+            }
+        };
+    }
+
+    // --- CONTABILIDAD: NAVEGACIÓN ENTRE SUBSECCIONES ---
+    const contabilidadSecciones = {
+        'btn-libro-contable': 'libro-contable-cuadro',
+        'btn-resumenes': 'resumenes-contables-cuadro',
+        'btn-comprobantes': 'comprobantes-contables-cuadro'
+    };
+
+    Object.keys(contabilidadSecciones).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.addEventListener('click', function () {
+                // Oculta todos los cuadros de contabilidad
+                Object.values(contabilidadSecciones).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                // Muestra solo el cuadro correspondiente
+                const cuadro = document.getElementById(contabilidadSecciones[btnId]);
+                if (cuadro) {
+                    cuadro.style.display = 'block';
+                    // Renderiza contenido si corresponde
+                    if (btnId === 'btn-libro-contable') {
+                        renderLibroContable([]);
+                    }
+                    if (btnId === 'btn-resumenes') {
+                        cuadro.innerHTML = `
+                            <div class="panel panel-default" style="max-width:500px;margin:30px auto;">
+                                <div class="panel-heading"><strong>Resumen Contable</strong></div>
+                                <div class="panel-body" style="text-align:center;">
+                                    <button id="btn-resumen-mensual" class="btn btn-primary" style="margin:10px 0;width:90%;">Resúmenes mensuales</button>
+                                    <button id="btn-resumen-anual" class="btn btn-primary" style="margin:10px 0;width:90%;">Resúmenes anuales</button>
+                                    <div id="contenedor-resumen-mensual" style="margin-top:20px;"></div>
+                                </div>
+                            </div>
+                        `;
+
+                        // Evento para mostrar lista de resúmenes mensuales
+                        setTimeout(() => { // Espera a que el DOM esté listo
+                            const btnMensual = document.getElementById('btn-resumen-mensual');
+                            if (btnMensual) {
+                                btnMensual.onclick = function () {
+                                    mostrarListaResumenesMensuales();
+                                };
+                            }
+                            const btnAnual = document.getElementById('btn-resumen-anual');
+                            if (btnAnual) {
+                                btnAnual.onclick = function () {
+                                    // Limpia el contenedor antes de mostrar los anuales
+                                    const contenedor = document.getElementById('contenedor-resumen-mensual');
+                                    if (contenedor) contenedor.innerHTML = '';
+                                    mostrarListaResumenesAnuales();
+                                };
+                            }
+                        }, 100);
+                    }
+                    if (btnId === 'btn-comprobantes') {
+                        cuadro.innerHTML = `<div class="panel panel-default" style="margin:30px auto;max-width:500px;"><div class="panel-heading"><strong>Comprobantes</strong></div><div class="panel-body" style="text-align:center;">(Contenido de comprobantes)</div></div>`;
+                    }
+                }
+            });
+        }
+    });
+
+    // --- FUNCIONES DE RESUMENES MENSUALES ---
+    function mostrarListaResumenesMensuales() {
+        const contenedor = document.getElementById('contenedor-resumen-mensual');
+        if (!contenedor) return;
+
+        // Generar lista de meses desde Abril-2025 hasta el mes anterior al actual
+        const meses = [];
+        const inicio = new Date(2025, 3, 1); // Abril es mes 3 (0-index)
+        const hoy = new Date();
+        let actual = new Date(inicio);
+
+        while (
+            actual.getFullYear() < hoy.getFullYear() ||
+            (actual.getFullYear() === hoy.getFullYear() && actual.getMonth() < hoy.getMonth())
+        ) {
+            meses.push({
+                nombre: obtenerNombreMes(actual.getMonth()) + '-' + actual.getFullYear(),
+                inicio: new Date(actual.getFullYear(), actual.getMonth(), 1),
+                fin: new Date(actual.getFullYear(), actual.getMonth() + 1, 0)
+            });
+            actual.setMonth(actual.getMonth() + 1);
+        }
+
+        contenedor.innerHTML = `
+            <div style="margin-bottom:15px;"><strong>Seleccione un periodo:</strong></div>
+            <div style="max-width:350px;margin:0 auto;">
+                <select id="select-resumen-mensual" class="form-control">
+                    <option value="">-- Seleccione un mes --</option>
+                    ${meses.map(mes => `
+                        <option value="${mes.nombre}" data-inicio="${mes.inicio.toISOString().slice(0,10)}" data-fin="${mes.fin.toISOString().slice(0,10)}">
+                            ${mes.nombre}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div id="panel-resumen-mensual-detalle" style="margin-top:30px;"></div>
+        `;
+
+        // Evento para el select
+        const select = document.getElementById('select-resumen-mensual');
+        if (select) {
+            select.onchange = function () {
+                const selected = select.options[select.selectedIndex];
+                const periodo = selected.value;
+                const desde = selected.getAttribute('data-inicio');
+                const hasta = selected.getAttribute('data-fin');
+                if (periodo && desde && hasta) {
+                    obtenerResumenMensual(periodo, desde, hasta);
+                } else {
+                    document.getElementById('panel-resumen-mensual-detalle').innerHTML = '';
+                }
+            };
+        }
+    }
+
+    function obtenerNombreMes(mesIdx) {
+        const nombres = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        return nombres[mesIdx];
+    }
+
+    // Simulación de consulta al backend y render de resumen mensual
+    function obtenerResumenMensual(periodo, desde, hasta) {
+        const panel = document.getElementById('panel-resumen-mensual-detalle');
+        if (!panel) return;
+        panel.innerHTML = `<div style="text-align:center;margin:30px;"><i class="fa fa-spinner fa-spin"></i> Consultando movimientos...</div>`;
+
+        // Simula consulta al backend
+        setTimeout(() => {
+            // Simulación de movimientos recibidos del backend
+            const movimientos = [
+                { fecha: '2025-04-02', descripcion: 'Cobro paciente', ingreso: 12000, gasto: 0 },
+                { fecha: '2025-04-05', descripcion: 'Compra insumos', ingreso: 0, gasto: 3500 },
+                { fecha: '2025-04-10', descripcion: 'Cobro obra social', ingreso: 8000, gasto: 0 },
+                { fecha: '2025-04-15', descripcion: 'Pago alquiler', ingreso: 0, gasto: 5000 },
+                { fecha: '2025-04-20', descripcion: 'Cobro paciente', ingreso: 9000, gasto: 0 }
+            ];
+            // Calcula totales
+            const ingresoTotal = movimientos.reduce((s, m) => s + (parseFloat(m.ingreso) || 0), 0);
+            const gastoTotal = movimientos.reduce((s, m) => s + (parseFloat(m.gasto) || 0), 0);
+            const neto = ingresoTotal - gastoTotal;
+
+            panel.innerHTML = `
+                <div class="panel panel-default" style="max-width:600px;margin:0 auto;">
+                    <div class="panel-heading"><strong>Resumen mensual: ${periodo}</strong></div>
+                    <div class="panel-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Periodo</th>
+                                    <th>Ingreso total</th>
+                                    <th>Gasto total</th>
+                                    <th>Neto mensual</th>
+                                    <th>Imprimir detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${periodo}</td>
+                                    <td>$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td style="text-align:center;">
+                                        <button id="btn-imprimir-detalle" class="btn btn-link" title="Imprimir">
+                                            <i class="fa fa-print"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            // Evento imprimir detalle
+            setTimeout(() => {
+                const btnImprimir = document.getElementById('btn-imprimir-detalle');
+                if (btnImprimir) {
+                    btnImprimir.onclick = function () {
+                        imprimirDetalleMensual(periodo, movimientos, ingresoTotal, gastoTotal, neto);
+                    };
+                }
+            }, 100);
+        }, 1000);
+    }
+
+    // Genera plantilla de impresión para el detalle mensual
+    function imprimirDetalleMensual(periodo, movimientos, ingresoTotal, gastoTotal, neto) {
+        // Crea ventana nueva para imprimir
+        const win = window.open('', '', 'width=900,height=700');
+        let html = `
+            <html>
+            <head>
+                <title>Detalle facturación periodo ${periodo}</title>
+                <link rel="stylesheet" href="css/bootstrap.min.css">
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 30px; }
+                    h2 { text-align: center; margin-bottom: 30px; }
+                    table { width: 100%; margin-bottom: 30px; border-collapse: collapse; border:1px solid #888; }
+                    th, td { text-align: center; border:1px solid #888; }
+                    .resumen-final td { font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h2>Detalle facturación periodo ${periodo}</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Ingreso</th>
+                            <th>Gasto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${movimientos.map(m => `
+                            <tr>
+                                <td>${m.fecha}</td>
+                                <td>${m.descripcion}</td>
+                                <td>${m.ingreso ? '$' + parseFloat(m.ingreso).toLocaleString('es-AR', {minimumFractionDigits:2}) : ''}</td>
+                                <td>${m.gasto ? '$' + parseFloat(m.gasto).toLocaleString('es-AR', {minimumFractionDigits:2}) : ''}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <table class="table table-bordered resumen-final">
+                    <tr>
+                        <td style="text-align:left;">Ingreso total</td>
+                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left;">Gasto total</td>
+                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left;">Neto mensual</td>
+                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+        `;
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 500);
+    }
+
+    // --- FUNCIONES DE RESUMENES ANUALES ---
+    function mostrarListaResumenesAnuales() {
+        const contenedor = document.getElementById('contenedor-resumen-mensual');
+        if (!contenedor) return;
+        contenedor.innerHTML = ''; // Limpia cualquier contenido previo
+
+        // Generar lista de años desde 2025 hasta el actual
+        const anioInicio = 2025;
+        const hoy = new Date();
+        const anioActual = hoy.getFullYear();
+        const anios = [];
+        for (let anio = anioInicio; anio <= anioActual; anio++) {
+            let inicio = `${anio}-01-01`;
+            let fin;
+            if (anio === anioActual) {
+                // Si es el año actual, hasta hoy
+                fin = hoy.toISOString().slice(0, 10);
+            } else {
+                // Si es año pasado, hasta 31/12
+                fin = `${anio}-12-31`;
+            }
+            anios.push({ nombre: anio.toString(), inicio, fin });
+        }
+
+        contenedor.innerHTML = `
+            <div style="margin-bottom:15px;"><strong>Seleccione un año:</strong></div>
+            <div style="max-width:350px;margin:0 auto;">
+                <select id="select-resumen-anual" class="form-control">
+                    <option value="">-- Seleccione un año --</option>
+                    ${anios.map(anio => `
+                        <option value="${anio.nombre}" data-inicio="${anio.inicio}" data-fin="${anio.fin}">
+                            ${anio.nombre}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div id="panel-resumen-anual-detalle" style="margin-top:30px;"></div>
+        `;
+
+        // Evento para el select
+        const select = document.getElementById('select-resumen-anual');
+        if (select) {
+            select.onchange = function () {
+                const selected = select.options[select.selectedIndex];
+                const periodo = selected.value;
+                const desde = selected.getAttribute('data-inicio');
+                const hasta = selected.getAttribute('data-fin');
+                if (periodo && desde && hasta) {
+                    obtenerResumenAnual(periodo, desde, hasta);
+                } else {
+                    document.getElementById('panel-resumen-anual-detalle').innerHTML = '';
+                }
+            };
+        }
+    }
+
+    // Simulación de consulta al backend y render de resumen anual
+    function obtenerResumenAnual(anio, desde, hasta) {
+        const panel = document.getElementById('panel-resumen-anual-detalle');
+        if (!panel) return;
+        panel.innerHTML = `<div style="text-align:center;margin:30px;"><i class="fa fa-spinner fa-spin"></i> Consultando movimientos...</div>`;
+
+        // Simula consulta al backend
+        setTimeout(() => {
+            // Simulación: resumen mensual para cada mes del año seleccionado
+            const hoy = new Date();
+            const meses = [];
+            for (let m = 0; m < 12; m++) {
+                const mesInicio = new Date(anio, m, 1);
+                const mesFin = new Date(anio, m + 1, 0);
+                // Si el mes es futuro, no lo agregues
+                if (
+                    mesInicio > hoy ||
+                    (anio == hoy.getFullYear() && m > hoy.getMonth())
+                ) break;
+
+                // Simulación de totales mensuales
+                const ingreso = Math.floor(Math.random() * 20000 + 5000);
+                const gasto = Math.floor(Math.random() * 10000 + 2000);
+                meses.push({
+                    nombre: obtenerNombreMes(m) + '-' + anio,
+                    ingreso,
+                    gasto,
+                    neto: ingreso - gasto
+                });
+            }
+
+            const ingresoTotal = meses.reduce((s, m) => s + m.ingreso, 0);
+            const gastoTotal = meses.reduce((s, m) => s + m.gasto, 0);
+            const neto = ingresoTotal - gastoTotal;
+
+            panel.innerHTML = `
+                <div class="panel panel-default" style="max-width:700px;margin:0 auto;">
+                    <div class="panel-heading"><strong>Resumen anual: ${anio}</strong></div>
+                    <div class="panel-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Periodo</th>
+                                    <th>Ingreso total</th>
+                                    <th>Gasto total</th>
+                                    <th>Neto anual</th>
+                                    <th>Imprimir detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${anio}</td>
+                                    <td>$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td style="text-align:center;">
+                                        <button id="btn-imprimir-detalle-anual" class="btn btn-link" title="Imprimir">
+                                            <i class="fa fa-print"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="margin-top:30px;">
+                            <strong>Detalle mensual:</strong>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Mes</th>
+                                        <th>Ingreso</th>
+                                        <th>Gasto</th>
+                                        <th>Neto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${meses.map(m => `
+                                        <tr>
+                                            <td>${m.nombre}</td>
+                                            <td>$${m.ingreso.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                            <td>$${m.gasto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                            <td>$${m.neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Evento imprimir detalle anual
+            setTimeout(() => {
+                const btnImprimir = document.getElementById('btn-imprimir-detalle-anual');
+                if (btnImprimir) {
+                    btnImprimir.onclick = function () {
+                        imprimirDetalleAnual(anio, meses, ingresoTotal, gastoTotal, neto);
+                    };
+                }
+            }, 100);
+        }, 1000);
+    }
+
+    // Imprime resumen anual mostrando solo los totales mensuales
+    function imprimirDetalleAnual(anio, meses, ingresoTotal, gastoTotal, neto) {
+        const win = window.open('', '', 'width=900,height=700');
+        let html = `
+            <html>
+            <head>
+                <title>Detalle facturación anual ${anio}</title>
+                <link rel="stylesheet" href="css/bootstrap.min.css">
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 30px; }
+                    h2 { text-align: center; margin-bottom: 30px; }
+                    table { width: 100%; margin-bottom: 30px; border-collapse: collapse; border:1px solid #888; }
+                    th, td { text-align: center; border:1px solid #888; }
+                    .resumen-final td { font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h2>Detalle facturación anual ${anio}</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Mes</th>
+                            <th>Ingreso</th>
+                            <th>Gasto</th>
+                            <th>Neto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${meses.map(m => `
+                            <tr>
+                                <td>${m.nombre}</td>
+                                <td>$${m.ingreso.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                <td>$${m.gasto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                <td>$${m.neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <table class="table table-bordered resumen-final">
+                    <tr>
+                        <td style="text-align:left;">Ingreso total</td>
+                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left;">Gasto total</td>
+                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left;">Neto anual</td>
+                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+        `;
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 500);
+    }
+
+    // --- Vincula el botón de resúmenes anuales ---
+    setTimeout(() => {
+        const btnAnual = document.getElementById('btn-resumen-anual');
+        if (btnAnual) {
+            btnAnual.onclick = function () {
+                mostrarListaResumenesAnuales();
+            };
+        }
+    }, 100);
+
+    // --- NUEVO CÓDIGO: AGENDA Y TURNOS ---
+    const btnVerAgenda = document.getElementById('btn-ver-agenda');
+    const btnEditarTurnos = document.getElementById('btn-editar-turnos');
+    const agendaTurnosCuadro = document.getElementById('agenda-turnos-cuadro');
+    const editarTurnosCuadro = document.getElementById('editar-turnos-cuadro');
+
+    if (btnVerAgenda && btnEditarTurnos && agendaTurnosCuadro && editarTurnosCuadro) {
+        btnVerAgenda.onclick = function () {
+            agendaTurnosCuadro.style.display = 'block';
+            editarTurnosCuadro.style.display = 'none';
+            agendaTurnosCuadro.innerHTML = '<div class="panel panel-default"><div class="panel-heading"><strong>Agenda de turnos</strong></div><div class="panel-body">Aquí se mostrará la agenda.</div></div>';
+        };
+        btnEditarTurnos.onclick = function () {
+            editarTurnosCuadro.style.display = 'block';
+            agendaTurnosCuadro.style.display = 'none';
+            editarTurnosCuadro.innerHTML = '<div class="panel panel-default"><div class="panel-heading"><strong>Editar turnos</strong></div><div class="panel-body">Aquí se podrá editar los turnos.</div></div>';
         };
     }
 });

@@ -70,6 +70,13 @@ document.addEventListener('DOMContentLoaded', function () {
             if (sec) {
                 const s = document.getElementById(sec.id);
                 if (s) s.style.display = '';
+                // Si es la sección Turnos, inicializa el calendario
+                if (sec.id === 'seccion-turnos') {
+                    setTimeout(() => {
+                        inicializarCalendarioTurnos();
+                        if (calendar) calendar.updateSize();
+                    }, 100);
+                }
             }
             // Oculta y limpia el formulario de alta y búsqueda de paciente
             const nuevoPacienteForm = document.getElementById('nuevo-paciente-form');
@@ -318,9 +325,9 @@ document.addEventListener('DOMContentLoaded', function () {
             <td>${mov.id}</td>
             <td>${mov.fecha}</td>
             <td title="${mov.descripcion.replace(/"/g, '&quot;')}">${mov.descripcion}</td>
-            <td>${mov.ingreso !== '' && mov.ingreso !== undefined && mov.ingreso !== null ? `$${parseFloat(mov.ingreso).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
-            <td>${mov.gasto !== '' && mov.gasto !== undefined && mov.gasto !== null ? `$${parseFloat(mov.gasto).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
-            <td>${mov.total !== '' && mov.total !== undefined && mov.total !== null ? `$${parseFloat(mov.total).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
+            <td>${mov.ingreso !== '' && mov.ingreso !== undefined && mov.ingreso !== null ? `$${parseFloat(mov.ingreso).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
+            <td>${mov.gasto !== '' && mov.gasto !== undefined && mov.gasto !== null ? `$${parseFloat(mov.gasto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
+            <td>${mov.total !== '' && mov.total !== undefined && mov.total !== null ? `$${parseFloat(mov.total).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
             <td>
                 <button class="btn-editar-mov btn btn-link" title="Editar"><i class="fa fa-edit"></i></button>
             </td>
@@ -433,9 +440,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                                     <td>${mov.id}</td>
                                                     <td>${mov.fecha}</td>
                                                     <td title="${mov.descripcion.replace(/"/g, '&quot;')}">${mov.descripcion}</td>
-                                                    <td>${mov.ingreso !== '' && mov.ingreso !== undefined && mov.ingreso !== null ? `$${parseFloat(mov.ingreso).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
-                                                    <td>${mov.gasto !== '' && mov.gasto !== undefined && mov.gasto !== null ? `$${parseFloat(mov.gasto).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
-                                                    <td>${mov.total !== '' && mov.total !== undefined && mov.total !== null ? `$${parseFloat(mov.total).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2})}` : ''}</td>
+                                                    <td>${mov.ingreso !== '' && mov.ingreso !== undefined && mov.ingreso !== null ? `$${parseFloat(mov.ingreso).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
+                                                    <td>${mov.gasto !== '' && mov.gasto !== undefined && mov.gasto !== null ? `$${parseFloat(mov.gasto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
+                                                    <td>${mov.total !== '' && mov.total !== undefined && mov.total !== null ? `$${parseFloat(mov.total).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</td>
                                                     <td>
                                                         <button class="btn-editar-mov btn btn-link" title="Editar"><i class="fa fa-edit"></i></button>
                                                     </td>
@@ -476,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Autoajustar textarea al escribir
         const textarea = tds[2].querySelector('#edit-descripcion');
         if (textarea) {
-            textarea.addEventListener('input', function() {
+            textarea.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });
@@ -636,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <select id="select-resumen-mensual" class="form-control">
                     <option value="">-- Seleccione un mes --</option>
                     ${meses.map(mes => `
-                        <option value="${mes.nombre}" data-inicio="${mes.inicio.toISOString().slice(0,10)}" data-fin="${mes.fin.toISOString().slice(0,10)}">
+                        <option value="${mes.nombre}" data-inicio="${mes.inicio.toISOString().slice(0, 10)}" data-fin="${mes.fin.toISOString().slice(0, 10)}">
                             ${mes.nombre}
                         </option>
                     `).join('')}
@@ -708,9 +715,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <tbody>
                                 <tr>
                                     <td>${periodo}</td>
-                                    <td>$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                    <td>$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                    <td>$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${ingresoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${gastoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                     <td style="text-align:center;">
                                         <button id="btn-imprimir-detalle" class="btn btn-link" title="Imprimir">
                                             <i class="fa fa-print"></i>
@@ -768,8 +775,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             <tr>
                                 <td>${m.fecha}</td>
                                 <td>${m.descripcion}</td>
-                                <td>${m.ingreso ? '$' + parseFloat(m.ingreso).toLocaleString('es-AR', {minimumFractionDigits:2}) : ''}</td>
-                                <td>${m.gasto ? '$' + parseFloat(m.gasto).toLocaleString('es-AR', {minimumFractionDigits:2}) : ''}</td>
+                                <td>${m.ingreso ? '$' + parseFloat(m.ingreso).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : ''}</td>
+                                <td>${m.gasto ? '$' + parseFloat(m.gasto).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : ''}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -777,15 +784,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 <table class="table table-bordered resumen-final">
                     <tr>
                         <td style="text-align:left;">Ingreso total</td>
-                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td style="text-align:left;">Gasto total</td>
-                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td style="text-align:left;">Neto mensual</td>
-                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 </table>
             </body>
@@ -905,9 +912,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <tbody>
                                 <tr>
                                     <td>${anio}</td>
-                                    <td>$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                    <td>$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                    <td>$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                    <td>$${ingresoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${gastoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                    <td>$${neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                     <td style="text-align:center;">
                                         <button id="btn-imprimir-detalle-anual" class="btn btn-link" title="Imprimir">
                                             <i class="fa fa-print"></i>
@@ -931,9 +938,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                     ${meses.map(m => `
                                         <tr>
                                             <td>${m.nombre}</td>
-                                            <td>$${m.ingreso.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                            <td>$${m.gasto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                            <td>$${m.neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                            <td>$${m.ingreso.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                            <td>$${m.gasto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                            <td>$${m.neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -986,9 +993,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${meses.map(m => `
                             <tr>
                                 <td>${m.nombre}</td>
-                                <td>$${m.ingreso.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                <td>$${m.gasto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
-                                <td>$${m.neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                                <td>$${m.ingreso.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                <td>$${m.gasto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                                <td>$${m.neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -996,15 +1003,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 <table class="table table-bordered resumen-final">
                     <tr>
                         <td style="text-align:left;">Ingreso total</td>
-                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${ingresoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td style="text-align:left;">Gasto total</td>
-                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${gastoTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                         <td style="text-align:left;">Neto anual</td>
-                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', {minimumFractionDigits:2})}</td>
+                        <td style="text-align:right;">$${neto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 </table>
             </body>
@@ -1043,5 +1050,244 @@ document.addEventListener('DOMContentLoaded', function () {
             agendaTurnosCuadro.style.display = 'none';
             editarTurnosCuadro.innerHTML = '<div class="panel panel-default"><div class="panel-heading"><strong>Editar turnos</strong></div><div class="panel-body">Aquí se podrá editar los turnos.</div></div>';
         };
+    }
+
+    // --- CÓDIGO DEL CALENDARIO DE TURNOS CON LOCALSTORAGE Y CITAS PERIÓDICAS ---
+    let calendar; // Principal
+    let calendarPeriodico; // Nuevo calendario para citas periódicas
+
+    function inicializarCalendarioTurnos() {
+        const calendarioDiv = document.getElementById('calendario-turnos');
+        const btnCitaPeriodica = document.getElementById('btn-cita-periodica');
+        const contenedorPeriodico = document.getElementById('contenedor-cita-periodica');
+
+        // Si el botón no existe, lo agregamos
+        if (!btnCitaPeriodica) {
+            const btn = document.createElement('button');
+            btn.id = 'btn-cita-periodica';
+            btn.className = 'btn btn-primary';
+            btn.innerText = 'Generar cita periódica';
+            calendarioDiv.parentNode.insertBefore(btn, calendarioDiv);
+        }
+
+        // Si el contenedor no existe, lo agregamos
+        if (!contenedorPeriodico) {
+            const div = document.createElement('div');
+            div.id = 'contenedor-cita-periodica';
+            div.style.display = 'none';
+            calendarioDiv.parentNode.appendChild(div);
+        }
+
+        // Funciones para manejar turnos en localStorage
+        function cargarTurnosLS() {
+            try {
+                return JSON.parse(localStorage.getItem('turnos-smiles')) || [];
+            } catch {
+                return [];
+            }
+        }
+        function guardarTurnosLS(turnos) {
+            localStorage.setItem('turnos-smiles', JSON.stringify(turnos));
+        }
+
+        // Inicializa el calendario principal
+        let turnos = cargarTurnosLS();
+
+        if (!calendar) {
+            calendar = new FullCalendar.Calendar(calendarioDiv, {
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                buttonText: {
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana',
+                    day: 'Día',
+                    list: 'Agenda'
+                },
+                selectable: true,
+                editable: true,
+                events: turnos,
+                slotMinTime: "08:00:00",
+                slotMaxTime: "18:00:00",
+                slotDuration: "01:00:00",
+                allDaySlot: false,
+                height: "auto",
+                slotLabelFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                },
+                dateClick: function (info) {
+                    const isTimeGrid = calendar.view.type === 'timeGridWeek' || calendar.view.type === 'timeGridDay';
+                    const paciente = prompt('Nombre del paciente para el turno:');
+                    if (paciente) {
+                        const nuevoTurno = {
+                            id: Date.now().toString(),
+                            title: paciente,
+                            start: info.dateStr,
+                            allDay: !isTimeGrid
+                        };
+                        calendar.addEvent(nuevoTurno);
+                        turnos.push(nuevoTurno);
+                        guardarTurnosLS(turnos);
+                    }
+                },
+                eventClick: function (info) {
+                    if (confirm('¿Eliminar este turno?')) {
+                        info.event.remove();
+                        turnos = turnos.filter(ev => ev.id !== info.event.id);
+                        guardarTurnosLS(turnos);
+                    }
+                },
+                eventDrop: function (info) {
+                    const idx = turnos.findIndex(ev => ev.id === info.event.id);
+                    if (idx !== -1) {
+                        turnos[idx].start = info.event.startStr;
+                        if (info.event.end) turnos[idx].end = info.event.endStr;
+                        turnos[idx].allDay = info.event.allDay;
+                        guardarTurnosLS(turnos);
+                    }
+                },
+                eventResize: function (info) {
+                    const idx = turnos.findIndex(ev => ev.id === info.event.id);
+                    if (idx !== -1) {
+                        turnos[idx].start = info.event.startStr;
+                        if (info.event.end) turnos[idx].end = info.event.endStr;
+                        turnos[idx].allDay = info.event.allDay;
+                        guardarTurnosLS(turnos);
+                    }
+                }
+            });
+            calendar.render();
+        } else {
+            calendar.render();
+            calendar.updateSize();
+        }
+
+        // Evento para mostrar el calendario de citas periódicas
+        document.getElementById('btn-cita-periodica').onclick = function () {
+            calendarioDiv.style.display = 'none';
+            document.getElementById('btn-cita-periodica').style.display = 'none';
+            document.getElementById('contenedor-cita-periodica').style.display = 'block';
+
+            // Renderizar calendario semanal para citas periódicas
+            renderizarCalendarioPeriodico();
+        };
+
+        function renderizarCalendarioPeriodico() {
+            const contenedor = document.getElementById('contenedor-cita-periodica');
+            contenedor.innerHTML = `
+                <button id="btn-volver-calendario" class="btn btn-secondary" style="margin-bottom:15px;">Volver al calendario</button>
+                <div id="calendario-periodico"></div>
+                <div id="opciones-periodicas" style="margin-top:20px; display:none;">
+                    <div><strong>Repetir:</strong></div>
+                    <label><input type="radio" name="repeticion" value="semanal" checked> Semanalmente</label>
+                    <label style="margin-left:15px;"><input type="radio" name="repeticion" value="2semanas"> Cada 2 semanas</label>
+                    <label style="margin-left:15px;"><input type="radio" name="repeticion" value="mensual"> Mensualmente</label>
+                    <div style="margin-top:10px;">
+                        <label>Hasta: <input type="date" id="fecha-hasta-periodica" required></label>
+                    </div>
+                    <button id="btn-registrar-periodica" class="btn btn-success" style="margin-top:15px;">Registrar cita periódica</button>
+                </div>
+            `;
+
+            // Botón volver
+            document.getElementById('btn-volver-calendario').onclick = function () {
+                contenedor.style.display = 'none';
+                calendarioDiv.style.display = '';
+                document.getElementById('btn-cita-periodica').style.display = '';
+            };
+
+            // Inicializar calendario semanal
+            const calendarioPeriodicoDiv = document.getElementById('calendario-periodico');
+            let turnosSemana = cargarTurnosLS().filter(ev => {
+                const fecha = new Date(ev.start);
+                return fecha.getDay() >= 1 && fecha.getDay() <= 5; // Lunes a viernes
+            });
+
+            if (calendarPeriodico) {
+                calendarPeriodico.destroy();
+            }
+
+            calendarPeriodico = new FullCalendar.Calendar(calendarioPeriodicoDiv, {
+                initialView: 'timeGridWeek',
+                locale: 'es',
+                headerToolbar: false,
+                slotMinTime: "08:00:00",
+                slotMaxTime: "18:00:00",
+                slotDuration: "01:00:00",
+                allDaySlot: false,
+                height: "auto",
+                selectable: true,
+                editable: false,
+                weekends: false,
+                events: turnosSemana,
+                slotLabelFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                },
+                dateClick: function (info) {
+                    // Mostrar opciones de repetición debajo
+                    const opciones = document.getElementById('opciones-periodicas');
+                    opciones.style.display = 'block';
+                    opciones.setAttribute('data-fecha', info.dateStr);
+                }
+            });
+            calendarPeriodico.render();
+
+            // Registrar cita periódica
+            document.getElementById('btn-registrar-periodica').onclick = function () {
+                const opciones = document.getElementById('opciones-periodicas');
+                const fechaElegida = opciones.getAttribute('data-fecha');
+                const repeticion = document.querySelector('input[name="repeticion"]:checked').value;
+                const fechaHasta = document.getElementById('fecha-hasta-periodica').value;
+                if (!fechaElegida || !fechaHasta) {
+                    alert('Debe seleccionar un horario y una fecha de finalización.');
+                    return;
+                }
+                const paciente = prompt('Nombre del paciente para la cita periódica:');
+                if (!paciente) return;
+
+                // Generar las fechas de repetición
+                let eventos = [];
+                let fechaActual = new Date(fechaElegida);
+                const fin = new Date(fechaHasta);
+                let incremento = 7; // días
+                if (repeticion === '2semanas') incremento = 14;
+                if (repeticion === 'mensual') incremento = 30;
+
+                while (fechaActual <= fin) {
+                    eventos.push({
+                        id: Date.now().toString() + Math.random(),
+                        title: paciente,
+                        start: fechaActual.toISOString(),
+                        allDay: false
+                    });
+                    if (repeticion === 'mensual') {
+                        // Avanza un mes exacto
+                        const mes = fechaActual.getMonth();
+                        fechaActual.setMonth(mes + 1);
+                    } else {
+                        fechaActual.setDate(fechaActual.getDate() + incremento);
+                    }
+                }
+
+                // Guardar en localStorage y actualizar ambos calendarios
+                let turnos = cargarTurnosLS();
+                turnos = turnos.concat(eventos);
+                guardarTurnosLS(turnos);
+
+                alert('Cita periódica registrada.');
+                // Volver al calendario principal
+                document.getElementById('btn-volver-calendario').click();
+                inicializarCalendarioTurnos();
+            };
+        }
     }
 });

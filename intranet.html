@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/tooplate-style.css">
     <link rel="stylesheet" href="css/intranet.css">
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
 </head>
 
@@ -183,12 +183,9 @@
             <div class="row">
                 <div class="col-md-12 text-align-center">
                     <h2>Turnos</h2>
-                    <div class="botones-turnos" style="margin-bottom:20px;">
-                        <button class="btn-turnos" id="btn-ver-agenda">Ver Agenda</button>
-                        <button class="btn-turnos" id="btn-editar-turnos">Editar turnos</button>
-                    </div>
-                    <div id="agenda-turnos-cuadro" style="display:none;"></div>
-                    <div id="editar-turnos-cuadro" style="display:none;"></div>
+                    <!-- Calendario interactivo de turnos -->
+                    <div id="calendario-turnos"></div>
+                    <div id="contenedor-cita-periodica" style="display:none;"></div>
                 </div>
             </div>
         </div>
@@ -278,7 +275,8 @@
      <script src="js/External/owl.carousel.min.js"></script>
      <script src="js/External/custom.js"></script>
      <script src="js/Mi JS/index.js"></script>
-     <script src="js/Mi JS/intranet.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+        <script src="js/Mi JS/intranet.js"></script>
 </body>
 
 </html>

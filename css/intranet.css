@@ -62,6 +62,7 @@ footer {
 
 /* BOTONES PRINCIPALES GRANDES VIOLETA */
 
+.btn-mantenimiento,
 .btn-paciente,
 .btn-contabilidad,
 .btn-turnos {
@@ -77,6 +78,7 @@ footer {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.btn-mantenimiento:hover,
 .btn-paciente:hover,
 .btn-contabilidad:hover,
 .btn-turnos:hover {
@@ -84,6 +86,7 @@ footer {
 }
 
 /* Contenedores de botones principales */
+.botones-mantenimiento
 .botones-pacientes,
 .botones-contabilidad,
 .botones-turnos {
@@ -91,6 +94,7 @@ footer {
     justify-content: center;
     gap: 40px;
     margin: 40px 0;
+    flex-wrap: wrap;
 }
 
 @media (max-width: 1000px) {
@@ -209,13 +213,18 @@ footer {
         margin: 0;
     }
 
+    .botones-mantenimiento,
     .botones-pacientes,
     .botones-contabilidad,
     .botones-turnos {
+        display: flex;
         flex-direction: column;
         gap: 15px;
         align-items: stretch;
+        margin: 0 0 20px 0;
     }
+
+    .btn-mantenimiento,
     .btn-paciente,
     .btn-contabilidad,
     .btn-turnos {

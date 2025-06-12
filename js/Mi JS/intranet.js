@@ -1,64 +1,28 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // --- LOGIN ---
+    // --- ELIMINAR LOGIN, ACCESO LIBRE A LA INTRANET ---
+    // Elimina el contenedor de login si existe
     const loginContainer = document.getElementById('login-container');
+    if (loginContainer) loginContainer.remove();
+
+    // Muestra el contenido principal de la intranet
     const mainContent = document.getElementById('intranet-home');
-    const loginForm = document.getElementById('login-form');
-    const loginError = document.getElementById('login-error');
-
-    // IDs de las secciones principales
-    const secciones = [
-        { id: 'seccion-pacientes', btn: 'Pacientes' },
-        { id: 'seccion-turnos', btn: 'Turnos' },
-        { id: 'seccion-contabilidad', btn: 'Contabilidad' },
-        { id: 'seccion-mantenimiento', btn: 'Mantenimiento' },
-        { id: 'seccion-insumos', btn: 'Insumos' }
-    ];
-
-    // Oculta el contenido principal y secciones al cargar
-    if (mainContent) mainContent.style.display = 'none';
-    secciones.forEach(sec => {
-        const s = document.getElementById(sec.id);
-        if (s) s.style.display = 'none';
-    });
-
-    // let logueado = false;
-
-    // --- LOGIN SUBMIT ---
-    // loginForm.addEventListener('submit', function (e) {
-    //     e.preventDefault();
-    //     const dni = document.getElementById('dni').value.trim();
-    //     const password = document.getElementById('password').value;
-
-    //     // Usuario hardcodeado
-    //     if (dni === '34479253' && password === 'Feoypeste12') {
-    //         loginContainer.style.display = 'none';
-    //         if (mainContent) mainContent.style.display = '';
-    //         logueado = true;
-    //     } else {
-    //         loginError.style.display = 'block';
-    //     }
-    // });
-
-    // OMITIR LOGIN PROVISORIAMENTE
-    if (loginContainer) loginContainer.style.display = 'none';
     if (mainContent) mainContent.style.display = '';
+
+    // Elimina cualquier referencia o validación de login
     let logueado = true;
 
-    /* 
-    --------------------------------------------------------------------------
-    |     FUNCIONES PARA PACIENTES (y correcciones de navegación)            |
-    --------------------------------------------------------------------------
-    */
+    // Elimina cualquier evento de submit del login (por si queda en el DOM)
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.onsubmit = function (e) {
+            e.preventDefault();
+            return false;
+        };
+    }
 
-    // --- NAVEGACIÓN ENTRE SECCIONES ---
+    // Elimina validaciones de login en la navegación
     document.querySelectorAll('.navbar-nav li a.smoothScroll').forEach(link => {
         link.addEventListener('click', function (e) {
-            const texto = this.textContent.trim();
-            // Solo permite mostrar secciones si está logueado
-            if (!logueado) {
-                e.preventDefault();
-                return;
-            }
             // Oculta todas las secciones
             if (mainContent) mainContent.style.display = 'none';
             secciones.forEach(sec => {
@@ -66,18 +30,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (s) s.style.display = 'none';
             });
             // Muestra la sección correspondiente
+            const texto = this.textContent.trim();
             const sec = secciones.find(sec => sec.btn.toLowerCase() === texto.toLowerCase());
             if (sec) {
                 const s = document.getElementById(sec.id);
                 if (s) s.style.display = '';
-                // Si es la sección Turnos, inicializa el calendario
                 if (sec.id === 'seccion-turnos') {
                     setTimeout(() => {
                         inicializarCalendarioTurnos();
                         if (calendar) calendar.updateSize();
                     }, 100);
                 }
-                // Si es la sección Insumos, inicializa los botones y paneles
                 if (sec.id === 'seccion-insumos') {
                     setTimeout(() => {
                         inicializarSeccionInsumos();
@@ -113,8 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
         window.formNuevoPacienteHTML = formNuevoPaciente.outerHTML;
     }
 
-    // Mostrar cuadro de búsqueda al hacer click en "Buscar paciente"
-    if (btnBuscarPaciente && busquedaPaciente && nuevoPacienteForm && formNuevoPaciente) {
+    // Mostrar cuadro de búsqueda y listado al hacer click en "Buscar paciente"
+    if (btnBuscarPaciente && busquedaPaciente) {
         btnBuscarPaciente.addEventListener('click', function () {
             busquedaPaciente.style.display = 'block';
             nuevoPacienteForm.style.display = 'none';
@@ -122,18 +85,109 @@ document.addEventListener('DOMContentLoaded', function () {
             // Limpiar edad calculada
             const edadInput = document.getElementById('edad-nuevo');
             if (edadInput) edadInput.value = '';
-        });
-    }
 
-    // Mostrar formulario de nuevo paciente al hacer click en "Nuevo paciente"
-    if (btnNuevoPaciente && nuevoPacienteForm && busquedaPaciente && formNuevoPaciente) {
-        btnNuevoPaciente.addEventListener('click', function () {
-            nuevoPacienteForm.style.display = 'block';
-            busquedaPaciente.style.display = 'none';
-            formNuevoPaciente.reset();
-            // Limpiar edad calculada
-            const edadInput = document.getElementById('edad-nuevo');
-            if (edadInput) edadInput.value = '';
+            // --- Listado de pacientes de prueba ---
+            const pacientes = [
+                { id: 1, apellido: "García", nombre: "Ana", dni: "30123456", telefono: "1122334455", email: "ana@correo.com", fechaNac: "1990-05-10" },
+                { id: 2, apellido: "Pérez", nombre: "Juan", dni: "28987654", telefono: "1133445566", email: "juan@correo.com", fechaNac: "1985-11-22" },
+                { id: 3, apellido: "López", nombre: "María", dni: "31234567", telefono: "1144556677", email: "maria@correo.com", fechaNac: "1992-03-15" },
+                { id: 4, apellido: "Fernández", nombre: "Carlos", dni: "32345678", telefono: "1155667788", email: "carlos@correo.com", fechaNac: "1988-07-30" },
+                { id: 5, apellido: "Martínez", nombre: "Laura", dni: "33456789", telefono: "1166778899", email: "laura@correo.com", fechaNac: "1995-12-01" },
+                { id: 6, apellido: "Gómez", nombre: "Pedro", dni: "34567890", telefono: "1177889900", email: "pedro@correo.com", fechaNac: "1982-09-18" },
+                { id: 7, apellido: "Sánchez", nombre: "Lucía", dni: "35678901", telefono: "1188990011", email: "lucia@correo.com", fechaNac: "1998-02-25" },
+                { id: 8, apellido: "Romero", nombre: "Diego", dni: "36789012", telefono: "1199001122", email: "diego@correo.com", fechaNac: "1987-06-12" },
+                { id: 9, apellido: "Torres", nombre: "Sofía", dni: "37890123", telefono: "1100112233", email: "sofia@correo.com", fechaNac: "1993-11-05" },
+                { id: 10, apellido: "Ruiz", nombre: "Martín", dni: "38901234", telefono: "1111223344", email: "martin@correo.com", fechaNac: "1989-04-20" },
+                { id: 11, apellido: "Alvarez", nombre: "Valentina", dni: "39012345", telefono: "1122334456", email: "valentina@correo.com", fechaNac: "1996-08-14" },
+                { id: 12, apellido: "Moreno", nombre: "Javier", dni: "40123456", telefono: "1133445567", email: "javier@correo.com", fechaNac: "1983-01-09" },
+                { id: 13, apellido: "Muñoz", nombre: "Camila", dni: "41234567", telefono: "1144556678", email: "camila@correo.com", fechaNac: "1991-10-23" },
+                { id: 14, apellido: "Jiménez", nombre: "Lucas", dni: "42345678", telefono: "1155667789", email: "lucas@correo.com", fechaNac: "1986-05-17" },
+                { id: 15, apellido: "Díaz", nombre: "Florencia", dni: "43456789", telefono: "1166778890", email: "florencia@correo.com", fechaNac: "1994-12-29" }
+            ];
+
+            // Renderizar tabla de pacientes dentro del cuadro de búsqueda
+            let tablaPacientes = `
+                <div class="table-responsive" style="margin-top:20px;">
+                    <table class="table table-bordered table-striped" id="tabla-pacientes">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Apellido</th>
+                                <th style="text-align:left;">Nombre</th>
+                                <th>DNI</th>
+                                <th>Edad</th>
+                                <th>Teléfono</th>
+                                <th style="text-align:left;">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pacientes.map(p => {
+                                // Calcular edad
+                                let edad = '';
+                                if (p.fechaNac) {
+                                    const hoy = new Date();
+                                    const fn = new Date(p.fechaNac);
+                                    edad = hoy.getFullYear() - fn.getFullYear();
+                                    const m = hoy.getMonth() - fn.getMonth();
+                                    if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
+                                        edad--;
+                                    }
+                                    edad = isNaN(edad) ? '' : edad;
+                                }
+                                return `
+                                    <tr data-id="${p.id}" style="cursor:pointer;">
+                                        <td style="text-align:left;">${p.apellido}</td>
+                                        <td style="text-align:left;">${p.nombre}</td>
+                                        <td>${p.dni}</td>
+                                        <td>${edad}</td>
+                                        <td>${p.telefono}</td>
+                                        <td style="text-align:left;">${p.email}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            // Inserta la tabla debajo del formulario de búsqueda
+            busquedaPaciente.innerHTML = `
+                <form class="form-inline" id="form-busqueda-pacientes" onsubmit="return false;">
+                    <input type="text" id="input-buscar-paciente" class="form-control"
+                        placeholder="Ingrese al menos 3 letras para buscar" style="width:300px; max-width:90%;">
+                    <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
+                    <button type="button" class="btn btn-default" id="btn-mostrar-todo" style="margin-left:10px;">Mostrar todo</button>
+                </form>
+                ${tablaPacientes}
+            `;
+
+            // Función para normalizar texto (quita acentos y pasa a minúsculas)
+            function normalizarTexto(texto) {
+                return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            }
+
+            // Evento de búsqueda en la tabla
+            const formBusquedaPacientes = document.getElementById('form-busqueda-pacientes');
+            if (formBusquedaPacientes) {
+                formBusquedaPacientes.onsubmit = function (e) {
+                    e.preventDefault();
+                    const valor = busquedaPaciente.querySelector('#input-buscar-paciente').value.trim();
+                    if (valor.length < 3) {
+                        alert('Ingrese al menos 3 caracteres para buscar.');
+                        return;
+                    }
+                    const valorNorm = normalizarTexto(valor);
+                    const filas = busquedaPaciente.querySelectorAll('#tabla-pacientes tbody tr');
+                    filas.forEach(tr => {
+                        const texto = normalizarTexto(tr.textContent);
+                        tr.style.display = texto.includes(valorNorm) ? '' : 'none';
+                    });
+                };
+                // Botón mostrar todo
+                document.getElementById('btn-mostrar-todo').onclick = function () {
+                    busquedaPaciente.querySelector('#input-buscar-paciente').value = '';
+                    const filas = busquedaPaciente.querySelectorAll('#tabla-pacientes tbody tr');
+                    filas.forEach(tr => tr.style.display = '');
+                };
+            }
         });
     }
 
@@ -1433,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Renderiza la tabla con una fila nueva editable al principio
+    // Renderiza la tabla with una fila nueva editable al principio
     function renderListadoInsumosConFilaNueva(filtro, modo, agregarNueva) {
         const panel = document.getElementById('panel-listado-insumos');
         let insumos = cargarInsumosLS();
@@ -1577,4 +1631,270 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
     }
+
+    const secciones = [
+        { id: 'intranet-home', btn: 'Bienvenido a la Intranet' },
+        { id: 'seccion-pacientes', btn: 'Pacientes' },
+        { id: 'seccion-turnos', btn: 'Turnos' },
+        { id: 'seccion-contabilidad', btn: 'Contabilidad' },
+        { id: 'seccion-mantenimiento', btn: 'Mantenimiento' },
+        { id: 'seccion-insumos', btn: 'Insumos' }
+    ];
+
+    // --- NUEVO CÓDIGO: ACCESO DIRECTO A CARGA DE PACIENTE ---
+    if (btnNuevoPaciente && nuevoPacienteForm && busquedaPaciente && formNuevoPaciente) {
+        btnNuevoPaciente.addEventListener('click', function () {
+            // Oculta el cuadro de búsqueda/listado
+            busquedaPaciente.style.display = 'none';
+            // Muestra el formulario de nuevo paciente
+            nuevoPacienteForm.style.display = 'block';
+            // Limpia el formulario
+            formNuevoPaciente.reset();
+            // Limpia edad calculada si existe
+            const edadInput = document.getElementById('edad-nuevo');
+            if (edadInput) edadInput.value = '';
+        });
+    }
+
+    // --- FUNCIONES DE PAGINACIÓN Y CHECKBOXES GENERALES ---
+    function renderTablaConPaginacion({
+        container,
+        columnas,
+        datos,
+        filasPorPagina = 10,
+        opcionesFilas = [10, 20, 50, 100],
+        onEditar,
+        onEliminar,
+        renderFila,
+        renderCabeceraExtra = '',
+        tablaId = '',
+        tablaClass = '',
+        checkboxes = false // <--- NUEVO: por defecto no hay checkboxes
+    }) {
+        let paginaActual = 1;
+        let seleccionados = new Set();
+        let filasPorPag = filasPorPagina;
+
+        function render() {
+            const totalPaginas = Math.ceil(datos.length / filasPorPag) || 1;
+            paginaActual = Math.max(1, Math.min(paginaActual, totalPaginas));
+            const inicio = (paginaActual - 1) * filasPorPag;
+            const datosPagina = datos.slice(inicio, inicio + filasPorPag);
+
+            // Cabecera de acciones (solo si hay checkboxes)
+            let accionesHtml = checkboxes ? `
+                <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;gap:10px;">
+                    <button id="btn-editar-fila" class="btn btn-primary" ${seleccionados.size === 1 ? '' : 'disabled'}>Editar</button>
+                    <button id="btn-eliminar-filas" class="btn btn-danger" ${seleccionados.size > 0 ? '' : 'disabled'}>Eliminar</button>
+                </div>
+            ` : '';
+
+            // Selector de cantidad de filas
+            let selectorFilas = `
+                <div style="margin-bottom:10px;">
+                    <label>Filas por página:
+                        <select id="select-filas-pagina" class="form-control" style="width:auto;display:inline-block;">
+                            ${opcionesFilas.map(op => `<option value="${op}" ${op == filasPorPag ? 'selected' : ''}>${op}</option>`).join('')}
+                        </select>
+                    </label>
+                </div>
+            `;
+
+            // Cabecera de la tabla
+            let cabecera = `<tr>`;
+            if (checkboxes) {
+                cabecera += `<th style="text-align:center;"><input type="checkbox" id="check-todos"></th>`;
+            }
+            cabecera += columnas.map(col =>
+                `<th style="text-align:center;${col.align ? ` text-align:${col.align};` : ''}">${col.titulo}</th>`
+            ).join('');
+            cabecera += renderCabeceraExtra + `</tr>`;
+
+            // Filas de la tabla
+            let filas = datosPagina.map((fila, idx) => {
+                const globalIdx = inicio + idx;
+                let filaHtml = `<tr data-idx="${globalIdx}">`;
+                if (checkboxes) {
+                    filaHtml += `<td><input type="checkbox" class="check-fila" data-idx="${globalIdx}" ${seleccionados.has(globalIdx) ? 'checked' : ''}></td>`;
+                }
+                filaHtml += renderFila(fila, globalIdx);
+                filaHtml += `</tr>`;
+                return filaHtml;
+            }).join('');
+
+            // Paginación
+            let paginacion = `
+                <div style="text-align:center;margin:10px 0;">
+                    <button class="btn btn-default btn-xs" id="btn-pag-prev" ${paginaActual === 1 ? 'disabled' : ''}>Anterior</button>
+                    <span style="margin:0 15px;">Página ${paginaActual} de ${totalPaginas}</span>
+                    <button class="btn btn-default btn-xs" id="btn-pag-next" ${paginaActual === totalPaginas ? 'disabled' : ''}>Siguiente</button>
+                </div>
+            `;
+
+            container.innerHTML = `
+                ${accionesHtml}
+                ${selectorFilas}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped ${tablaClass}" id="${tablaId}">
+                        <thead>${cabecera}</thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                </div>
+                ${paginacion}
+            `;
+
+            // Eventos de paginación
+            container.querySelector('#btn-pag-prev').onclick = () => { paginaActual--; render(); };
+            container.querySelector('#btn-pag-next').onclick = () => { paginaActual++; render(); };
+            container.querySelector('#select-filas-pagina').onchange = function () {
+                filasPorPag = parseInt(this.value, 10);
+                paginaActual = 1;
+                render();
+            };
+
+            if (checkboxes) {
+                // Checkbox general
+                const checkTodos = container.querySelector('#check-todos');
+                checkTodos.checked = datosPagina.length > 0 && datosPagina.every((_, idx) => seleccionados.has(inicio + idx));
+                checkTodos.onchange = function () {
+                    datosPagina.forEach((_, idx) => {
+                        const globalIdx = inicio + idx;
+                        if (this.checked) {
+                            seleccionados.add(globalIdx);
+                        } else {
+                            seleccionados.delete(globalIdx);
+                        }
+                    });
+                    render();
+                };
+
+                // Checkbox por fila
+                container.querySelectorAll('.check-fila').forEach(chk => {
+                    chk.onchange = function () {
+                        const idx = parseInt(this.getAttribute('data-idx'), 10);
+                        if (this.checked) {
+                            seleccionados.add(idx);
+                        } else {
+                            seleccionados.delete(idx);
+                        }
+                        render();
+                    };
+                });
+
+                // Botones de acción
+                container.querySelector('#btn-editar-fila').onclick = () => {
+                    if (seleccionados.size === 1 && typeof onEditar === 'function') {
+                        onEditar([...seleccionados][0]);
+                    }
+                };
+                container.querySelector('#btn-eliminar-filas').onclick = () => {
+                    if (seleccionados.size > 0 && typeof onEliminar === 'function') {
+                        onEliminar([...seleccionados]);
+                    }
+                };
+            }
+        }
+        render();
+    }
+
+    // --- PACIENTES: listado SIN checkboxes ---
+    if (btnBuscarPaciente && busquedaPaciente) {
+        btnBuscarPaciente.addEventListener('click', function () {
+            busquedaPaciente.style.display = 'block';
+            nuevoPacienteForm.style.display = 'none';
+            formNuevoPaciente.reset();
+            const edadInput = document.getElementById('edad-nuevo');
+            if (edadInput) edadInput.value = '';
+
+            // Listado de pacientes de prueba
+            const pacientes = [
+                { id: 1, apellido: "García", nombre: "Ana", dni: "30123456", telefono: "1122334455", email: "ana@correo.com", fechaNac: "1990-05-10" },
+                { id: 2, apellido: "Pérez", nombre: "Juan", dni: "28987654", telefono: "1133445566", email: "juan@correo.com", fechaNac: "1985-11-22" },
+                { id: 3, apellido: "López", nombre: "María", dni: "31234567", telefono: "1144556677", email: "maria@correo.com", fechaNac: "1992-03-15" },
+                { id: 4, apellido: "Fernández", nombre: "Carlos", dni: "32345678", telefono: "1155667788", email: "carlos@correo.com", fechaNac: "1988-07-30" },
+                { id: 5, apellido: "Martínez", nombre: "Laura", dni: "33456789", telefono: "1166778899", email: "laura@correo.com", fechaNac: "1995-12-01" },
+                { id: 6, apellido: "Gómez", nombre: "Pedro", dni: "34567890", telefono: "1177889900", email: "pedro@correo.com", fechaNac: "1982-09-18" },
+                { id: 7, apellido: "Sánchez", nombre: "Lucía", dni: "35678901", telefono: "1188990011", email: "lucia@correo.com", fechaNac: "1998-02-25" },
+                { id: 8, apellido: "Romero", nombre: "Diego", dni: "36789012", telefono: "1199001122", email: "diego@correo.com", fechaNac: "1987-06-12" },
+                { id: 9, apellido: "Torres", nombre: "Sofía", dni: "37890123", telefono: "1100112233", email: "sofia@correo.com", fechaNac: "1993-11-05" },
+                { id: 10, apellido: "Ruiz", nombre: "Martín", dni: "38901234", telefono: "1111223344", email: "martin@correo.com", fechaNac: "1989-04-20" },
+                { id: 11, apellido: "Alvarez", nombre: "Valentina", dni: "39012345", telefono: "1122334456", email: "valentina@correo.com", fechaNac: "1996-08-14" },
+                { id: 12, apellido: "Moreno", nombre: "Javier", dni: "40123456", telefono: "1133445567", email: "javier@correo.com", fechaNac: "1983-01-09" },
+                { id: 13, apellido: "Muñoz", nombre: "Camila", dni: "41234567", telefono: "1144556678", email: "camila@correo.com", fechaNac: "1991-10-23" },
+                { id: 14, apellido: "Jiménez", nombre: "Lucas", dni: "42345678", telefono: "1155667789", email: "lucas@correo.com", fechaNac: "1986-05-17" },
+                { id: 15, apellido: "Díaz", nombre: "Florencia", dni: "43456789", telefono: "1166778890", email: "florencia@correo.com", fechaNac: "1994-12-29" }
+            ];
+
+            renderTablaConPaginacion({
+                container: busquedaPaciente,
+                columnas: [
+                    { titulo: 'Apellido', align: 'left' },
+                    { titulo: 'Nombre', align: 'left' },
+                    { titulo: 'DNI' },
+                    { titulo: 'Edad' },
+                    { titulo: 'Teléfono' },
+                    { titulo: 'Email', align: 'left' }
+                ],
+                datos: pacientes,
+                filasPorPagina: 10,
+                opcionesFilas: [10, 20, 50, 100],
+                renderFila: (p, idx) => {
+                    // Calcular edad
+                    let edad = '';
+                    if (p.fechaNac) {
+                        const hoy = new Date();
+                        const fn = new Date(p.fechaNac);
+                        edad = hoy.getFullYear() - fn.getFullYear();
+                        const m = hoy.getMonth() - fn.getMonth();
+                        if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
+                            edad--;
+                        }
+                        edad = isNaN(edad) ? '' : edad;
+                    }
+                    return `
+                        <td style="text-align:left;">${p.apellido}</td>
+                        <td style="text-align:left;">${p.nombre}</td>
+                        <td>${p.dni}</td>
+                        <td>${edad}</td>
+                        <td>${p.telefono}</td>
+                        <td style="text-align:left;">${p.email}</td>
+                    `;
+                },
+                // No checkboxes en pacientes
+                checkboxes: false
+            });
+        });
+    }
+
+    // --- CONTABILIDAD E INSUMOS: usa renderTablaConPaginacion CON checkboxes ---
+    // Ejemplo para insumos:
+    function renderListadoInsumosConPaginacion(insumos) {
+        renderTablaConPaginacion({
+            container: document.getElementById('panel-listado-insumos'),
+            columnas: [
+                { titulo: 'Fecha de ingreso' },
+                { titulo: 'Descripción', align: 'left' },
+                { titulo: 'Fecha Vencimiento' },
+                { titulo: 'Cantidad' }
+            ],
+            datos: insumos,
+            filasPorPagina: 10,
+            opcionesFilas: [10, 20, 50, 100],
+            renderFila: (i, idx) => `
+                <td>${i.fechaIngreso || ''}</td>
+                <td style="text-align:left;">${i.descripcion || ''}</td>
+                <td>${i.fechaVencimiento || ''}</td>
+                <td>${i.cantidad != null ? i.cantidad : ''}</td>
+            `,
+            checkboxes: true,
+            onEditar: (idx) => {
+                // Lógica de edición de insumo seleccionado
+            },
+            onEliminar: (idxs) => {
+                // Lógica de eliminación de insumos seleccionados
+            }
+        });
+    }
+
+    // Haz lo mismo para la tabla de "últimos movimientos" en contabilidad.
 });

@@ -234,3 +234,9 @@ footer {
         margin: 0;
     }
 }
+
+/* Resalta filas de tabla al pasar el mouse */
+.table tbody tr:hover {
+    background-color: #f3e6fa !important;
+    transition: background 0.2s;
+}

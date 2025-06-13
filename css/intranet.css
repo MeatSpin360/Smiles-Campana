@@ -86,8 +86,7 @@ footer {
 }
 
 /* Contenedores de botones principales */
-.botones-mantenimiento
-.botones-pacientes,
+.botones-mantenimiento .botones-pacientes,
 .botones-contabilidad,
 .botones-turnos {
     display: flex;
@@ -98,22 +97,24 @@ footer {
 }
 
 @media (max-width: 1000px) {
-  .navbar-header {
-    width: 10%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .navbar-toggle {
-    margin-right: 0;
-    margin-left: auto;
-    float: right !important;
-  }
-  .navbar-brand {
-    margin-left: 0;
-    margin-right: auto;
-    float: left !important;
-  }
+    .navbar-header {
+        width: 10%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .navbar-toggle {
+        margin-right: 0;
+        margin-left: auto;
+        float: right !important;
+    }
+
+    .navbar-brand {
+        margin-left: 0;
+        margin-right: auto;
+        float: left !important;
+    }
 }
 
 /* ESPACIO CONTABILIDAD */
@@ -239,4 +240,246 @@ footer {
 .table tbody tr:hover {
     background-color: #f3e6fa !important;
     transition: background 0.2s;
+}
+
+/* Espacio entre la barra de búsqueda y la tabla de pacientes */
+#busqueda-paciente #tabla-pacientes-paginada {
+    margin-top: 20px;
+}
+
+/* Encabezados fijos para la tabla de insumos con scroll */
+#panel-listado-insumos .table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+#panel-listado-insumos table thead th {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+}
+
+
+/* VENTANA EMERGENTE PACIENTES */
+
+.ficha-modal-bg {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10000;
+}
+
+.ficha-modal-content {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px #0002;
+    max-width: 1050px; /* antes 800px */
+    width: 98vw;
+    height: 100vh;           /* Cambia max-height por height */
+    max-height: 100vh;       /* Opcional, para asegurar límite */
+    overflow-y: auto;
+    z-index: 10001;
+    padding: 30px 30px 20px 30px;
+}
+
+.ficha-modal-close {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 2em;
+    background: none;
+    border: none;
+    color: #964ec0;
+    cursor: pointer;
+}
+
+.ficha-header {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.ficha-foto img {
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid #eee;
+}
+
+.ficha-datos {
+    flex: 1;
+}
+
+.ficha-datos-personales {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 30px;
+    margin-top: 10px;
+}
+
+.ficha-datos-personales>div {
+    min-width: 160px;
+}
+
+.ficha-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+    border-bottom: 2px solid #eee;
+    margin-top: 10px;
+}
+
+.ficha-tab {
+    background: none;
+    border: none;
+    padding: 10px 18px;
+    font-weight: bold;
+    color: #964ec0;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: border 0.2s;
+}
+
+.ficha-tab.active {
+    border-bottom: 3px solid #964ec0;
+    color: #573b8a;
+}
+
+.ficha-tab-content {
+    background: #faf8fd;
+    border-radius: 8px;
+    margin-top: 0;
+    min-height: 180px;
+}
+
+@media (max-width: 600px) {
+    .ficha-modal-content {
+        padding: 10px;
+    }
+
+    .ficha-header {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ficha-foto img {
+        width: 80px;
+        height: 80px;
+    }
+
+    .ficha-datos-personales>div {
+        min-width: 120px;
+    }
+}
+
+/* Puedes agregar esto a intranet.css o un archivo odontograma-inicial.css */
+.odontograma-inicial-imagenes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+}
+.fila-comentarios {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 2px;
+    justify-content: center;
+}
+.comentario-diente-superior,
+.comentario-diente-inferior {
+    width: 48px;
+    font-size: 11px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    padding: 2px 4px;
+    text-align: center;
+    margin-bottom: 0;
+}
+.fila-dientes {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+.diente {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+}
+.diente img {
+    width: 48px;
+    height: 48px;
+    transition: box-shadow 0.2s, filter 0.2s;
+    border-radius: 6px;
+    border: 2px solid #eee;
+    background: #fff;
+}
+.diente img:hover {
+    box-shadow: 0 0 0 3px #964ec0;
+    border-color: #964ec0;
+}
+.menu-hallazgos {
+    background: #fff;
+    border: 1px solid #964ec0;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px #0002;
+    min-width: 160px;
+    padding: 8px 0 4px 0;
+    position: absolute;
+    z-index: 20000;
+}
+.menu-hallazgos ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.menu-hallazgos li {
+    padding: 8px 18px;
+    cursor: pointer;
+    color: #573b8a;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+.menu-hallazgos li:hover {
+    background: #f3e6fa;
+    color: #964ec0;
+}
+.color-circulo {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    margin-left: 6px;
+}
+.btn-zona {
+    background: #f3e6fa;
+    border: 1px solid #964ec0;
+    color: #573b8a;
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin: 0 2px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-zona:hover {
+    background: #964ec0;
+    color: #fff;
 }

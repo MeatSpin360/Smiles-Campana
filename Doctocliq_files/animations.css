@@ -1,0 +1,104 @@
+﻿.productfruits--body-margin-animated {
+  transition: margin-top 0.7s;
+}
+.productfruits--body-padding-animated {
+    transition: padding-top .7s, padding-bottom .7s;
+}
+
+/**
+    ANIMATIONS
+*/
+.productfruits--animation-shake {
+  animation: productfruits--animationkeys-shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  /*transform: translate3d(0, 0, 0);*/
+}
+
+@keyframes productfruits--animationkeys-shake {
+  10%, 90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%, 80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%, 50%, 70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  40%, 60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+.productfruits--animation-rubberband {
+  animation: productfruits--animationkeys-rubberband 0.9s;
+}
+
+@keyframes productfruits--animationkeys-rubberband {
+  from {
+    -webkit-transform: scale3d(1, 1, 1);
+    transform: scale3d(1, 1, 1);
+  }
+  30% {
+    -webkit-transform: scale3d(1.25, 0.75, 1);
+    transform: scale3d(1.25, 0.75, 1);
+  }
+  40% {
+    -webkit-transform: scale3d(0.75, 1.25, 1);
+    transform: scale3d(0.75, 1.25, 1);
+  }
+  50% {
+    -webkit-transform: scale3d(1.15, 0.85, 1);
+    transform: scale3d(1.15, 0.85, 1);
+  }
+  65% {
+    -webkit-transform: scale3d(0.95, 1.05, 1);
+    transform: scale3d(0.95, 1.05, 1);
+  }
+  75% {
+    -webkit-transform: scale3d(1.05, 0.95, 1);
+    transform: scale3d(1.05, 0.95, 1);
+  }
+  to {
+    -webkit-transform: scale3d(1, 1, 1);
+    transform: scale3d(1, 1, 1);
+  }
+}
+.productfruits--animation-flash {
+  animation: productfruits--animationkeys-flash 0.9s;
+}
+
+@keyframes productfruits--animationkeys-flash {
+  from, 50%, to {
+    opacity: 1;
+  }
+  25%, 75% {
+    opacity: 0;
+  }
+}
+.productfruits--animation-blurbg {
+  animation: productfruits--animationkeys-blurbg 1.5s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes productfruits--animationkeys-blurbg {
+  0% {
+    -webkit-filter: blur(0px);
+  }
+  50% {
+    -webkit-filter: blur(20px);
+  }
+  100% {
+    -webkit-filter: blur(40px);
+  }
+}
+.productfruits--animation-slidein-left {
+  animation: productfruits--animationkeys-slidein-left 0.4s;
+  animation-fill-mode: forwards;
+}
+
+@keyframes productfruits--animationkeys-slidein-left {
+  1% {
+    transform: translateX(-200px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}

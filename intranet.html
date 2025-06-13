@@ -90,11 +90,13 @@
                     </div>
                     <!-- Cuadro de búsqueda oculto por defecto -->
                     <div id="busqueda-paciente" style="display:none; margin-top:30px;">
-                        <form class="form-inline" onsubmit="return false;">
+                        <form class="form-inline" id="form-busqueda-pacientes" onsubmit="return false;">
                             <input type="text" id="input-buscar-paciente" class="form-control"
                                 placeholder="Ingrese un dato del paciente" style="width:300px; max-width:90%;">
                             <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
+                            <button type="button" class="btn btn-default" id="btn-mostrar-todo" style="margin-left:10px;">Mostrar todo</button>
                         </form>
+                        <div id="tabla-pacientes-paginada"></div>
                     </div>
                     <!-- Cuadro de Nuevo Paciente -->
                     <div id="nuevo-paciente-form" style="display:none; margin-top:30px;">

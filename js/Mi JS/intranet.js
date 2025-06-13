@@ -82,7 +82,6 @@ document.addEventListener('DOMContentLoaded', function () {
             busquedaPaciente.style.display = 'block';
             nuevoPacienteForm.style.display = 'none';
             formNuevoPaciente.reset();
-            // Limpiar edad calculada
             const edadInput = document.getElementById('edad-nuevo');
             if (edadInput) edadInput.value = '';
 
@@ -104,90 +103,79 @@ document.addEventListener('DOMContentLoaded', function () {
                 { id: 14, apellido: "Jiménez", nombre: "Lucas", dni: "42345678", telefono: "1155667789", email: "lucas@correo.com", fechaNac: "1986-05-17" },
                 { id: 15, apellido: "Díaz", nombre: "Florencia", dni: "43456789", telefono: "1166778890", email: "florencia@correo.com", fechaNac: "1994-12-29" }
             ];
+            let pacientesFiltrados = pacientes.slice();
 
-            // Renderizar tabla de pacientes dentro del cuadro de búsqueda
-            let tablaPacientes = `
-                <div class="table-responsive" style="margin-top:20px;">
-                    <table class="table table-bordered table-striped" id="tabla-pacientes">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;">Apellido</th>
-                                <th style="text-align:left;">Nombre</th>
-                                <th>DNI</th>
-                                <th>Edad</th>
-                                <th>Teléfono</th>
-                                <th style="text-align:left;">Email</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${pacientes.map(p => {
-                                // Calcular edad
-                                let edad = '';
-                                if (p.fechaNac) {
-                                    const hoy = new Date();
-                                    const fn = new Date(p.fechaNac);
-                                    edad = hoy.getFullYear() - fn.getFullYear();
-                                    const m = hoy.getMonth() - fn.getMonth();
-                                    if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
-                                        edad--;
-                                    }
-                                    edad = isNaN(edad) ? '' : edad;
-                                }
-                                return `
-                                    <tr data-id="${p.id}" style="cursor:pointer;">
-                                        <td style="text-align:left;">${p.apellido}</td>
-                                        <td style="text-align:left;">${p.nombre}</td>
-                                        <td>${p.dni}</td>
-                                        <td>${edad}</td>
-                                        <td>${p.telefono}</td>
-                                        <td style="text-align:left;">${p.email}</td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            // Inserta la tabla debajo del formulario de búsqueda
-            busquedaPaciente.innerHTML = `
-                <form class="form-inline" id="form-busqueda-pacientes" onsubmit="return false;">
-                    <input type="text" id="input-buscar-paciente" class="form-control"
-                        placeholder="Ingrese al menos 3 letras para buscar" style="width:300px; max-width:90%;">
-                    <button type="submit" class="btn btn-primary" id="btn-ejecutar-busqueda">Buscar</button>
-                    <button type="button" class="btn btn-default" id="btn-mostrar-todo" style="margin-left:10px;">Mostrar todo</button>
-                </form>
-                ${tablaPacientes}
-            `;
-
-            // Función para normalizar texto (quita acentos y pasa a minúsculas)
             function normalizarTexto(texto) {
                 return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
             }
 
-            // Evento de búsqueda en la tabla
+            function renderPacientesFiltrados() {
+                renderTablaConPaginacion({
+                    container: document.getElementById('tabla-pacientes-paginada'),
+                    columnas: [
+                        { titulo: 'Apellido', align: 'left' },
+                        { titulo: 'Nombre', align: 'left' },
+                        { titulo: 'DNI' },
+                        { titulo: 'Edad' },
+                        { titulo: 'Teléfono' },
+                        { titulo: 'Email', align: 'left' }
+                    ],
+                    datos: pacientesFiltrados,
+                    filasPorPagina: 10,
+                    opcionesFilas: [10, 20, 50, 100],
+                    renderFila: (p, idx) => {
+                        let edad = '';
+                        if (p.fechaNac) {
+                            const hoy = new Date();
+                            const fn = new Date(p.fechaNac);
+                            edad = hoy.getFullYear() - fn.getFullYear();
+                            const m = hoy.getMonth() - fn.getMonth();
+                            if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
+                                edad--;
+                            }
+                            edad = isNaN(edad) ? '' : edad;
+                        }
+                        // Hacemos clickeable la fila
+                        return `
+                            <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.apellido}</td>
+                            <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.nombre}</td>
+                            <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.dni}</td>
+                            <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${edad}</td>
+                            <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.telefono}</td>
+                            <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.email}</td>
+                        `;
+                    },
+                    checkboxes: false
+                });
+            }
+
+            // Evento de búsqueda
             const formBusquedaPacientes = document.getElementById('form-busqueda-pacientes');
             if (formBusquedaPacientes) {
                 formBusquedaPacientes.onsubmit = function (e) {
                     e.preventDefault();
-                    const valor = busquedaPaciente.querySelector('#input-buscar-paciente').value.trim();
+                    const valor = document.getElementById('input-buscar-paciente').value.trim();
                     if (valor.length < 3) {
                         alert('Ingrese al menos 3 caracteres para buscar.');
                         return;
                     }
                     const valorNorm = normalizarTexto(valor);
-                    const filas = busquedaPaciente.querySelectorAll('#tabla-pacientes tbody tr');
-                    filas.forEach(tr => {
-                        const texto = normalizarTexto(tr.textContent);
-                        tr.style.display = texto.includes(valorNorm) ? '' : 'none';
-                    });
+                    pacientesFiltrados = pacientes.filter(p =>
+                        normalizarTexto(
+                            `${p.apellido} ${p.nombre} ${p.dni} ${p.telefono} ${p.email}`
+                        ).includes(valorNorm)
+                    );
+                    renderPacientesFiltrados();
                 };
-                // Botón mostrar todo
                 document.getElementById('btn-mostrar-todo').onclick = function () {
-                    busquedaPaciente.querySelector('#input-buscar-paciente').value = '';
-                    const filas = busquedaPaciente.querySelectorAll('#tabla-pacientes tbody tr');
-                    filas.forEach(tr => tr.style.display = '');
+                    document.getElementById('input-buscar-paciente').value = '';
+                    pacientesFiltrados = pacientes.slice();
+                    renderPacientesFiltrados();
                 };
             }
+
+            // Renderiza la tabla paginada al abrir la sección
+            renderPacientesFiltrados();
         });
     }
 
@@ -1564,7 +1552,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Editar insumo
-        panel.querySelectorAll('.btn-editar-insumo').forEach(btn => {
+        panel.querySelectorAll('.btn-editar-insumo').forEach((btn) => {
             btn.onclick = function () {
                 const tr = this.closest('tr');
                 if (panel.querySelector('input, textarea')) return;
@@ -1689,16 +1677,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             ` : '';
 
-            // Selector de cantidad de filas
-            let selectorFilas = `
-                <div style="margin-bottom:10px;">
-                    <label>Filas por página:
-                        <select id="select-filas-pagina" class="form-control" style="width:auto;display:inline-block;">
-                            ${opcionesFilas.map(op => `<option value="${op}" ${op == filasPorPag ? 'selected' : ''}>${op}</option>`).join('')}
-                        </select>
-                    </label>
-                </div>
-            `;
+            // Paginación con selector de filas alineado a la derecha, debajo de la tabla
+            let paginacion = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 0 0;">
+        <div></div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+            <div>
+                <button class="btn btn-default btn-xs" id="btn-pag-primera" ${paginaActual === 1 ? 'disabled' : ''} title="Primera página">
+                    <i class="fa fa-angle-double-left"></i>
+                </button>
+                <button class="btn btn-default btn-xs" id="btn-pag-prev" ${paginaActual === 1 ? 'disabled' : ''} title="Anterior">
+                    <i class="fa fa-angle-left"></i>
+                </button>
+                <span style="margin:0 15px;">Página ${paginaActual} de ${totalPaginas}</span>
+                <button class="btn btn-default btn-xs" id="btn-pag-next" ${paginaActual === totalPaginas ? 'disabled' : ''} title="Siguiente">
+                    <i class="fa fa-angle-right"></i>
+                </button>
+                <button class="btn btn-default btn-xs" id="btn-pag-ultima" ${paginaActual === totalPaginas ? 'disabled' : ''} title="Última página">
+                    <i class="fa fa-angle-double-right"></i>
+                </button>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;min-width:220px;">
+            <label style="margin-bottom:0;">
+                Filas por página:
+                <select id="select-filas-pagina" class="form-control" style="width:auto;display:inline-block;">
+                    ${opcionesFilas.map(op => `<option value="${op}" ${op == filasPorPag ? 'selected' : ''}>${op}</option>`).join('')}
+                </select>
+            </label>
+        </div>
+    </div>
+`;
 
             // Cabecera de la tabla
             let cabecera = `<tr>`;
@@ -1722,18 +1731,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return filaHtml;
             }).join('');
 
-            // Paginación
-            let paginacion = `
-                <div style="text-align:center;margin:10px 0;">
-                    <button class="btn btn-default btn-xs" id="btn-pag-prev" ${paginaActual === 1 ? 'disabled' : ''}>Anterior</button>
-                    <span style="margin:0 15px;">Página ${paginaActual} de ${totalPaginas}</span>
-                    <button class="btn btn-default btn-xs" id="btn-pag-next" ${paginaActual === totalPaginas ? 'disabled' : ''}>Siguiente</button>
-                </div>
-            `;
-
             container.innerHTML = `
                 ${accionesHtml}
-                ${selectorFilas}
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped ${tablaClass}" id="${tablaId}">
                         <thead>${cabecera}</thead>
@@ -1744,8 +1743,10 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
 
             // Eventos de paginación
+            container.querySelector('#btn-pag-primera').onclick = () => { paginaActual = 1; render(); };
             container.querySelector('#btn-pag-prev').onclick = () => { paginaActual--; render(); };
             container.querySelector('#btn-pag-next').onclick = () => { paginaActual++; render(); };
+            container.querySelector('#btn-pag-ultima').onclick = () => { paginaActual = totalPaginas; render(); };
             container.querySelector('#select-filas-pagina').onchange = function () {
                 filasPorPag = parseInt(this.value, 10);
                 paginaActual = 1;
@@ -1826,7 +1827,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ];
 
             renderTablaConPaginacion({
-                container: busquedaPaciente,
+                container: document.getElementById('tabla-pacientes-paginada'), // <--- CORRECTO
                 columnas: [
                     { titulo: 'Apellido', align: 'left' },
                     { titulo: 'Nombre', align: 'left' },
@@ -1839,7 +1840,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 filasPorPagina: 10,
                 opcionesFilas: [10, 20, 50, 100],
                 renderFila: (p, idx) => {
-                    // Calcular edad
                     let edad = '';
                     if (p.fechaNac) {
                         const hoy = new Date();
@@ -1851,50 +1851,280 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         edad = isNaN(edad) ? '' : edad;
                     }
+                    // Hacemos clickeable la fila
                     return `
-                        <td style="text-align:left;">${p.apellido}</td>
-                        <td style="text-align:left;">${p.nombre}</td>
-                        <td>${p.dni}</td>
-                        <td>${edad}</td>
-                        <td>${p.telefono}</td>
-                        <td style="text-align:left;">${p.email}</td>
+                        <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.apellido}</td>
+                        <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.nombre}</td>
+                        <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.dni}</td>
+                        <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${edad}</td>
+                        <td style="cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.telefono}</td>
+                        <td style="text-align:left;cursor:pointer;" class="td-paciente" data-idx="${idx}">${p.email}</td>
                     `;
                 },
-                // No checkboxes en pacientes
                 checkboxes: false
             });
-        });
-    }
 
-    // --- CONTABILIDAD E INSUMOS: usa renderTablaConPaginacion CON checkboxes ---
-    // Ejemplo para insumos:
-    function renderListadoInsumosConPaginacion(insumos) {
-        renderTablaConPaginacion({
-            container: document.getElementById('panel-listado-insumos'),
-            columnas: [
-                { titulo: 'Fecha de ingreso' },
-                { titulo: 'Descripción', align: 'left' },
-                { titulo: 'Fecha Vencimiento' },
-                { titulo: 'Cantidad' }
-            ],
-            datos: insumos,
-            filasPorPagina: 10,
-            opcionesFilas: [10, 20, 50, 100],
-            renderFila: (i, idx) => `
-                <td>${i.fechaIngreso || ''}</td>
-                <td style="text-align:left;">${i.descripcion || ''}</td>
-                <td>${i.fechaVencimiento || ''}</td>
-                <td>${i.cantidad != null ? i.cantidad : ''}</td>
-            `,
-            checkboxes: true,
-            onEditar: (idx) => {
-                // Lógica de edición de insumo seleccionado
-            },
-            onEliminar: (idxs) => {
-                // Lógica de eliminación de insumos seleccionados
+            // Evento para abrir ficha al hacer click en una fila
+            setTimeout(() => {
+                document.querySelectorAll('.td-paciente').forEach(td => {
+                    td.onclick = function () {
+                        const idx = parseInt(this.getAttribute('data-idx'), 10);
+                        const paciente = pacientes[idx];
+
+                        // Simulación de respuesta del backend para Ana García y Juan Pérez
+                        if (paciente.dni === "30123456") {
+                            // Ana García
+                            mostrarFichaPaciente({
+                                id: 1,
+                                apellido: "García",
+                                nombre: "Ana",
+                                dni: "30123456",
+                                edad: 34,
+                                fechaNac: "1990-05-10",
+                                telefono: "1122334455",
+                                email: "ana@correo.com",
+                                direccion: "Calle Falsa 123",
+                                ciudad: "Buenos Aires",
+                                provincia: "Buenos Aires",
+                                nacionalidad: "Argentina",
+                                foto: "https://randomuser.me/api/portraits/women/1.jpg"
+                            });
+                            return;
+                        }
+                        if (paciente.dni === "28987654") {
+                            // Juan Pérez
+                            mostrarFichaPaciente({
+                                id: 2,
+                                apellido: "Pérez",
+                                nombre: "Juan",
+                                dni: "28987654",
+                                edad: 39,
+                                fechaNac: "1985-11-22",
+                                telefono: "1133445566",
+                                email: "juan@correo.com",
+                                direccion: "Av. Siempre Viva 742",
+                                ciudad: "Córdoba",
+                                provincia: "Córdoba",
+                                nacionalidad: "Argentina",
+                                foto: "https://randomuser.me/api/portraits/men/2.jpg"
+                            });
+                            return;
+                        }
+
+                        // Para los demás, muestra los datos básicos
+                        mostrarFichaPaciente(paciente);
+                    };
+                });
+            }, 200);
+
+            // Ventana emergente de ficha de paciente
+            function mostrarFichaPaciente(paciente) {
+                // Cierra si ya existe
+                let modal = document.getElementById('modal-ficha-paciente');
+                if (modal) modal.remove();
+
+                // Estructura de la ficha
+                modal = document.createElement('div');
+                modal.id = 'modal-ficha-paciente';
+                modal.innerHTML = `
+                    <div class="ficha-modal-bg"></div>
+                    <div class="ficha-modal-content">
+                        <button class="ficha-modal-close" title="Cerrar">&times;</button>
+                        <div class="ficha-header">
+                            <div class="ficha-foto">
+                                <img src="${paciente.foto || 'images/user-default.png'}" alt="Foto paciente" />
+                            </div>
+                            <div class="ficha-datos">
+                                <h3>${paciente.apellido}, ${paciente.nombre}</h3>
+                                <div class="ficha-datos-personales">
+                                    <div><b>DNI:</b> ${paciente.dni || ''}</div>
+                                    <div><b>Edad:</b> ${paciente.edad || ''}</div>
+                                    <div><b>Fecha Nac.:</b> ${paciente.fechaNac || ''}</div>
+                                    <div><b>Teléfono:</b> ${paciente.telefono || ''}</div>
+                                    <div><b>Email:</b> ${paciente.email || ''}</div>
+                                    <div><b>Dirección:</b> ${paciente.direccion || ''}</div>
+                                    <div><b>Ciudad:</b> ${paciente.ciudad || ''}</div>
+                                    <div><b>Provincia:</b> ${paciente.provincia || ''}</div>
+                                    <div><b>Nacionalidad:</b> ${paciente.nacionalidad || ''}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ficha-tabs">
+                            <button class="ficha-tab active" data-tab="odontograma-inicial">Odontograma inicial</button>
+                            <button class="ficha-tab" data-tab="historia-clinica">Historia clínica</button>
+                            <button class="ficha-tab" data-tab="odontograma-actual">Odontograma actual</button>
+                            <button class="ficha-tab" data-tab="archivos">Archivos</button>
+                        </div>
+                        <div class="ficha-tab-content" id="ficha-tab-odontograma-inicial">
+                            <div id="odontograma-inicial-panel">
+                                <div class="odontograma-inicial-imagenes">
+                                    <!-- Comentarios superiores -->
+                                    <div class="fila-comentarios">
+                                        ${[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map(num => `
+                                            <input type="text" class="comentario-diente-superior" data-num="${num}" placeholder="Comentario">
+                                        `).join('')}
+                                    </div>
+                                    <!-- Dientes superiores -->
+                                    <div class="fila-dientes fila-superior">
+                                        ${[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map(num => `
+                                            <div class="diente" data-num="${num}">
+                                                <svg class="svg-diente" width="48" height="48" viewBox="0 0 48 48" data-num="${num}">
+                                                    <g>
+                                                        <!-- Corona (zona sup) -->
+                                                        <path class="diente-zona" data-zona="sup"
+                                                            d="M12,8 Q24,0 36,8 Q44,20 24,20 Q4,20 12,8 Z"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                        <!-- Centro (zona centro) -->
+                                                        <ellipse class="diente-zona" data-zona="centro"
+                                                            cx="24" cy="28" rx="14" ry="7"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                        <!-- Raíz (zona inf) -->
+                                                        <path class="diente-zona" data-zona="inf"
+                                                            d="M16,35 Q24,46 32,35 Q28,38 24,38 Q20,38 16,35 Z"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                    </g>
+                                                </svg>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <!-- Dientes inferiores -->
+                                    <div class="fila-dientes fila-inferior">
+                                        ${[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(num => `
+                                            <div class="diente" data-num="${num}">
+                                                <svg class="svg-diente" width="48" height="48" viewBox="0 0 48 48" data-num="${num}">
+                                                    <g>
+                                                        <!-- Corona (zona sup) -->
+                                                        <path class="diente-zona" data-zona="sup"
+                                                            d="M12,8 Q24,0 36,8 Q44,20 24,20 Q4,20 12,8 Z"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                        <!-- Centro (zona centro) -->
+                                                        <ellipse class="diente-zona" data-zona="centro"
+                                                            cx="24" cy="28" rx="14" ry="7"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                        <!-- Raíz (zona inf) -->
+                                                        <path class="diente-zona" data-zona="inf"
+                                                            d="M16,35 Q24,46 32,35 Q28,38 24,38 Q20,38 16,35 Z"
+                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
+                                                    </g>
+                                                </svg>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <!-- Comentarios inferiores -->
+                                    <div class="fila-comentarios">
+                                        ${[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(num => `
+                                            <input type="text" class="comentario-diente-inferior" data-num="${num}" placeholder="Comentario">
+                                        `).join('')}
+                                    </div>
+                                </div>
+                                <div id="menu-hallazgos" style="display:none;position:absolute;z-index:20000;" class="menu-hallazgos">
+                                    <ul>
+                                        <li data-hallazgo="caries" data-color="#f96969">Caries <span class="color-circulo" style="background:#f96969"></span></li>
+                                        <li data-hallazgo="restauracion" data-color="#4bd9a0">Restauración <span class="color-circulo" style="background:#4bd9a0"></span></li>
+                                        <li data-hallazgo="ausente" data-color="#bbb">Ausente <span class="color-circulo" style="background:#bbb"></span></li>
+                                        <li data-hallazgo="fractura" data-color="#f6bf26">Fractura <span class="color-circulo" style="background:#f6bf26"></span></li>
+                                        <li data-hallazgo="borrar" data-color="">Borrar <span class="color-circulo" style="background:#fff;border:1px solid #ccc"></span></li>
+                                    </ul>
+                                    <div style="font-size:12px;color:#888;text-align:center;margin-top:4px;">Colorear zona: 
+                                        <button class="btn-zona" data-zona="toda">Todo</button>
+                                        <button class="btn-zona" data-zona="sup">Sup</button>
+                                        <button class="btn-zona" data-zona="inf">Inf</button>
+                                        <button class="btn-zona" data-zona="izq">Izq</button>
+                                        <button class="btn-zona" data-zona="der">Der</button>
+                                        <button class="btn-zona" data-zona="centro">Centro</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ficha-tab-content" id="ficha-tab-historia-clinica" style="display:none;">
+                            <div style="padding:20px;text-align:center;color:#888;">(Historia clínica aquí)</div>
+                        </div>
+                        <div class="ficha-tab-content" id="ficha-tab-odontograma-actual" style="display:none;">
+                            <div style="padding:20px;text-align:center;color:#888;">(Odontograma actual aquí)</div>
+                        </div>
+                        <div class="ficha-tab-content" id="ficha-tab-archivos" style="display:none;">
+                            <div style="padding:20px;text-align:center;color:#888;">(Archivos del paciente aquí)</div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // Cerrar modal
+                modal.querySelector('.ficha-modal-close').onclick = () => modal.remove();
+                modal.querySelector('.ficha-modal-bg').onclick = () => modal.remove();
+
+                // Tabs
+                modal.querySelectorAll('.ficha-tab').forEach(tab => {
+                    tab.onclick = function () {
+                        modal.querySelectorAll('.ficha-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        modal.querySelectorAll('.ficha-tab-content').forEach(c => c.style.display = 'none');
+                        modal.querySelector(`#ficha-tab-${this.dataset.tab}`).style.display = '';
+                    };
+                });
+
+                // Odontograma inicial: menú de hallazgos
+                const panel = modal.querySelector('#odontograma-inicial-panel');
+                if (panel) {
+                    const menu = panel.querySelector('#menu-hallazgos');
+                    let dienteActivo = null;
+                    let zonaSeleccionada = 'toda';
+
+                    // Mostrar menú de hallazgos al hacer click en un diente
+                    panel.querySelectorAll('.svg-diente').forEach(svg => {
+                        svg.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            dienteActivo = this.closest('.diente');
+                            zonaSeleccionada = 'toda';
+                            menu.style.display = 'block';
+                            menu.style.left = e.clientX + 10 + 'px';
+                            menu.style.top = e.clientY + 10 + 'px';
+                        });
+                    });
+
+                    // Seleccionar hallazgo y colorear
+                    menu.querySelectorAll('li').forEach(item => {
+                        item.addEventListener('click', function () {
+                            if (!dienteActivo) return;
+                            const hallazgo = this.dataset.hallazgo;
+                            const color = this.dataset.color;
+                            const svg = dienteActivo.querySelector('.svg-diente');
+                            if (!svg) return;
+                            if (hallazgo === "borrar") {
+                                svg.querySelectorAll('.diente-zona').forEach(z => z.setAttribute('fill', '#fff'));
+                                dienteActivo.removeAttribute('data-hallazgo');
+                            } else {
+                                // Colorea la zona seleccionada
+                                if (zonaSeleccionada === 'toda') {
+                                    svg.querySelectorAll('.diente-zona').forEach(z => z.setAttribute('fill', color));
+                                } else {
+                                    svg.querySelectorAll('.diente-zona').forEach(z => {
+                                        if (z.getAttribute('data-zona') === zonaSeleccionada) {
+                                            z.setAttribute('fill', color);
+                                        }
+                                    });
+                                }
+                                dienteActivo.setAttribute('data-hallazgo', hallazgo);
+                            }
+                            menu.style.display = 'none';
+                        });
+                    });
+
+                    // Selección de zona
+                    menu.querySelectorAll('.btn-zona').forEach(btn => {
+                        btn.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            zonaSeleccionada = this.dataset.zona;
+                        });
+                    });
+
+                    // Ocultar menú al hacer click fuera
+                    document.addEventListener('click', function hideMenuHallazgos() {
+                        menu.style.display = 'none';
+                        document.removeEventListener('click', hideMenuHallazgos);
+                    });
+                }
             }
         });
     }
-
-    // Haz lo mismo para la tabla de "últimos movimientos" en contabilidad.
 });

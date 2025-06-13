@@ -1964,74 +1964,16 @@ document.addEventListener('DOMContentLoaded', function () {
                                             <input type="text" class="comentario-diente-superior" data-num="${num}" placeholder="Comentario">
                                         `).join('')}
                                     </div>
-                                    <!-- Dientes superiores -->
-                                    <div class="fila-dientes fila-superior">
-                                        ${[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28].map(num => `
-                                            <div class="diente" data-num="${num}">
-                                                <svg class="svg-diente" width="48" height="48" viewBox="0 0 48 48" data-num="${num}">
-                                                    <g>
-                                                        <!-- Corona (zona sup) -->
-                                                        <path class="diente-zona" data-zona="sup"
-                                                            d="M12,8 Q24,0 36,8 Q44,20 24,20 Q4,20 12,8 Z"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                        <!-- Centro (zona centro) -->
-                                                        <ellipse class="diente-zona" data-zona="centro"
-                                                            cx="24" cy="28" rx="14" ry="7"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                        <!-- Raíz (zona inf) -->
-                                                        <path class="diente-zona" data-zona="inf"
-                                                            d="M16,35 Q24,46 32,35 Q28,38 24,38 Q20,38 16,35 Z"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                    </g>
-                                                </svg>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    <!-- Dientes inferiores -->
-                                    <div class="fila-dientes fila-inferior">
-                                        ${[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(num => `
-                                            <div class="diente" data-num="${num}">
-                                                <svg class="svg-diente" width="48" height="48" viewBox="0 0 48 48" data-num="${num}">
-                                                    <g>
-                                                        <!-- Corona (zona sup) -->
-                                                        <path class="diente-zona" data-zona="sup"
-                                                            d="M12,8 Q24,0 36,8 Q44,20 24,20 Q4,20 12,8 Z"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                        <!-- Centro (zona centro) -->
-                                                        <ellipse class="diente-zona" data-zona="centro"
-                                                            cx="24" cy="28" rx="14" ry="7"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                        <!-- Raíz (zona inf) -->
-                                                        <path class="diente-zona" data-zona="inf"
-                                                            d="M16,35 Q24,46 32,35 Q28,38 24,38 Q20,38 16,35 Z"
-                                                            fill="#fff" stroke="#bbb" stroke-width="1"/>
-                                                    </g>
-                                                </svg>
-                                            </div>
-                                        `).join('')}
+                                    <!-- Imagen del odontograma en vez de SVGs -->
+                                    <div class="odontograma-img-wrapper" style="display:flex;justify-content:center;position:relative;">
+                                        <img src="images/odontograma.jpg" alt="Odontograma" class="odontograma-img" style="width:100%;max-width:100%;height:auto;display:block;pointer-events:none;">
+                                        <canvas class="odontograma-canvas"></canvas>
                                     </div>
                                     <!-- Comentarios inferiores -->
                                     <div class="fila-comentarios">
                                         ${[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38].map(num => `
                                             <input type="text" class="comentario-diente-inferior" data-num="${num}" placeholder="Comentario">
                                         `).join('')}
-                                    </div>
-                                </div>
-                                <div id="menu-hallazgos" style="display:none;position:absolute;z-index:20000;" class="menu-hallazgos">
-                                    <ul>
-                                        <li data-hallazgo="caries" data-color="#f96969">Caries <span class="color-circulo" style="background:#f96969"></span></li>
-                                        <li data-hallazgo="restauracion" data-color="#4bd9a0">Restauración <span class="color-circulo" style="background:#4bd9a0"></span></li>
-                                        <li data-hallazgo="ausente" data-color="#bbb">Ausente <span class="color-circulo" style="background:#bbb"></span></li>
-                                        <li data-hallazgo="fractura" data-color="#f6bf26">Fractura <span class="color-circulo" style="background:#f6bf26"></span></li>
-                                        <li data-hallazgo="borrar" data-color="">Borrar <span class="color-circulo" style="background:#fff;border:1px solid #ccc"></span></li>
-                                    </ul>
-                                    <div style="font-size:12px;color:#888;text-align:center;margin-top:4px;">Colorear zona: 
-                                        <button class="btn-zona" data-zona="toda">Todo</button>
-                                        <button class="btn-zona" data-zona="sup">Sup</button>
-                                        <button class="btn-zona" data-zona="inf">Inf</button>
-                                        <button class="btn-zona" data-zona="izq">Izq</button>
-                                        <button class="btn-zona" data-zona="der">Der</button>
-                                        <button class="btn-zona" data-zona="centro">Centro</button>
                                     </div>
                                 </div>
                             </div>
@@ -2124,6 +2066,29 @@ document.addEventListener('DOMContentLoaded', function () {
                         document.removeEventListener('click', hideMenuHallazgos);
                     });
                 }
+
+                // Después de agregar el modal al DOM, ajusta el tamaño del canvas al de la imagen:
+                setTimeout(() => {
+                    const wrapper = modal.querySelector('.odontograma-img-wrapper');
+                    const img = wrapper.querySelector('.odontograma-img');
+                    const canvas = wrapper.querySelector('.odontograma-canvas');
+                    if (img && canvas) {
+                        // Espera a que la imagen cargue para obtener dimensiones reales
+                        img.onload = () => {
+                            canvas.width = img.clientWidth;
+                            canvas.height = img.clientHeight;
+                            canvas.style.width = img.clientWidth + 'px';
+                            canvas.style.height = img.clientHeight + 'px';
+                        };
+                        // Si la imagen ya está cargada
+                        if (img.complete) {
+                            canvas.width = img.clientWidth;
+                            canvas.height = img.clientHeight;
+                            canvas.style.width = img.clientWidth + 'px';
+                            canvas.style.height = img.clientHeight + 'px';
+                        }
+                    }
+                }, 100);
             }
         });
     }

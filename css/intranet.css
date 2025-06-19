@@ -86,7 +86,8 @@ footer {
 }
 
 /* Contenedores de botones principales */
-.botones-mantenimiento .botones-pacientes,
+.botones-mantenimiento,
+.botones-pacientes,
 .botones-contabilidad,
 .botones-turnos {
     display: flex;

@@ -1,10 +1,14 @@
+import { initPacientes } from './pacientes.js';
+import { initInsumos } from './insumos.js';
+import { initTurnos } from './turnos.js';
+import { initContabilidad } from './contabilidad.js';
+import { initMantenimiento } from './mantenimiento.js';
+
 document.addEventListener('DOMContentLoaded', function () {
-    // --- ELIMINAR LOGIN, ACCESO LIBRE A LA INTRANET ---
-    // Elimina el contenedor de login si existe
+    // --- ACCESO LIBRE A LA INTRANET: OCULTAR LOGIN Y MOSTRAR HOME ---
     const loginContainer = document.getElementById('login-container');
     if (loginContainer) loginContainer.remove();
 
-    // Muestra el contenido principal de la intranet
     const mainContent = document.getElementById('intranet-home');
     if (mainContent) mainContent.style.display = '';
 
@@ -20,49 +24,85 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    // Elimina validaciones de login en la navegación
+    // --- INICIALIZACIÓN MODULAR DE SECCIONES ---
+    initPacientes();
+    initInsumos();
+    initTurnos();
+    initContabilidad();
+    initMantenimiento();
+
+    // --- NAVEGACIÓN ENTRE SECCIONES ---
     document.querySelectorAll('.navbar-nav li a.smoothScroll').forEach(link => {
         link.addEventListener('click', function (e) {
-            // Oculta todas las secciones
-            if (mainContent) mainContent.style.display = 'none';
-            secciones.forEach(sec => {
-                const s = document.getElementById(sec.id);
-                if (s) s.style.display = 'none';
+            const texto = this.textContent.trim().toLowerCase();
+
+            // Oculta todas las secciones principales
+            [
+                'intranet-home',
+                'seccion-pacientes',
+                'seccion-turnos',
+                'seccion-contabilidad',
+                'seccion-mantenimiento',
+                'seccion-insumos'
+            ].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
             });
+
             // Muestra la sección correspondiente
-            const texto = this.textContent.trim();
-            const sec = secciones.find(sec => sec.btn.toLowerCase() === texto.toLowerCase());
-            if (sec) {
-                const s = document.getElementById(sec.id);
-                if (s) s.style.display = '';
-                if (sec.id === 'seccion-turnos') {
-                    setTimeout(() => {
-                        inicializarCalendarioTurnos();
-                        if (calendar) calendar.updateSize();
-                    }, 100);
-                }
-                if (sec.id === 'seccion-insumos') {
-                    setTimeout(() => {
-                        inicializarSeccionInsumos();
-                    }, 100);
-                }
+            if (texto === 'pacientes') {
+                const el = document.getElementById('seccion-pacientes');
+                if (el) el.style.display = '';
             }
-            // Oculta y limpia el formulario de alta y búsqueda de paciente
-            const nuevoPacienteForm = document.getElementById('nuevo-paciente-form');
-            const formNuevoPaciente = document.getElementById('form-nuevo-paciente');
-            const busquedaPaciente = document.getElementById('busqueda-paciente');
-            if (nuevoPacienteForm && formNuevoPaciente) {
-                nuevoPacienteForm.style.display = 'none';
-                formNuevoPaciente.reset();
-                const edadInput = document.getElementById('edad-nuevo');
-                if (edadInput) edadInput.value = '';
+            if (texto === 'turnos') {
+                const el = document.getElementById('seccion-turnos');
+                if (el) el.style.display = '';
+                setTimeout(() => {
+                    if (window.inicializarSeccionTurnos) window.inicializarSeccionTurnos();
+                }, 100);
             }
-            if (busquedaPaciente) {
-                busquedaPaciente.style.display = 'none';
+            if (texto === 'contabilidad') {
+                const el = document.getElementById('seccion-contabilidad');
+                if (el) el.style.display = '';
+                setTimeout(() => {
+                    if (window.inicializarSeccionContabilidad) window.inicializarSeccionContabilidad();
+                }, 100);
             }
+            if (texto === 'mantenimiento') {
+                const el = document.getElementById('seccion-mantenimiento');
+                if (el) el.style.display = '';
+                setTimeout(() => {
+                    if (window.inicializarSeccionMantenimiento) window.inicializarSeccionMantenimiento();
+                }, 100);
+            }
+            if (texto === 'insumos') {
+                const el = document.getElementById('seccion-insumos');
+                if (el) el.style.display = '';
+                setTimeout(() => {
+                    if (window.inicializarSeccionInsumos) window.inicializarSeccionInsumos();
+                }, 100);
+            }
+            if (texto === 'bienvenido a la intranet' || texto === 'home' || texto === 'inicio') {
+                const el = document.getElementById('intranet-home');
+                if (el) el.style.display = '';
+            }
+
             e.preventDefault();
         });
     });
+
+    // --- MOSTRAR HOME POR DEFECTO ---
+    [
+        'seccion-pacientes',
+        'seccion-turnos',
+        'seccion-contabilidad',
+        'seccion-mantenimiento',
+        'seccion-insumos'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    if (mainContent) mainContent.style.display = '';
 
     // --- PACIENTES: BOTONES Y FORMULARIO ---
     const btnBuscarPaciente = document.getElementById('btn-buscar-paciente');
@@ -2092,4 +2132,35 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // --- Inicialización modular ---
+    initInsumos();
+    initTurnos();
+    initContabilidad();
+
+    // Ejemplo de navegación:
+    document.querySelectorAll('.navbar-nav li a.smoothScroll').forEach(link => {
+        link.addEventListener('click', function (e) {
+            // ...código para ocultar/mostrar secciones...
+            const texto = this.textContent.trim().toLowerCase();
+            if (texto === 'insumos') {
+                setTimeout(() => {
+                    if (window.inicializarSeccionInsumos) window.inicializarSeccionInsumos();
+                }, 100);
+            }
+            if (texto === 'turnos') {
+                setTimeout(() => {
+                    if (window.inicializarSeccionTurnos) window.inicializarSeccionTurnos();
+                }, 100);
+            }
+            if (texto === 'contabilidad') {
+                setTimeout(() => {
+                    if (window.inicializarSeccionContabilidad) window.inicializarSeccionContabilidad();
+                }, 100);
+            }
+            e.preventDefault();
+        });
+    });
+
+    // ...resto del código modularizado...
 });

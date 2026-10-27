@@ -1,0 +1,18 @@
+// Configuración del sitio.
+// Mientras SUPABASE_URL y SUPABASE_ANON_KEY estén vacíos, el sistema funciona en
+// "modo demostración": los datos se guardan solo en el navegador que lo usa.
+// Para ponerlo online con datos reales, completá estos dos valores (ver README).
+
+export const SUPABASE_URL = '';
+export const SUPABASE_ANON_KEY = '';
+
+export const CONSULTORIO = {
+  nombre: 'Smiles Campana',
+  profesional: "Dra. Florencia Patricia D'Ambrosio",
+  especialidad: 'Ortodoncista, jefa de clínica',
+  direccion: 'Jean Jaurès 568, Campana, Buenos Aires',
+  telefono: '3487-728866',
+  whatsapp: '5493487728866',
+  email: 'smiles.campana@gmail.com',
+  instagram: 'https://www.instagram.com/smiles.campana',
+};

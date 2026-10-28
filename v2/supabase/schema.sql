@@ -135,37 +135,53 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- ---------- Alta automática al registrarse ----------
--- Crea el perfil (rol paciente). Si el registro trae DNI:
+-- 1) Al registrarse se crea el perfil (rol paciente).
+create or replace function al_registrarse() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  m jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
+begin
+  insert into perfiles (id, email, rol, nombre, apellido, dni)
+  values (new.id, new.email, 'paciente', m->>'nombre', m->>'apellido', nullif(trim(m->>'dni'), ''))
+  on conflict (id) do nothing;
+  return new;
+end $$;
+
+-- 2) La ficha se vincula recién cuando el email está confirmado, para que nadie
+--    pueda quedarse con la ficha de otra persona registrándose con su DNI. Con el DNI del registro:
 --   * sin ficha previa con ese DNI: crea la ficha y la vincula;
 --   * con ficha previa y mismo email: la vincula;
 --   * con ficha previa y otro email: queda pendiente para que recepción la vincule.
-create or replace function al_registrarse() returns trigger
+create or replace function al_confirmar_email() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
   m jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
   v_dni text := nullif(trim(m->>'dni'), '');
   v_pac pacientes%rowtype;
 begin
-  insert into perfiles (id, email, rol, nombre, apellido, dni)
-  values (new.id, new.email, 'paciente', m->>'nombre', m->>'apellido', v_dni)
-  on conflict (id) do nothing;
+  if new.email_confirmed_at is null or v_dni is null then return new; end if;
+  if tg_op = 'UPDATE' and old.email_confirmed_at is not null then return new; end if;
+  if exists (select 1 from pacientes where usuario_id = new.id) then return new; end if;
 
-  if v_dni is not null then
-    select * into v_pac from pacientes where dni = v_dni;
-    if not found then
-      insert into pacientes (dni, nombre, apellido, fecha_nac, telefono, email, usuario_id)
-      values (v_dni, coalesce(m->>'nombre', ''), coalesce(m->>'apellido', ''),
-              nullif(m->>'fecha_nac', '')::date, m->>'telefono', new.email, new.id);
-    elsif v_pac.usuario_id is null and lower(coalesce(v_pac.email, '')) = lower(new.email) then
-      update pacientes set usuario_id = new.id where id = v_pac.id;
-    end if;
+  select * into v_pac from pacientes where dni = v_dni;
+  if not found then
+    insert into pacientes (dni, nombre, apellido, fecha_nac, telefono, email, usuario_id)
+    values (v_dni, coalesce(m->>'nombre', ''), coalesce(m->>'apellido', ''),
+            nullif(m->>'fecha_nac', '')::date, m->>'telefono', new.email, new.id);
+  elsif v_pac.usuario_id is null and lower(coalesce(v_pac.email, '')) = lower(new.email) then
+    update pacientes set usuario_id = new.id where id = v_pac.id;
   end if;
   return new;
 end $$;
 
+-- Los disparadores corren en orden alfabético: primero el perfil, después la ficha.
 drop trigger if exists al_registrarse on auth.users;
-create trigger al_registrarse after insert on auth.users
+drop trigger if exists smiles_1_perfil on auth.users;
+create trigger smiles_1_perfil after insert on auth.users
   for each row execute function al_registrarse();
+drop trigger if exists smiles_2_vincular_ficha on auth.users;
+create trigger smiles_2_vincular_ficha after insert or update of email_confirmed_at on auth.users
+  for each row execute function al_confirmar_email();
 
 -- Solo un admin puede cambiar roles, y nunca el propio.
 -- (Desde el SQL Editor, sin usuario, sí se permite: así se crea el primer admin.)

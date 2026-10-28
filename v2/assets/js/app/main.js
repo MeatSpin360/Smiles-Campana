@@ -189,6 +189,13 @@ function marco(contenido, ruta) {
       h('nav.menu-inferior', { 'aria-label': 'Secciones' }, items.map((i) => enlace(i, 'menu-inf-item')))));
 }
 
-window.addEventListener('hashchange', cargarRuta);
+// Si se llega desde un enlace de email vencido, Supabase deja el error en la URL
+const errorEnlace = new URLSearchParams(location.hash.slice(1)).get('error_description');
 await recargarSesion();
-cargarRuta();
+window.addEventListener('hashchange', cargarRuta);
+if (errorEnlace) {
+  aviso('El enlace del email venció o ya se usó. Pedí uno nuevo.', 'error');
+  history.replaceState(null, '', location.pathname);
+}
+if (sesion && api.esRecuperacion?.()) navegar('/nueva-clave', { reemplazar: true });
+else cargarRuta();

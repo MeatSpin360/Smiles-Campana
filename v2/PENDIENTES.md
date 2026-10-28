@@ -8,14 +8,16 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Etapa 1: poner online
 
-- [ ] Supabase: crear proyecto, pegar `supabase/schema.sql`, completar `config.js`, crear el primer admin.
+- [x] Supabase: proyecto creado y `config.js` completado.
+- [x] Esquema cargado en Supabase y URL de autenticación configuradas (local).
+- [x] **Gmail como remitente** de los emails del sistema (confirmación de cuenta, recuperación de clave) con contraseña de aplicación. Obligatorio: el email incluido en Supabase solo envía al equipo del proyecto. Límite de Gmail: 500 destinatarios por día.
+- [x] Primer admin creado.
 - [ ] Cloudflare Pages conectado al repositorio, publicando la carpeta `v2`.
 - [ ] Dominio `smilescampana.com.ar`: agregarlo a Cloudflare y delegarlo desde NIC Argentina a los servidores DNS de Cloudflare.
 - [ ] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo.
 
 ## Etapa 2: integraciones con Google
 
-- [ ] **Gmail como remitente** de los emails del sistema (confirmación de cuenta, recuperación de clave) mediante contraseña de aplicación. Límite: 500 destinatarios por día.
 - [ ] **Aviso por email** al paciente cuando su turno se confirma o se rechaza.
 - [ ] **Google Calendar como espejo** de la agenda (solo turnos confirmados), en un solo sentido: sistema → Calendar, al instante, por la API de Google (no por suscripción ICS, que tarda 12 a 24 h en actualizarse). Desde que el sistema arranca, los turnos se dan solo en el sistema.
 - [ ] **Copia de seguridad semanal** de la base (y de las fotos) a Google Drive. El plan gratuito de Supabase no hace backups.

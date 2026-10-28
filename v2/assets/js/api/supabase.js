@@ -3,8 +3,14 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../config.js';
 import { isoEn, partes } from '../lib/dates.js';
 
+// Los enlaces de los emails (confirmar cuenta, recuperar clave) vuelven con la sesión en la URL.
+// Se detecta antes de crear el cliente, que limpia la URL al leerla.
+const vieneDeRecuperacion = /type=recovery/.test(location.hash);
+const volverA = `${location.origin}${location.pathname}`;
+
+// Flujo 'implicit': el enlace funciona aunque el email se abra en otro dispositivo.
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true },
+  auth: { persistSession: true, autoRefreshToken: true, flowType: 'implicit', detectSessionInUrl: true },
 });
 
 export const modoDemo = false;
@@ -25,6 +31,7 @@ async function sesionActual() {
 
 export const api = {
   // --- Sesión ---
+  esRecuperacion: () => vieneDeRecuperacion,
   async sesion() {
     const s = await sesionActual();
     if (!s) return null;
@@ -39,7 +46,7 @@ export const api = {
     await sb.auth.signOut();
   },
   async recuperarClave(email) {
-    ok(await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}${location.pathname}#/nueva-clave` }));
+    ok(await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: volverA }));
     return true;
   },
   async nuevaClave(clave) {
@@ -51,7 +58,7 @@ export const api = {
       password: clave,
       options: {
         data: { dni, nombre, apellido, telefono, fecha_nac },
-        emailRedirectTo: `${location.origin}${location.pathname}#/`,
+        emailRedirectTo: volverA,
       },
     }));
     return { requiereConfirmacion: !data.session };

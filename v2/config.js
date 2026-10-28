@@ -3,8 +3,8 @@
 // "modo demostración": los datos se guardan solo en el navegador que lo usa.
 // Para ponerlo online con datos reales, completá estos dos valores (ver README).
 
-export const SUPABASE_URL = '';
-export const SUPABASE_ANON_KEY = '';
+export const SUPABASE_URL = 'https://spmdxhnqvnintedcrnnw.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_tgF3pypzypXmKnQ0wdY5Cg_xRw8UqGu';
 
 export const CONSULTORIO = {
   nombre: 'Smiles Campana',

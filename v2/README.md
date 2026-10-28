@@ -86,6 +86,7 @@ En Supabase, **Authentication > URL Configuration**:
 
 - *Site URL*: la dirección del sitio, por ejemplo `https://smilescampana.com.ar`
 - *Redirect URLs*: agregar `https://smilescampana.com.ar/app.html**`
+- Para probar en la PC con Live Server, agregar también `http://127.0.0.1:5500/**` y `http://localhost:5500/**`
 
 ### 4. Crear el primer administrador
 
@@ -100,7 +101,7 @@ En Supabase, **Authentication > URL Configuration**:
 
 ### 5. Antes de usarlo con pacientes reales
 
-- **Emails**: el envío de emails incluido en Supabase está muy limitado (alrededor de 4 por hora) y suele caer en spam. Para confirmaciones y recuperación de clave conviene configurar un SMTP propio (por ejemplo Brevo o Resend) en **Project Settings > Authentication > SMTP Settings**.
+- **Emails (obligatorio)**: el servidor de email incluido en Supabase solo envía a los miembros del equipo del proyecto, y 2 por hora. Para que los pacientes reciban la confirmación de cuenta y la recuperación de clave hay que configurar un SMTP propio en **Authentication > SMTP Settings** (por ejemplo Gmail con contraseña de aplicación: `smtp.gmail.com`, puerto 587).
 - **Pausa por inactividad**: en el plan gratuito, un proyecto sin actividad durante 7 días se pausa hasta reactivarlo desde el panel. Con uso diario no pasa, pero tenerlo en cuenta en vacaciones.
 - **Copias de seguridad**: el plan gratuito no incluye backups diarios. Con historias clínicas reales conviene pasar al plan Pro o exportar la base periódicamente.
 - **Datos de salud**: la historia clínica está alcanzada por las leyes 26.529 y 25.326. Conviene que la política de privacidad del consultorio lo mencione y registrar la base ante la Agencia de Acceso a la Información Pública.

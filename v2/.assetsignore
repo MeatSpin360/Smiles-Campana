@@ -1,0 +1,5 @@
+# Archivos de la carpeta v2 que no se publican en el sitio (mismo formato que .gitignore)
+.assetsignore
+README.md
+PENDIENTES.md
+supabase/

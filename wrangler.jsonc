@@ -1,0 +1,10 @@
+// Configuración de publicación en Cloudflare (Workers con archivos estáticos).
+// Publica solo la carpeta v2. La v1 queda en el repositorio como referencia, pero no se publica.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "smiles-campana",
+  "compatibility_date": "2026-10-27",
+  "assets": {
+    "directory": "./v2"
+  }
+}

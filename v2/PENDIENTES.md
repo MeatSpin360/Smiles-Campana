@@ -5,6 +5,8 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 ## Hecho
 
 - [x] Turnos a confirmar: el paciente **pide** un turno (queda "Por confirmar" y el horario queda reservado). Recepción u odontología lo **confirman** o lo **rechazan** desde *Hoy*, la agenda o la ficha. El paciente ve el estado en *Mis turnos*.
+- [x] Contacto rápido en *Turnos por confirmar*: botones de WhatsApp y de email (Gmail) con el mensaje ya escrito, para reprogramar en el momento.
+- [x] Límite contra abusos: con 4 cancelaciones propias en el día, el paciente no puede pedir otro turno hasta el día siguiente ("por actividad sospechosa"). Lo controla la base; las cancelaciones hechas por el personal no cuentan.
 
 ## Etapa 1: poner online
 

@@ -1,6 +1,6 @@
 import { h } from '../../lib/dom.js';
 import { aviso, confirmar, conCarga, hoja } from '../../lib/ui.js';
-import { fechaLarga, hora, mayuscula } from '../../lib/dates.js';
+import { fechaLarga, hora, mayuscula, partes, hoy } from '../../lib/dates.js';
 import { encabezado, etiquetaEstado, bloqueFecha, selectorHorario, avisoSinFicha, MOTIVOS, linkWhatsapp } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
 
@@ -82,6 +82,16 @@ export async function pedirTurno(ctx) {
         h('div', h('strong', `Ya ${estado} un turno el ${fechaLarga(actual.inicio)} a las ${hora(actual.inicio)} h`),
           h('p', 'Si querés otro horario, cancelá ese primero desde Mis turnos.'),
           h('a.btn.btn-secundario', { href: '#/' }, 'Ir a mis turnos'))));
+  }
+
+  // Mismo límite que aplica la base: 4 cancelaciones propias en el día
+  const canceladosHoy = turnos.filter((t) => t.cancelado_en && partes(t.cancelado_en).fecha === hoy()).length;
+  if (canceladosHoy >= 4) {
+    return h('div', encabezado('Pedir turno'),
+      h('div.nota.nota-aviso', h('span.nota-icono', { html: ICONOS.alerta }),
+        h('div', h('strong', 'Por actividad sospechosa no podés pedir turnos hasta mañana'),
+          h('p', 'Hoy pediste y cancelaste varios turnos seguidos. Si necesitás un turno, escribinos.'),
+          linkWhatsapp('Escribir por WhatsApp'))));
   }
 
   let motivo = MOTIVOS[0];

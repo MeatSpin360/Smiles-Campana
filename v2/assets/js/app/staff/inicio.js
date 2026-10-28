@@ -1,7 +1,7 @@
 import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, partes, DIAS_CORTOS } from '../../lib/dates.js';
 import { aviso, conCarga, confirmar } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto, esActivo } from '../comunes.js';
+import { encabezado, etiquetaEstado, nombreCompleto, esActivo, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
 import { darTurno, altaPaciente } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
@@ -63,10 +63,17 @@ export async function inicio(ctx) {
         });
       },
     }, 'Rechazar');
+    // Contacto rápido para reprogramar, con el mensaje ya escrito
+    const saludo = `Hola ${t.paciente?.nombre || ''}, te escribimos de Smiles Campana por el turno que pediste para el ${fechaLarga(t.inicio).replace(',', '')} a las ${hora(t.inicio)} h.`;
+    const wa = enlaceWhatsapp(t.paciente?.telefono, saludo);
+    const mail = enlaceCorreo(t.paciente?.email, 'Tu pedido de turno en Smiles Campana', `${saludo}\n\n`);
+    const contacto = (wa || mail) ? h('div.contacto-turno',
+      wa ? h('a.btn-icono', { href: wa, target: '_blank', rel: 'noopener', 'aria-label': `WhatsApp a ${t.paciente.nombre}`, title: `WhatsApp ${t.paciente.telefono}`, html: ICONOS.whatsapp }) : null,
+      mail ? h('a.btn-icono', { href: mail, target: '_blank', rel: 'noopener', 'aria-label': `Email a ${t.paciente.nombre}`, title: t.paciente.email, html: ICONOS.correo }) : null) : null;
     return h('li.fila-agenda.fila-pendiente',
       h('span.hora', h('small', diaCorto(t.inicio)), hora(t.inicio)),
       h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
-      h('div.acciones-turno', rechazarBtn, confirmarBtn));
+      h('div.acciones-turno', contacto, rechazarBtn, confirmarBtn));
   };
 
   const nuevoTurno = h('button.btn.btn-primario', {

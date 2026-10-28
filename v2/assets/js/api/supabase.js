@@ -20,7 +20,7 @@ function ok({ data, error }) {
   return data;
 }
 
-const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, paciente:pacientes(id, nombre, apellido, dni, telefono)';
+const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, paciente:pacientes(id, nombre, apellido, dni, telefono, email)';
 
 const turnoDesdeDB = (t) => (t ? { ...t, inicio: new Date(t.inicio).toISOString() } : t);
 

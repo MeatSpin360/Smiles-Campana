@@ -16,6 +16,7 @@ export const ICONOS = {
   derecha: i('<path d="m9 5 7 7-7 7"/>'),
   telefono: i('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>'),
   whatsapp: i('<path d="M4 20l1.2-3.6A8 8 0 1 1 8 19.2z"/>'),
+  correo: i('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 6 8-6"/>'),
   enlace: i('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
   check: i('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
   alerta: i('<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.3"/>'),

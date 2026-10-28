@@ -2,7 +2,7 @@ import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, DIAS_CORTOS, diaDeSemana } from '../../lib/dates.js';
 import { turnosDelDia } from '../../lib/agenda.js';
 import { aviso, conCarga, confirmar, hoja } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto, ESTADOS, ACCIONES, esActivo } from '../comunes.js';
+import { encabezado, etiquetaEstado, nombreCompleto, ESTADOS, ACCIONES, esActivo, enlaceWhatsapp } from '../comunes.js';
 import { darTurno } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
@@ -32,7 +32,7 @@ export async function agenda(ctx) {
       ancho: 'chico',
       cuerpo: h('div.menu-turno',
         h('p.texto-suave', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h. ${t.motivo}.`),
-        t.paciente?.telefono ? h('a.btn.btn-secundario.btn-ancho', { href: `https://wa.me/549${t.paciente.telefono.replace(/\D/g, '').replace(/^0/, '').replace(/^15/, '')}`, target: '_blank', rel: 'noopener' }, h('span.icono-btn', { html: ICONOS.whatsapp }), `WhatsApp ${t.paciente.telefono}`) : null,
+        enlaceWhatsapp(t.paciente?.telefono) ? h('a.btn.btn-secundario.btn-ancho', { href: enlaceWhatsapp(t.paciente.telefono), target: '_blank', rel: 'noopener' }, h('span.icono-btn', { html: ICONOS.whatsapp }), `WhatsApp ${t.paciente.telefono}`) : null,
         h('a.btn.btn-secundario.btn-ancho', { href: `#/pacientes/${t.paciente_id}` }, 'Abrir ficha'),
         h('p.titulo-paso', 'Cambiar estado'),
         h('div.botones-estado', opciones.map(([e, texto]) => {

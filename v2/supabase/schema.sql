@@ -79,8 +79,10 @@ create table if not exists turnos (
   motivo       text,
   estado       estado_turno not null default 'confirmado',
   creado_por   text not null default 'personal' check (creado_por in ('paciente', 'personal')),
-  creado_en    timestamptz not null default now()
+  creado_en    timestamptz not null default now(),
+  cancelado_en timestamptz  -- solo cuando lo cancela el propio paciente online (límite diario de pedidos)
 );
+alter table turnos add column if not exists cancelado_en timestamptz;
 -- Nunca dos turnos activos en el mismo horario (un pedido pendiente también reserva el horario)
 create unique index if not exists turnos_un_horario on turnos (inicio) where estado not in ('cancelado', 'rechazado');
 create index if not exists turnos_paciente on turnos (paciente_id);
@@ -318,6 +320,12 @@ begin
   if v_pid is null then
     raise exception 'Tu cuenta todavía no está vinculada a una ficha. Llamanos y lo resolvemos.';
   end if;
+  -- Límite contra abusos: con 4 cancelaciones propias en el día (hora argentina), no puede pedir hasta mañana
+  if (select count(*) from turnos
+      where paciente_id = v_pid
+        and cancelado_en >= date_trunc('day', now() at time zone 'America/Argentina/Buenos_Aires') at time zone 'America/Argentina/Buenos_Aires') >= 4 then
+    raise exception 'Por actividad sospechosa no podés pedir turnos hasta mañana. Si lo necesitás, escribinos por WhatsApp.';
+  end if;
   if exists (select 1 from turnos where paciente_id = v_pid and estado in ('pendiente', 'confirmado') and inicio > now()) then
     raise exception 'Ya pediste un turno. Cancelalo si querés elegir otro horario.';
   end if;
@@ -348,7 +356,7 @@ begin
   if v_turno.estado = 'confirmado' and v_turno.inicio - now() < make_interval(hours => v_horas) then
     raise exception 'Los turnos se pueden cancelar online hasta % h antes. Escribinos por WhatsApp.', v_horas;
   end if;
-  update turnos set estado = 'cancelado' where id = p_id returning * into v_turno;
+  update turnos set estado = 'cancelado', cancelado_en = now() where id = p_id returning * into v_turno;
   return v_turno;
 end $$;
 

@@ -1,7 +1,7 @@
 // Implementación de demostración: guarda todo en el navegador (localStorage).
 // Replica las reglas de permisos de la base real para que el comportamiento sea el mismo.
 import { AGENDA_INICIAL, horariosLibres as calcularLibres } from '../lib/agenda.js';
-import { hoy, sumarDias, isoEn } from '../lib/dates.js';
+import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
 
 const CLAVE = 'smiles-demo-v2';
 const CLAVE_SESION = 'smiles-demo-sesion';
@@ -111,7 +111,7 @@ function miPaciente() {
 
 function conPaciente(t) {
   const p = cargar().pacientes.find((x) => x.id === t.paciente_id);
-  return { ...t, paciente: p ? { id: p.id, nombre: p.nombre, apellido: p.apellido, dni: p.dni, telefono: p.telefono } : null };
+  return { ...t, paciente: p ? { id: p.id, nombre: p.nombre, apellido: p.apellido, dni: p.dni, telefono: p.telefono, email: p.email } : null };
 }
 
 function ocupado(inicio, excluirId) {
@@ -212,6 +212,10 @@ export const api = {
     const p = miPaciente();
     if (!p) throw new Error('Tu cuenta todavía no está vinculada a una ficha. Llamanos y lo resolvemos.');
     const d = cargar();
+    // Límite contra abusos: con 4 cancelaciones propias en el día, no puede pedir hasta mañana
+    if (d.turnos.filter((t) => t.paciente_id === p.id && t.cancelado_en && partes(t.cancelado_en).fecha === hoy()).length >= 4) {
+      throw new Error('Por actividad sospechosa no podés pedir turnos hasta mañana. Si lo necesitás, escribinos por WhatsApp.');
+    }
     if (d.turnos.some((t) => t.paciente_id === p.id && ['pendiente', 'confirmado'].includes(t.estado) && new Date(t.inicio) > new Date())) {
       throw new Error('Ya pediste un turno. Cancelalo si querés elegir otro horario.');
     }
@@ -233,6 +237,7 @@ export const api = {
       throw new Error(`Los turnos se pueden cancelar online hasta ${horasMinimas} h antes. Escribinos por WhatsApp.`);
     }
     t.estado = 'cancelado';
+    t.cancelado_en = ahora();
     guardar();
     return espera(t);
   },

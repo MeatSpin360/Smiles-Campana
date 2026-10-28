@@ -183,7 +183,10 @@ body { background: var(--esmalte); }
 .fa-paciente strong { font-size: var(--t-s); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fa-paciente span { font-size: var(--t-xs); color: var(--tinta-2); }
 .fa-paciente:hover strong { color: var(--lavanda-osc); }
-.acciones-turno { display: flex; gap: 6px; }
+.acciones-turno { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.contacto-turno { display: flex; gap: 4px; margin-right: 6px; padding-right: 10px; border-right: 1px solid var(--linea); }
+.contacto-turno .btn-icono { width: 36px; height: 36px; border: 1.5px solid var(--linea-fuerte); color: var(--lavanda-osc); }
+.contacto-turno .btn-icono svg { width: 18px; height: 18px; }
 
 .nav-agenda { display: flex; align-items: center; gap: 4px; margin-bottom: 18px; }
 .semana { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -320,5 +323,6 @@ body { background: var(--esmalte); }
 .nota-pedido { margin: 14px 0 0; }
 @media (max-width: 600px) {
   .fila-pendiente { grid-template-columns: 62px 1fr; }
-  .fila-pendiente .acciones-turno { grid-column: 2; }
+  .fila-pendiente .acciones-turno { grid-column: 1 / -1; flex-wrap: nowrap; }
+  .fila-pendiente .contacto-turno { margin-right: auto; border-right: 0; padding-right: 0; }
 }

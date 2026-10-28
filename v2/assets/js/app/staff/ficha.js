@@ -3,7 +3,7 @@ import { aviso, conCarga, confirmar, hoja, cargando, mensajeError } from '../../
 import { fechaLarga, fechaCorta, hora, mayuscula } from '../../lib/dates.js';
 import { crearOdontograma } from '../../odontograma/componente.js';
 import { hallazgos } from '../../odontograma/modelo.js';
-import { etiquetaEstado, nombreCompleto, ESTADOS } from '../comunes.js';
+import { etiquetaEstado, nombreCompleto, ESTADOS, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
 import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerClinica } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
@@ -30,7 +30,8 @@ export async function ficha(ctx) {
       h('span.avatar.avatar-grande', { 'aria-hidden': 'true' }, (p.apellido || '?')[0]),
       h('div', h('h1', `${p.nombre} ${p.apellido}`), h('p.texto-suave', lineaPaciente(p))),
       h('div.ficha-contacto',
-        tel ? h('a.btn-icono', { href: `https://wa.me/549${tel.replace(/^0/, '')}`, target: '_blank', rel: 'noopener', 'aria-label': 'WhatsApp', html: ICONOS.whatsapp }) : null,
+        enlaceWhatsapp(p.telefono) ? h('a.btn-icono', { href: enlaceWhatsapp(p.telefono), target: '_blank', rel: 'noopener', 'aria-label': 'WhatsApp', title: 'WhatsApp', html: ICONOS.whatsapp }) : null,
+        enlaceCorreo(p.email) ? h('a.btn-icono', { href: enlaceCorreo(p.email), target: '_blank', rel: 'noopener', 'aria-label': 'Escribir un email', title: p.email, html: ICONOS.correo }) : null,
         tel ? h('a.btn-icono', { href: `tel:${tel}`, 'aria-label': 'Llamar', html: ICONOS.telefono }) : null)),
     h('nav.pestanas', { 'aria-label': 'Secciones de la ficha' }, visibles.map((t) => h('a.pestana', {
       href: `#/pacientes/${id}/${t.id}`, 'aria-current': t.id === pestana ? 'page' : null,

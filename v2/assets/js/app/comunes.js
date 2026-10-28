@@ -51,6 +51,30 @@ export function linkWhatsapp(texto = 'Escribir por WhatsApp', mensaje = '') {
 }
 
 /**
+ * Enlace de WhatsApp a un celular argentino cargado como venga (con espacios, 0, 15, +54...).
+ * Devuelve null si no se puede armar un número de 10 dígitos (por ejemplo, sin característica).
+ */
+export function enlaceWhatsapp(telefono, mensaje = '') {
+  let d = (telefono || '').replace(/\D/g, '').replace(/^00/, '');
+  if (d.startsWith('54')) d = d.slice(2).replace(/^9/, '');
+  d = d.replace(/^0/, '');
+  if (d.length === 12) {
+    // Sacar el 15 que va después de la característica (2, 3 o 4 dígitos)
+    const largo = [2, 3, 4].find((n) => d.slice(n, n + 2) === '15');
+    if (largo) d = d.slice(0, largo) + d.slice(largo + 2);
+  }
+  if (d.length !== 10) return null;
+  return `https://wa.me/549${d}${mensaje ? `?text=${encodeURIComponent(mensaje)}` : ''}`;
+}
+
+/** Abre un email nuevo en Gmail (la cuenta del consultorio) con destinatario, asunto y texto. */
+export function enlaceCorreo(email, asunto = '', texto = '') {
+  if (!email) return null;
+  const q = new URLSearchParams({ view: 'cm', fs: '1', to: email, su: asunto, body: texto });
+  return `https://mail.google.com/mail/?${q}`;
+}
+
+/**
  * Selector de día y horario a partir de la agenda real.
  * alElegir(iso) se llama cuando se toca un horario.
  */

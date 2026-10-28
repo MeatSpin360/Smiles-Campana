@@ -78,20 +78,30 @@ async function vistaTurnos(ctx, p) {
 
   const fila = (t) => {
     const futuro = new Date(t.inicio).getTime() > ahora;
-    const cancelar = futuro && t.estado === 'confirmado' ? h('button.btn.btn-fantasma.btn-chico', {
+    const pendiente = t.estado === 'pendiente';
+    const cancelar = futuro && (pendiente || t.estado === 'confirmado') ? h('button.btn.btn-fantasma.btn-chico', {
       type: 'button',
       onclick: async (e) => {
-        if (!(await confirmar('El horario queda libre.', { titulo: 'Cancelar turno', aceptar: 'Cancelar turno', peligro: true }))) return;
+        const titulo = pendiente ? 'Rechazar pedido' : 'Cancelar turno';
+        if (!(await confirmar('El horario queda libre.', { titulo, aceptar: titulo, peligro: true }))) return;
         await conCarga(e.target, async () => {
-          await ctx.api.cambiarEstadoTurno(t.id, 'cancelado');
-          aviso('Turno cancelado.');
+          await ctx.api.cambiarEstadoTurno(t.id, pendiente ? 'rechazado' : 'cancelado');
+          aviso(pendiente ? 'Pedido rechazado.' : 'Turno cancelado.');
           recargar();
         });
       },
-    }, 'Cancelar') : null;
+    }, pendiente ? 'Rechazar' : 'Cancelar') : null;
+    const confirmarBtn = futuro && pendiente ? h('button.btn.btn-primario.btn-chico', {
+      type: 'button',
+      onclick: (e) => conCarga(e.target, async () => {
+        await ctx.api.cambiarEstadoTurno(t.id, 'confirmado');
+        aviso('Turno confirmado.');
+        recargar();
+      }),
+    }, 'Confirmar') : null;
     return h('li.fila-turno',
       h('div', h('strong', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`), h('span.texto-suave', t.motivo)),
-      h('div.fila-turno-der', cancelar, etiquetaEstado(t.estado)));
+      h('div.fila-turno-der', cancelar, confirmarBtn, etiquetaEstado(t.estado)));
   };
   const cuenta = (e) => turnos.filter((t) => t.estado === e).length;
   return h('section.panel',

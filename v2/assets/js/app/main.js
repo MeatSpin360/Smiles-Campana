@@ -155,8 +155,8 @@ function bandaDemo() {
 function marcoPublico(contenido) {
   return h('div.marco-publico',
     bandaDemo(),
-    h('header.barra-publica', h('a.marca-app', { href: './' }, h('img', { src: 'assets/img/logo.png', alt: 'Smiles Campana' })),
-      h('a.btn.btn-fantasma.btn-chico', { href: './' }, 'Volver al sitio')),
+    h('header.barra-publica', h('a.marca-app', { href: 'index.html' }, h('img', { src: 'assets/img/logo.png', alt: 'Smiles Campana' })),
+      h('a.btn.btn-fantasma.btn-chico', { href: 'index.html' }, 'Volver al sitio')),
     h('main.principal-publico', contenido));
 }
 

@@ -10,7 +10,9 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type estado_turno as enum ('confirmado', 'cancelado', 'atendido', 'ausente');
+  -- pendiente: pedido online por el paciente, falta que el consultorio lo confirme
+  -- rechazado: el consultorio no pudo confirmar el pedido
+  create type estado_turno as enum ('pendiente', 'confirmado', 'rechazado', 'cancelado', 'atendido', 'ausente');
 exception when duplicate_object then null; end $$;
 
 -- ---------- Tablas ----------
@@ -79,8 +81,8 @@ create table if not exists turnos (
   creado_por   text not null default 'personal' check (creado_por in ('paciente', 'personal')),
   creado_en    timestamptz not null default now()
 );
--- Nunca dos turnos activos en el mismo horario
-create unique index if not exists turnos_un_horario on turnos (inicio) where estado <> 'cancelado';
+-- Nunca dos turnos activos en el mismo horario (un pedido pendiente también reserva el horario)
+create unique index if not exists turnos_un_horario on turnos (inicio) where estado not in ('cancelado', 'rechazado');
 create index if not exists turnos_paciente on turnos (paciente_id);
 
 -- Cada guardado del odontograma es una versión nueva (historial clínico inmutable).
@@ -227,7 +229,7 @@ create policy "bloqueos visibles" on agenda_bloqueos for select to anon, authent
 create policy "bloqueos editables" on agenda_bloqueos for all to authenticated
   using (mi_rol() in ('recepcion', 'admin')) with check (mi_rol() in ('recepcion', 'admin'));
 
--- turnos: el paciente solo ve los suyos; los pide y cancela con las funciones de abajo
+-- turnos: el paciente solo ve los suyos; los pide (quedan pendientes) y cancela con las funciones de abajo
 create policy "ver turnos" on turnos for select to authenticated
   using (es_personal() or paciente_id = mi_paciente_id());
 create policy "personal crea turnos" on turnos for insert to authenticated with check (es_personal());
@@ -262,7 +264,7 @@ language sql stable security definer set search_path = public as $$
   )
   select s.inicio from s
   where s.inicio > now() + interval '1 hour'
-    and not exists (select 1 from turnos t where t.inicio = s.inicio and t.estado <> 'cancelado')
+    and not exists (select 1 from turnos t where t.inicio = s.inicio and t.estado not in ('cancelado', 'rechazado'))
   order by s.inicio
 $$;
 
@@ -277,15 +279,15 @@ begin
   if v_pid is null then
     raise exception 'Tu cuenta todavía no está vinculada a una ficha. Llamanos y lo resolvemos.';
   end if;
-  if exists (select 1 from turnos where paciente_id = v_pid and estado = 'confirmado' and inicio > now()) then
-    raise exception 'Ya tenés un turno reservado. Cancelalo si querés elegir otro horario.';
+  if exists (select 1 from turnos where paciente_id = v_pid and estado in ('pendiente', 'confirmado') and inicio > now()) then
+    raise exception 'Ya pediste un turno. Cancelalo si querés elegir otro horario.';
   end if;
   select * into v_cfg from agenda_config where id = 1;
   if p_inicio not in (select horarios_libres((now() at time zone 'America/Argentina/Buenos_Aires')::date, v_cfg.dias_visibles)) then
     raise exception 'Ese horario ya no está disponible. Elegí otro.';
   end if;
-  insert into turnos (paciente_id, inicio, duracion, motivo, creado_por)
-  values (v_pid, p_inicio, v_cfg.duracion, coalesce(nullif(trim(p_motivo), ''), 'Consulta'), 'paciente')
+  insert into turnos (paciente_id, inicio, duracion, motivo, estado, creado_por)
+  values (v_pid, p_inicio, v_cfg.duracion, coalesce(nullif(trim(p_motivo), ''), 'Consulta'), 'pendiente', 'paciente')
   returning * into v_turno;
   return v_turno;
 end $$;
@@ -300,7 +302,11 @@ begin
   select horas_cancelacion into v_horas from agenda_config where id = 1;
   select * into v_turno from turnos where id = p_id and paciente_id = mi_paciente_id();
   if not found then raise exception 'No encontramos ese turno.'; end if;
-  if v_turno.inicio - now() < make_interval(hours => v_horas) then
+  if v_turno.estado not in ('pendiente', 'confirmado') then
+    raise exception 'Ese turno ya no se puede cancelar.';
+  end if;
+  -- Un pedido sin confirmar se puede retirar en cualquier momento
+  if v_turno.estado = 'confirmado' and v_turno.inicio - now() < make_interval(hours => v_horas) then
     raise exception 'Los turnos se pueden cancelar online hasta % h antes. Escribinos por WhatsApp.', v_horas;
   end if;
   update turnos set estado = 'cancelado' where id = p_id returning * into v_turno;

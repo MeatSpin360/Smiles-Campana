@@ -33,9 +33,10 @@ Cuentas de demostración (clave `demo1234`): `paciente@demo.com`, `recepcion@dem
 
 | | Paciente | Recepción | Odontología | Admin |
 |---|:-:|:-:|:-:|:-:|
-| Pedir, ver y cancelar sus turnos | ✓ | | | |
+| Pedir turnos (quedan por confirmar), verlos y cancelarlos | ✓ | | | |
 | Ver su odontograma (solo lectura) y editar sus datos de contacto | ✓ | | | |
 | Agenda: dar turnos, cambiar estados | | ✓ | ✓ | ✓ |
+| Confirmar o rechazar los turnos pedidos online | | ✓ | ✓ | ✓ |
 | Fichas de pacientes: alta y datos | | ✓ | ✓ | ✓ |
 | Vincular cuentas nuevas con fichas existentes | | ✓ | ✓ | ✓ |
 | Odontograma, antecedentes y evoluciones | | | ✓ | ✓ |

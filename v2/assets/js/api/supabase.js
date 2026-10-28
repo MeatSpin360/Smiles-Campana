@@ -148,6 +148,10 @@ export const api = {
   async turnosDePaciente(id) {
     return ok(await sb.from('turnos').select('*').eq('paciente_id', id).order('inicio', { ascending: false })).map(turnoDesdeDB);
   },
+  async turnosPendientes() {
+    return ok(await sb.from('turnos').select(COLS_TURNO_PACIENTE)
+      .eq('estado', 'pendiente').gte('inicio', new Date().toISOString()).order('inicio')).map(turnoDesdeDB);
+  },
   async crearTurno({ paciente_id, inicio, motivo }) {
     const { duracion } = ok(await sb.from('agenda_config').select('duracion').eq('id', 1).single());
     const r = await sb.from('turnos').insert({ paciente_id, inicio, motivo: motivo || 'Consulta', duracion, creado_por: 'personal' }).select(COLS_TURNO_PACIENTE).single();

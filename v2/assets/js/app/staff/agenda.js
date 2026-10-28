@@ -2,7 +2,7 @@ import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, DIAS_CORTOS, diaDeSemana } from '../../lib/dates.js';
 import { turnosDelDia } from '../../lib/agenda.js';
 import { aviso, conCarga, confirmar, hoja } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto, ESTADOS } from '../comunes.js';
+import { encabezado, etiquetaEstado, nombreCompleto, ESTADOS, ACCIONES, esActivo } from '../comunes.js';
 import { darTurno } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
@@ -20,13 +20,13 @@ export async function agenda(ctx) {
 
   // Franjas del día según la agenda + turnos fuera de horario
   const franjas = bloqueo ? [] : turnosDelDia(fecha, config);
-  const activos = turnos.filter((t) => t.estado !== 'cancelado');
+  const activos = turnos.filter(esActivo);
   const porHora = new Map(activos.map((t) => [new Date(t.inicio).getTime(), t]));
   const todos = [...new Set([...franjas.map((i) => new Date(i).getTime()), ...porHora.keys()])].sort((a, b) => a - b);
-  const cancelados = turnos.filter((t) => t.estado === 'cancelado');
+  const cancelados = turnos.filter((t) => !esActivo(t));
 
   const menuTurno = (t) => {
-    const opciones = Object.keys(ESTADOS).filter((e) => e !== t.estado);
+    const opciones = ACCIONES[t.estado] || [];
     const { cerrar } = hoja({
       titulo: nombreCompleto(t.paciente),
       ancho: 'chico',
@@ -35,11 +35,13 @@ export async function agenda(ctx) {
         t.paciente?.telefono ? h('a.btn.btn-secundario.btn-ancho', { href: `https://wa.me/549${t.paciente.telefono.replace(/\D/g, '').replace(/^0/, '').replace(/^15/, '')}`, target: '_blank', rel: 'noopener' }, h('span.icono-btn', { html: ICONOS.whatsapp }), `WhatsApp ${t.paciente.telefono}`) : null,
         h('a.btn.btn-secundario.btn-ancho', { href: `#/pacientes/${t.paciente_id}` }, 'Abrir ficha'),
         h('p.titulo-paso', 'Cambiar estado'),
-        h('div.botones-estado', opciones.map((e) => {
-          const b = h(`button.btn.btn-chico${e === 'cancelado' ? '.btn-peligro' : '.btn-secundario'}`, {
+        h('div.botones-estado', opciones.map(([e, texto]) => {
+          const peligro = ['cancelado', 'rechazado'].includes(e);
+          const principal = e === 'confirmado' && t.estado === 'pendiente';
+          const b = h(`button.btn.btn-chico${peligro ? '.btn-peligro' : principal ? '.btn-primario' : '.btn-secundario'}`, {
             type: 'button',
             onclick: async () => {
-              if (e === 'cancelado' && !(await confirmar('El horario queda libre.', { titulo: 'Cancelar turno', aceptar: 'Cancelar turno', peligro: true }))) return;
+              if (peligro && !(await confirmar('El horario queda libre.', { titulo: texto, aceptar: texto, peligro: true }))) return;
               await conCarga(b, async () => {
                 await ctx.api.cambiarEstadoTurno(t.id, e);
                 aviso(`Turno: ${ESTADOS[e].toLowerCase()}.`);
@@ -47,7 +49,7 @@ export async function agenda(ctx) {
                 ir(fecha);
               });
             },
-          }, ESTADOS[e]);
+          }, texto);
           return b;
         }))),
     });
@@ -67,7 +69,7 @@ export async function agenda(ctx) {
     }
     return h('li.franja.ocupada', { class: pasado ? 'pasado' : '' },
       h('span.hora', hora(t.inicio)),
-      h('button.turno-btn', { type: 'button', onclick: () => menuTurno(t) },
+      h(`button.turno-btn${t.estado === 'pendiente' ? '.turno-pendiente' : ''}`, { type: 'button', onclick: () => menuTurno(t) },
         h('strong', nombreCompleto(t.paciente)),
         h('span', t.motivo, t.creado_por === 'paciente' ? h('span.etiqueta.etiqueta-online', 'Online') : null)),
       etiquetaEstado(t.estado));
@@ -75,7 +77,7 @@ export async function agenda(ctx) {
 
   // Cinta de la semana
   const conteo = new Map();
-  for (const t of semana) if (t.estado !== 'cancelado') {
+  for (const t of semana) if (esActivo(t)) {
     const f = new Date(t.inicio).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
     conteo.set(f, (conteo.get(f) || 0) + 1);
   }
@@ -105,6 +107,6 @@ export async function agenda(ctx) {
       bloqueo ? h('p.nota.nota-aviso', `Día bloqueado${bloqueo.motivo ? `: ${bloqueo.motivo}` : ''}. No se dan turnos online.`) : null,
       todos.length ? h('ul.lista-franjas', todos.map(fila))
         : h('p.texto-suave.vacio', bloqueo ? 'Sin turnos.' : 'No se atiende este día.')),
-    cancelados.length ? h('details.cancelados', h('summary', `${cancelados.length} ${cancelados.length === 1 ? 'turno cancelado' : 'turnos cancelados'}`),
+    cancelados.length ? h('details.cancelados', h('summary', `${cancelados.length} ${cancelados.length === 1 ? 'turno cancelado o rechazado' : 'turnos cancelados o rechazados'}`),
       h('ul.lista-simple', cancelados.map((t) => h('li.fila-turno', h('div', h('strong', `${hora(t.inicio)} ${nombreCompleto(t.paciente)}`), h('span.texto-suave', t.motivo)), etiquetaEstado(t.estado))))) : null);
 }

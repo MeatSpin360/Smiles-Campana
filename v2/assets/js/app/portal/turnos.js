@@ -4,45 +4,65 @@ import { fechaLarga, hora, mayuscula } from '../../lib/dates.js';
 import { encabezado, etiquetaEstado, bloqueFecha, selectorHorario, avisoSinFicha, MOTIVOS, linkWhatsapp } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
 
+const esFuturo = (t) => new Date(t.inicio).getTime() > Date.now();
+/** Turno pedido o confirmado que todavía no pasó. */
+const vigente = (t) => ['pendiente', 'confirmado'].includes(t.estado) && esFuturo(t);
+
 export async function misTurnos(ctx) {
   const [ficha, turnos, agenda] = await Promise.all([ctx.api.miFicha(), ctx.api.misTurnos(), ctx.api.agenda()]);
-  const ahora = Date.now();
-  const proximos = turnos.filter((t) => t.estado === 'confirmado' && new Date(t.inicio).getTime() > ahora);
-  const anteriores = turnos.filter((t) => !proximos.includes(t)).reverse();
+  const proximos = turnos.filter(vigente);
+  const rechazados = turnos.filter((t) => t.estado === 'rechazado' && esFuturo(t));
+  const anteriores = turnos.filter((t) => !proximos.includes(t) && !rechazados.includes(t)).reverse();
   const saludo = `Hola, ${ctx.perfil.nombre || ficha?.nombre || ''}`.trim();
 
   if (!ficha) return h('div', encabezado(saludo), avisoSinFicha());
 
   const tarjetaProximo = (t) => {
+    const pendiente = t.estado === 'pendiente';
+    const textoCancelar = pendiente ? 'Cancelar pedido' : 'Cancelar turno';
     const cancelar = h('button.btn.btn-secundario', {
       type: 'button',
       onclick: async () => {
-        const ok = await confirmar(`${mayuscula(fechaLarga(t.inicio))} a las ${hora(t.inicio)} h. El horario queda libre para otra persona.`, { titulo: 'Cancelar turno', aceptar: 'Cancelar turno', peligro: true });
+        const detalle = `${mayuscula(fechaLarga(t.inicio))} a las ${hora(t.inicio)} h.`;
+        const ok = await confirmar(pendiente ? `${detalle} Retirás el pedido antes de que lo confirmemos.` : `${detalle} El horario queda libre para otra persona.`,
+          { titulo: textoCancelar, aceptar: textoCancelar, peligro: true });
         if (!ok) return;
         await conCarga(cancelar, async () => {
           await ctx.api.cancelarMiTurno(t.id);
-          aviso('Turno cancelado.');
+          aviso(pendiente ? 'Pedido cancelado.' : 'Turno cancelado.');
           ctx.navegar('/');
         });
       },
-    }, 'Cancelar turno');
-    return h('article.turno-destacado',
+    }, textoCancelar);
+    return h(`article.turno-destacado${pendiente ? '.turno-pendiente' : ''}`,
       h('div.td-fecha', bloqueFecha(t.inicio)),
       h('div.td-info',
-        h('p.td-etiqueta', 'Tu próximo turno'),
+        h('p.td-etiqueta', pendiente ? 'Turno pedido, falta que lo confirmemos' : 'Tu próximo turno'),
         h('h2', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`),
         h('p.texto-suave', t.motivo),
         h('div.td-acciones', cancelar)),
-      h('p.td-pie', `Podés cancelarlo online hasta ${agenda.horasCancelacion} h antes. Después, avisanos por WhatsApp.`));
+      h('p.td-pie', pendiente
+        ? 'El consultorio revisa tu pedido y lo confirma. Cuando esté confirmado lo vas a ver acá.'
+        : `Podés cancelarlo online hasta ${agenda.horasCancelacion} h antes. Después, avisanos por WhatsApp.`));
   };
 
+  const avisosRechazo = rechazados.map((t) => h('div.nota.nota-aviso',
+    h('span.nota-icono', { html: ICONOS.alerta }),
+    h('div',
+      h('strong', `No pudimos confirmar tu turno del ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h`),
+      h('p', 'Elegí otro horario o escribinos y lo coordinamos.'),
+      h('div.td-acciones',
+        proximos.length ? null : h('a.btn.btn-primario', { href: '#/pedir-turno' }, 'Elegir otro horario'),
+        linkWhatsapp('Escribir por WhatsApp')))));
+
   return h('div',
-    encabezado(saludo, proximos.length ? null : 'No tenés turnos reservados.',
+    encabezado(saludo, proximos.length ? null : 'No tenés turnos pedidos.',
       proximos.length ? null : h('a.btn.btn-primario', { href: '#/pedir-turno' }, h('span.icono-btn', { html: ICONOS.mas }), 'Pedir turno')),
-    proximos.length ? proximos.map(tarjetaProximo) : h('div.panel.vacio-turno',
+    avisosRechazo,
+    proximos.length ? proximos.map(tarjetaProximo) : (rechazados.length ? null : h('div.panel.vacio-turno',
       h('span.vacio-icono', { html: ICONOS.calendario }),
       h('p', 'Elegí día y horario entre los turnos libres de la agenda.'),
-      h('a.btn.btn-primario', { href: '#/pedir-turno' }, 'Ver horarios libres')),
+      h('a.btn.btn-primario', { href: '#/pedir-turno' }, 'Ver horarios libres'))),
     anteriores.length ? h('section.seccion-app',
       h('h2', 'Historial'),
       h('ul.lista-simple', anteriores.map((t) => h('li.fila-turno',
@@ -54,11 +74,12 @@ export async function pedirTurno(ctx) {
   const [ficha, turnos, agenda] = await Promise.all([ctx.api.miFicha(), ctx.api.misTurnos(), ctx.api.agenda()]);
   if (!ficha) return h('div', encabezado('Pedir turno'), avisoSinFicha());
 
-  const pendiente = turnos.find((t) => t.estado === 'confirmado' && new Date(t.inicio) > new Date());
-  if (pendiente) {
+  const actual = turnos.find(vigente);
+  if (actual) {
+    const estado = actual.estado === 'pendiente' ? 'pediste' : 'tenés';
     return h('div', encabezado('Pedir turno'),
       h('div.nota', h('span.nota-icono', { html: ICONOS.calendario }),
-        h('div', h('strong', `Ya tenés un turno el ${fechaLarga(pendiente.inicio)} a las ${hora(pendiente.inicio)} h`),
+        h('div', h('strong', `Ya ${estado} un turno el ${fechaLarga(actual.inicio)} a las ${hora(actual.inicio)} h`),
           h('p', 'Si querés otro horario, cancelá ese primero desde Mis turnos.'),
           h('a.btn.btn-secundario', { href: '#/' }, 'Ir a mis turnos'))));
   }
@@ -72,32 +93,35 @@ export async function pedirTurno(ctx) {
     },
   }, m)));
 
-  const confirmarTurno = (iso) => {
-    const boton = h('button.btn.btn-primario', { type: 'button' }, 'Reservar turno');
+  const confirmarPedido = (iso) => {
+    const boton = h('button.btn.btn-primario', { type: 'button' }, 'Pedir este turno');
     const volver = h('button.btn.btn-secundario', { type: 'button' }, 'Elegir otro');
     const { cerrar } = hoja({
-      titulo: 'Confirmá tu turno',
+      titulo: 'Revisá tu pedido',
       ancho: 'chico',
-      cuerpo: h('div.resumen-turno',
-        bloqueFecha(iso),
-        h('div', h('strong', `${mayuscula(fechaLarga(iso))}`), h('p', `${hora(iso)} h, ${agenda.duracion} minutos`), h('p.texto-suave', motivo))),
+      cuerpo: [
+        h('div.resumen-turno',
+          bloqueFecha(iso),
+          h('div', h('strong', `${mayuscula(fechaLarga(iso))}`), h('p', `${hora(iso)} h, ${agenda.duracion} minutos`), h('p.texto-suave', motivo))),
+        h('p.texto-suave.nota-chica.nota-pedido', 'El horario queda reservado para vos mientras el consultorio confirma el turno.'),
+      ],
       pie: [volver, boton],
     });
     volver.onclick = cerrar;
     boton.onclick = () => conCarga(boton, async () => {
       await ctx.api.pedirTurno(iso, motivo);
       cerrar();
-      aviso('Turno reservado.');
+      aviso('Pedido enviado. Lo vas a ver confirmado en Mis turnos.');
       ctx.navegar('/');
     });
   };
 
   return h('div',
-    encabezado('Pedir turno', `Los turnos duran ${agenda.duracion} minutos. Ves los próximos ${agenda.diasVisibles} días.`),
+    encabezado('Pedir turno', `Elegí día y horario; el consultorio confirma cada pedido. Los turnos duran ${agenda.duracion} minutos.`),
     h('section.panel',
       h('h2.titulo-paso', '¿Para qué es el turno?'),
       motivos,
       h('h2.titulo-paso', 'Elegí día y horario'),
-      selectorHorario({ api: ctx.api, dias: agenda.diasVisibles, alElegir: confirmarTurno })),
+      selectorHorario({ api: ctx.api, dias: agenda.diasVisibles, alElegir: confirmarPedido })),
     h('p.texto-suave.nota-pie', '¿No encontrás un horario que te sirva? ', linkWhatsapp('Consultanos')));
 }

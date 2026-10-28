@@ -116,6 +116,8 @@ body { background: var(--esmalte); }
 .etiqueta-cancelado { background: var(--error-claro); color: var(--error); }
 .etiqueta-online { background: var(--oro-claro); color: #6b5308; margin-left: 8px; font-size: 0.6875rem; padding: 1px 8px; }
 .etiqueta-cuenta { background: var(--ok-claro); color: var(--ok); }
+.etiqueta-pendiente { background: var(--oro-claro); color: #6b5308; }
+.etiqueta-rechazado { background: var(--error-claro); color: var(--error); }
 
 /* ---- Turnos del paciente ---- */
 .bloque-fecha { display: grid; justify-items: center; align-content: center; width: 64px; height: 72px; border-radius: 14px; background: var(--lavanda-osc); color: #fff; line-height: 1.05; flex: none; }
@@ -307,3 +309,16 @@ body { background: var(--esmalte); }
 @media (max-width: 600px) { .roles-desc div { grid-template-columns: 1fr; gap: 0; } }
 
 .error-carga { text-align: center; }
+
+/* ---- Turnos por confirmar ---- */
+.turno-destacado.turno-pendiente { border-left-color: var(--lavanda); border-left-style: dashed; }
+.turno-pendiente .bloque-fecha { background: var(--lavanda); }
+.turno-btn.turno-pendiente { border-left-color: var(--oro); border-left-style: dashed; background: var(--oro-claro); }
+.turno-btn.turno-pendiente:hover { background: #f8e7b0; }
+.panel-pendientes { border-color: var(--oro); }
+.nota .td-acciones { margin-top: 0; }
+.nota-pedido { margin: 14px 0 0; }
+@media (max-width: 600px) {
+  .fila-pendiente { grid-template-columns: 62px 1fr; }
+  .fila-pendiente .acciones-turno { grid-column: 2; }
+}

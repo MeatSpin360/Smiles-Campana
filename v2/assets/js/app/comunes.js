@@ -6,10 +6,23 @@ import { ICONOS } from './iconos.js';
 import { CONSULTORIO } from '../../../config.js';
 
 export const ESTADOS = {
+  pendiente: 'Por confirmar',
   confirmado: 'Confirmado',
   atendido: 'Atendido',
   ausente: 'No vino',
   cancelado: 'Cancelado',
+  rechazado: 'No confirmado',
+};
+
+/** Un turno activo ocupa su horario (incluye pedidos pendientes). */
+export const esActivo = (t) => !['cancelado', 'rechazado'].includes(t.estado);
+
+/** Cambios de estado que puede hacer el personal desde cada estado: [estado nuevo, texto del botón]. */
+export const ACCIONES = {
+  pendiente: [['rechazado', 'Rechazar'], ['confirmado', 'Confirmar']],
+  confirmado: [['atendido', 'Atendido'], ['ausente', 'No vino'], ['cancelado', 'Cancelar turno']],
+  atendido: [['ausente', 'No vino'], ['confirmado', 'Volver a confirmado']],
+  ausente: [['atendido', 'Atendido'], ['confirmado', 'Volver a confirmado']],
 };
 
 export const MOTIVOS = ['Consulta', 'Control de ortodoncia', 'Limpieza', 'Dolor o urgencia', 'Estética', 'Otro'];

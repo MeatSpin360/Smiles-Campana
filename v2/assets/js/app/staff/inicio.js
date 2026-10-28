@@ -1,20 +1,23 @@
 import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, partes, DIAS_CORTOS } from '../../lib/dates.js';
-import { aviso, conCarga } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto } from '../comunes.js';
+import { aviso, conCarga, confirmar } from '../../lib/ui.js';
+import { encabezado, etiquetaEstado, nombreCompleto, esActivo } from '../comunes.js';
 import { darTurno, altaPaciente } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
+const diaCorto = (iso) => `${DIAS_CORTOS[partes(iso).dia]} ${Number(partes(iso).fecha.slice(8))}`;
+
 export async function inicio(ctx) {
   const f = hoy();
-  const [turnosHoy, proximos, sinVincular, agenda] = await Promise.all([
+  const [turnosHoy, proximos, sinVincular, agenda, pendientes] = await Promise.all([
     ctx.api.turnos({ desde: f, hasta: f }),
     ctx.api.turnos({ desde: sumarDias(f, 1), hasta: sumarDias(f, 7) }),
     ctx.api.cuentasSinVincular(),
     ctx.api.agenda(),
+    ctx.api.turnosPendientes(),
   ]);
-  const activosHoy = turnosHoy.filter((t) => t.estado !== 'cancelado');
-  const proximosActivos = proximos.filter((t) => t.estado === 'confirmado');
+  const activosHoy = turnosHoy.filter(esActivo);
+  const proximosActivos = proximos.filter(esActivo);
   const ahora = Date.now();
 
   const filaTurno = (t) => {
@@ -37,6 +40,35 @@ export async function inicio(ctx) {
       acciones);
   };
 
+  // Pedidos online esperando confirmación
+  const filaPendiente = (t) => {
+    const confirmarBtn = h('button.btn.btn-primario.btn-chico', {
+      type: 'button',
+      onclick: () => conCarga(confirmarBtn, async () => {
+        await ctx.api.cambiarEstadoTurno(t.id, 'confirmado');
+        aviso('Turno confirmado.');
+        ctx.navegar('/');
+      }),
+    }, 'Confirmar');
+    const rechazarBtn = h('button.btn.btn-secundario.btn-chico', {
+      type: 'button',
+      onclick: async () => {
+        const ok = await confirmar(`${nombreCompleto(t.paciente)}, ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h. El horario queda libre y el paciente ve que no se pudo confirmar.`,
+          { titulo: 'Rechazar pedido', aceptar: 'Rechazar pedido', peligro: true });
+        if (!ok) return;
+        await conCarga(rechazarBtn, async () => {
+          await ctx.api.cambiarEstadoTurno(t.id, 'rechazado');
+          aviso('Pedido rechazado. El horario quedó libre.');
+          ctx.navegar('/');
+        });
+      },
+    }, 'Rechazar');
+    return h('li.fila-agenda.fila-pendiente',
+      h('span.hora', h('small', diaCorto(t.inicio)), hora(t.inicio)),
+      h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
+      h('div.acciones-turno', rechazarBtn, confirmarBtn));
+  };
+
   const nuevoTurno = h('button.btn.btn-primario', {
     type: 'button',
     onclick: async () => { if (await darTurno(ctx.api, { dias: agenda.diasVisibles })) ctx.navegar('/'); },
@@ -52,6 +84,10 @@ export async function inicio(ctx) {
 
   return h('div',
     encabezado(mayuscula(fechaLarga(`${f}T12:00:00-03:00`)), resumen, nuevoPaciente, nuevoTurno),
+    pendientes.length ? h('section.panel.panel-pendientes',
+      h('h2', `Turnos por confirmar (${pendientes.length})`),
+      h('p.texto-suave', 'Pedidos online de pacientes. El horario queda reservado hasta que lo confirmes o lo rechaces.'),
+      h('ul.lista-agenda', pendientes.map(filaPendiente))) : null,
     sinVincular.length ? h('a.nota.nota-aviso.nota-enlace', { href: '#/pacientes?vincular=1' },
       h('span.nota-icono', { html: ICONOS.enlace }),
       h('div', h('strong', `${sinVincular.length} ${sinVincular.length === 1 ? 'cuenta nueva espera' : 'cuentas nuevas esperan'} vinculación`),
@@ -64,7 +100,7 @@ export async function inicio(ctx) {
       h('section.panel',
         h('h2', 'Próximos 7 días'),
         proximosActivos.length ? h('ul.lista-agenda', proximosActivos.slice(0, 12).map((t) => h('li.fila-agenda',
-          h('span.hora', h('small', `${DIAS_CORTOS[partes(t.inicio).dia]} ${Number(partes(t.inicio).fecha.slice(8))}`), hora(t.inicio)),
+          h('span.hora', h('small', diaCorto(t.inicio)), hora(t.inicio)),
           h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
-          t.creado_por === 'paciente' ? h('span.etiqueta.etiqueta-online', 'Online') : null))) : h('p.texto-suave', 'No hay turnos en los próximos días.'))));
+          t.estado === 'pendiente' ? etiquetaEstado('pendiente') : (t.creado_por === 'paciente' ? h('span.etiqueta.etiqueta-online', 'Online') : null)))) : h('p.texto-suave', 'No hay turnos en los próximos días.'))));
 }

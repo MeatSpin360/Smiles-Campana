@@ -3,10 +3,11 @@
 import { AGENDA_INICIAL, horariosLibres as calcularLibres } from '../lib/agenda.js';
 import { hoy, sumarDias, isoEn } from '../lib/dates.js';
 
-const CLAVE = 'smiles-demo-v1';
+const CLAVE = 'smiles-demo-v2';
 const CLAVE_SESION = 'smiles-demo-sesion';
 const PERSONAL = ['recepcion', 'odontologia', 'admin'];
 const CLINICO = ['odontologia', 'admin'];
+const activo = (t) => !['cancelado', 'rechazado'].includes(t.estado);
 
 const id = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const ahora = () => new Date().toISOString();
@@ -50,6 +51,9 @@ function semilla() {
   const proximo = libres[1]?.horarios.at(-1);
   if (proximo) turnos.push({ id: id(), paciente_id: pacientes[0].id, inicio: proximo, duracion: 30, motivo: 'Control de ortodoncia', estado: 'confirmado', creado_por: 'paciente', creado_en: ahora() });
   turnos.push({ id: id(), paciente_id: pacientes[0].id, inicio: isoEn(sumarDias(hoy(), -40), '16:00'), duracion: 30, motivo: 'Primera consulta', estado: 'atendido', creado_por: 'personal', creado_en: ahora() });
+  // Un pedido online esperando confirmación
+  const pedido = libres[2]?.horarios.find((iso) => !turnos.some((t) => t.inicio === iso));
+  if (pedido) turnos.push({ id: id(), paciente_id: pacientes[6].id, inicio: pedido, duracion: 30, motivo: 'Consulta', estado: 'pendiente', creado_por: 'paciente', creado_en: ahora() });
 
   const inicial = { temporales: false, piezas: { 16: { caras: { O: 'r', D: 'r' }, marcas: {} }, 26: { caras: { O: 'b' }, marcas: {} }, 36: { caras: {}, marcas: { conducto: 'r', corona: 'r' } }, 48: { caras: {}, marcas: { extraccion: 'r' } }, 18: { caras: {}, marcas: { extraccion: 'b' } }, 21: { caras: { M: 'r' }, marcas: {} } } };
   const actual = structuredClone(inicial);
@@ -112,7 +116,7 @@ function conPaciente(t) {
 
 function ocupado(inicio, excluirId) {
   const t = new Date(inicio).getTime();
-  return cargar().turnos.some((x) => x.id !== excluirId && x.estado !== 'cancelado' && new Date(x.inicio).getTime() === t);
+  return cargar().turnos.some((x) => x.id !== excluirId && activo(x) && new Date(x.inicio).getTime() === t);
 }
 
 export const modoDemo = true;
@@ -181,7 +185,7 @@ export const api = {
     const d = cargar();
     return espera(calcularLibres({
       agenda: d.agenda,
-      ocupados: d.turnos.filter((t) => t.estado !== 'cancelado').map((t) => t.inicio),
+      ocupados: d.turnos.filter(activo).map((t) => t.inicio),
       bloqueos: d.bloqueos.map((b) => b.fecha),
       desde,
       dias,
@@ -208,12 +212,12 @@ export const api = {
     const p = miPaciente();
     if (!p) throw new Error('Tu cuenta todavía no está vinculada a una ficha. Llamanos y lo resolvemos.');
     const d = cargar();
-    if (d.turnos.some((t) => t.paciente_id === p.id && t.estado === 'confirmado' && new Date(t.inicio) > new Date())) {
-      throw new Error('Ya tenés un turno reservado. Cancelalo si querés elegir otro horario.');
+    if (d.turnos.some((t) => t.paciente_id === p.id && ['pendiente', 'confirmado'].includes(t.estado) && new Date(t.inicio) > new Date())) {
+      throw new Error('Ya pediste un turno. Cancelalo si querés elegir otro horario.');
     }
     const libres = await api.horariosLibres(hoy(), d.agenda.diasVisibles);
     if (!libres.some((x) => x.horarios.includes(inicio))) throw new Error('Ese horario ya no está disponible. Elegí otro.');
-    const t = { id: id(), paciente_id: p.id, inicio, duracion: d.agenda.duracion, motivo: motivo || 'Consulta', estado: 'confirmado', creado_por: 'paciente', creado_en: ahora() };
+    const t = { id: id(), paciente_id: p.id, inicio, duracion: d.agenda.duracion, motivo: motivo || 'Consulta', estado: 'pendiente', creado_por: 'paciente', creado_en: ahora() };
     d.turnos.push(t);
     guardar();
     return espera(t);
@@ -223,7 +227,9 @@ export const api = {
     const horasMinimas = cargar().agenda.horasCancelacion ?? 12;
     const t = cargar().turnos.find((x) => x.id === turnoId && x.paciente_id === p?.id);
     if (!t) throw new Error('No encontramos ese turno.');
-    if (new Date(t.inicio).getTime() - Date.now() < horasMinimas * 3600e3) {
+    if (!['pendiente', 'confirmado'].includes(t.estado)) throw new Error('Ese turno ya no se puede cancelar.');
+    // Un pedido sin confirmar se puede retirar en cualquier momento
+    if (t.estado === 'confirmado' && new Date(t.inicio).getTime() - Date.now() < horasMinimas * 3600e3) {
       throw new Error(`Los turnos se pueden cancelar online hasta ${horasMinimas} h antes. Escribinos por WhatsApp.`);
     }
     t.estado = 'cancelado';
@@ -239,7 +245,7 @@ export const api = {
   // --- Personal ---
   async buscarPacientes(texto = '') {
     requiere(...PERSONAL);
-    const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const q = norm(texto);
     return espera(cargar().pacientes
       .filter((p) => !q || norm(`${p.apellido} ${p.nombre} ${p.dni} ${p.telefono}`).includes(q))
@@ -294,6 +300,14 @@ export const api = {
   async turnosDePaciente(pid) {
     requiere(...PERSONAL);
     return espera(cargar().turnos.filter((t) => t.paciente_id === pid).sort((a, b) => b.inicio.localeCompare(a.inicio)));
+  },
+  async turnosPendientes() {
+    requiere(...PERSONAL);
+    const ya = Date.now();
+    return espera(cargar().turnos
+      .filter((t) => t.estado === 'pendiente' && new Date(t.inicio).getTime() > ya)
+      .sort((a, b) => a.inicio.localeCompare(b.inicio))
+      .map(conPaciente));
   },
   async crearTurno({ paciente_id, inicio, motivo }) {
     requiere(...PERSONAL);

@@ -1,9 +1,10 @@
 import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, DIAS_CORTOS, diaDeSemana } from '../../lib/dates.js';
 import { turnosDelDia } from '../../lib/agenda.js';
-import { aviso, conCarga, confirmar, hoja } from '../../lib/ui.js';
+import { aviso, conCarga, hoja } from '../../lib/ui.js';
 import { encabezado, etiquetaEstado, nombreCompleto, ESTADOS, ACCIONES, esActivo, enlaceWhatsapp } from '../comunes.js';
 import { darTurno } from './comun.js';
+import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
 
 export async function agenda(ctx) {
@@ -27,28 +28,34 @@ export async function agenda(ctx) {
 
   const menuTurno = (t) => {
     const opciones = ACCIONES[t.estado] || [];
+    const vigente = new Date(t.inicio).getTime() > ahora && ['pendiente', 'confirmado'].includes(t.estado);
+    // Las acciones que avisan al paciente cierran este menú y abren su propia ventana
+    const despues = (fn) => async () => { cerrar(); if (await fn()) ir(fecha); };
     const { cerrar } = hoja({
       titulo: nombreCompleto(t.paciente),
       ancho: 'chico',
       cuerpo: h('div.menu-turno',
         h('p.texto-suave', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h. ${t.motivo}.`),
+        t.inicio_pedido ? h('p.texto-suave.nota-chica', `Pedido originalmente para el ${fechaLarga(t.inicio_pedido).replace(',', '')} a las ${hora(t.inicio_pedido)} h.`) : null,
+        t.estado === 'pendiente' && t.cambio_ofrecido_en ? h('p', h('span.etiqueta.etiqueta-cambio', 'Cambio ofrecido')) : null,
         enlaceWhatsapp(t.paciente?.telefono) ? h('a.btn.btn-secundario.btn-ancho', { href: enlaceWhatsapp(t.paciente.telefono), target: '_blank', rel: 'noopener' }, h('span.icono-btn', { html: ICONOS.whatsapp }), `WhatsApp ${t.paciente.telefono}`) : null,
         h('a.btn.btn-secundario.btn-ancho', { href: `#/pacientes/${t.paciente_id}` }, 'Abrir ficha'),
+        vigente ? h('button.btn.btn-secundario.btn-ancho', { type: 'button', onclick: despues(() => cambiarTurno(ctx.api, t, { dias: config.diasVisibles })) },
+          t.estado === 'pendiente' ? 'Ofrecer cambio' : 'Cambiar horario') : null,
         h('p.titulo-paso', 'Cambiar estado'),
         h('div.botones-estado', opciones.map(([e, texto]) => {
           const peligro = ['cancelado', 'rechazado'].includes(e);
           const principal = e === 'confirmado' && t.estado === 'pendiente';
-          const b = h(`button.btn.btn-chico${peligro ? '.btn-peligro' : principal ? '.btn-primario' : '.btn-secundario'}`, {
+          if (principal) return h('button.btn.btn-chico.btn-primario', { type: 'button', onclick: despues(() => confirmarTurno(ctx.api, t)) }, texto);
+          if (peligro) return h('button.btn.btn-chico.btn-peligro', { type: 'button', onclick: despues(() => cancelarTurno(ctx.api, t)) }, texto);
+          const b = h('button.btn.btn-chico.btn-secundario', {
             type: 'button',
-            onclick: async () => {
-              if (peligro && !(await confirmar('El horario queda libre.', { titulo: texto, aceptar: texto, peligro: true }))) return;
-              await conCarga(b, async () => {
-                await ctx.api.cambiarEstadoTurno(t.id, e);
-                aviso(`Turno: ${ESTADOS[e].toLowerCase()}.`);
-                cerrar();
-                ir(fecha);
-              });
-            },
+            onclick: () => conCarga(b, async () => {
+              await ctx.api.cambiarEstadoTurno(t.id, e);
+              aviso(`Turno: ${ESTADOS[e].toLowerCase()}.`);
+              cerrar();
+              ir(fecha);
+            }),
           }, texto);
           return b;
         }))),

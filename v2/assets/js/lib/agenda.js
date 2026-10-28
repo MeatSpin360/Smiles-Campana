@@ -65,7 +65,7 @@ export function estadoAtencion(agenda, bloqueos = [], ahora = new Date()) {
     const h = agenda.horarios.filter((x) => x.dia === d).sort((a, b) => minutos(a.desde) - minutos(b.desde))[0];
     if (h) {
       const cuando = i === 1 ? 'mañana' : `el ${DIAS[d]}`;
-      return { abierto: false, texto: `Próxima atención: ${cuando} a las ${h.desde} h` };
+      return { abierto: false, texto: `Próximo horario de atención: ${cuando} a las ${h.desde} h` };
     }
   }
   return { abierto: false, texto: 'Consultá disponibilidad por WhatsApp' };

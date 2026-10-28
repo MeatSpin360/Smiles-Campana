@@ -1,7 +1,8 @@
 import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, partes, DIAS_CORTOS } from '../../lib/dates.js';
-import { aviso, conCarga, confirmar } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto, esActivo, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
+import { aviso, conCarga } from '../../lib/ui.js';
+import { encabezado, etiquetaEstado, nombreCompleto, esActivo } from '../comunes.js';
+import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { darTurno, altaPaciente } from './comun.js';
 import { ICONOS } from '../iconos.js';
 
@@ -40,40 +41,24 @@ export async function inicio(ctx) {
       acciones);
   };
 
-  // Pedidos online esperando confirmación
+  // Pedidos online esperando confirmación, en orden de llegada (los nuevos se suman abajo)
   const filaPendiente = (t) => {
-    const confirmarBtn = h('button.btn.btn-primario.btn-chico', {
-      type: 'button',
-      onclick: () => conCarga(confirmarBtn, async () => {
-        await ctx.api.cambiarEstadoTurno(t.id, 'confirmado');
-        aviso('Turno confirmado.');
-        ctx.navegar('/');
-      }),
-    }, 'Confirmar');
-    const rechazarBtn = h('button.btn.btn-secundario.btn-chico', {
-      type: 'button',
-      onclick: async () => {
-        const ok = await confirmar(`${nombreCompleto(t.paciente)}, ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h. El horario queda libre y el paciente ve que no se pudo confirmar.`,
-          { titulo: 'Rechazar pedido', aceptar: 'Rechazar pedido', peligro: true });
-        if (!ok) return;
-        await conCarga(rechazarBtn, async () => {
-          await ctx.api.cambiarEstadoTurno(t.id, 'rechazado');
-          aviso('Pedido rechazado. El horario quedó libre.');
-          ctx.navegar('/');
-        });
-      },
-    }, 'Rechazar');
-    // Contacto rápido para reprogramar, con el mensaje ya escrito
-    const saludo = `Hola ${t.paciente?.nombre || ''}, te escribimos de Smiles Campana por el turno que pediste para el ${fechaLarga(t.inicio).replace(',', '')} a las ${hora(t.inicio)} h.`;
-    const wa = enlaceWhatsapp(t.paciente?.telefono, saludo);
-    const mail = enlaceCorreo(t.paciente?.email, 'Tu pedido de turno en Smiles Campana', `${saludo}\n\n`);
-    const contacto = (wa || mail) ? h('div.contacto-turno',
-      wa ? h('a.btn-icono', { href: wa, target: '_blank', rel: 'noopener', 'aria-label': `WhatsApp a ${t.paciente.nombre}`, title: `WhatsApp ${t.paciente.telefono}`, html: ICONOS.whatsapp }) : null,
-      mail ? h('a.btn-icono', { href: mail, target: '_blank', rel: 'noopener', 'aria-label': `Email a ${t.paciente.nombre}`, title: t.paciente.email, html: ICONOS.correo }) : null) : null;
+    const accion = (clase, texto, fn) => {
+      const b = h(`button.btn.btn-chico.${clase}`, {
+        type: 'button',
+        onclick: () => conCarga(b, async () => { if (await fn()) ctx.navegar('/'); }),
+      }, texto);
+      return b;
+    };
     return h('li.fila-agenda.fila-pendiente',
       h('span.hora', h('small', diaCorto(t.inicio)), hora(t.inicio)),
-      h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
-      h('div.acciones-turno', contacto, rechazarBtn, confirmarBtn));
+      h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` },
+        h('strong', nombreCompleto(t.paciente)),
+        h('span', t.motivo, t.cambio_ofrecido_en ? h('span.etiqueta.etiqueta-cambio', 'Cambio ofrecido') : null)),
+      h('div.acciones-turno',
+        accion('btn-fantasma', 'Cancelar', () => cancelarTurno(ctx.api, t)),
+        accion('btn-secundario', 'Ofrecer cambio', () => cambiarTurno(ctx.api, t, { dias: agenda.diasVisibles })),
+        accion('btn-primario', 'Confirmar', () => confirmarTurno(ctx.api, t))));
   };
 
   const nuevoTurno = h('button.btn.btn-primario', {
@@ -93,7 +78,7 @@ export async function inicio(ctx) {
     encabezado(mayuscula(fechaLarga(`${f}T12:00:00-03:00`)), resumen, nuevoPaciente, nuevoTurno),
     pendientes.length ? h('section.panel.panel-pendientes',
       h('h2', `Turnos por confirmar (${pendientes.length})`),
-      h('p.texto-suave', 'Pedidos online de pacientes. El horario queda reservado hasta que lo confirmes o lo rechaces.'),
+      h('p.texto-suave', 'Pedidos online de pacientes, en orden de llegada. El horario queda reservado hasta que lo confirmes, lo cambies o lo canceles.'),
       h('ul.lista-agenda', pendientes.map(filaPendiente))) : null,
     sinVincular.length ? h('a.nota.nota-aviso.nota-enlace', { href: '#/pacientes?vincular=1' },
       h('span.nota-icono', { html: ICONOS.enlace }),

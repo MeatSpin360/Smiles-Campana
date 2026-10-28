@@ -31,7 +31,9 @@
 .hero-acciones .btn { min-height: 52px; font-size: var(--t-m); padding: 0 1.5em; }
 
 .estado { display: inline-flex; align-items: center; gap: 10px; font-size: var(--t-s); font-weight: 500; color: var(--tinta-2); margin-bottom: 20px; }
-.estado-punto { width: 10px; height: 10px; border-radius: 50%; background: var(--tinta-3); }
+.estado:has(+ .estado-nota:not([hidden])) { margin-bottom: 4px; }
+.estado-nota { font-size: 12.5px; line-height: 1.45; color: var(--tinta-3); max-width: 46ch; margin: 0 0 22px; padding-left: 20px; text-wrap: pretty; }
+.estado-punto { flex: none; align-self: flex-start; margin-top: calc(0.75em - 5px); width: 10px; height: 10px; border-radius: 50%; background: var(--tinta-3); }
 .estado.abierto { color: var(--ok); }
 .estado.abierto .estado-punto { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-claro); }
 

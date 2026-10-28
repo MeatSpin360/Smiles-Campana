@@ -16,3 +16,9 @@ export const CONSULTORIO = {
   email: 'smiles.campana@gmail.com',
   instagram: 'https://www.instagram.com/smiles.campana',
 };
+
+// Avisos automáticos al paciente. 'correo' se activa cuando el envío de correos esté funcionando.
+// Mientras esté en false, al confirmar, cambiar o cancelar un turno se ofrece avisar por WhatsApp.
+export const AVISOS = {
+  correo: false,
+};

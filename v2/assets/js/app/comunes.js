@@ -19,7 +19,7 @@ export const esActivo = (t) => !['cancelado', 'rechazado'].includes(t.estado);
 
 /** Cambios de estado que puede hacer el personal desde cada estado: [estado nuevo, texto del botón]. */
 export const ACCIONES = {
-  pendiente: [['rechazado', 'Rechazar'], ['confirmado', 'Confirmar']],
+  pendiente: [['rechazado', 'Cancelar pedido'], ['confirmado', 'Confirmar']],
   confirmado: [['atendido', 'Atendido'], ['ausente', 'No vino'], ['cancelado', 'Cancelar turno']],
   atendido: [['ausente', 'No vino'], ['confirmado', 'Volver a confirmado']],
   ausente: [['atendido', 'Atendido'], ['confirmado', 'Volver a confirmado']],

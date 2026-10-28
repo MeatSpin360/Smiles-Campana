@@ -74,6 +74,8 @@ function rutaActual() {
   return { ruta: ruta || '/', query: new URLSearchParams(query) };
 }
 
+let vistaActual = null; // { encontrada, ctx, contenido, ruta } para refrescar en silencio
+
 async function cargarRuta() {
   const { ruta, query } = rutaActual();
   const rol = sesion?.perfil?.rol;
@@ -102,6 +104,7 @@ async function cargarRuta() {
 
   const ctx = { api, sesion, perfil: sesion?.perfil, params, query, navegar, recargarSesion, rol };
   const contenido = h('div.vista');
+  vistaActual = { encontrada, ctx, contenido, ruta };
   if (encontrada.publica || !sesion) {
     vaciar(raiz, marcoPublico(contenido));
   } else {
@@ -119,6 +122,45 @@ async function cargarRuta() {
   window.scrollTo(0, 0);
 }
 
+// ---------- Actualización automática para el personal ----------
+// Cuando cambia un turno en la base (pedido nuevo, cancelación, confirmación), las pantallas
+// que muestran turnos se vuelven a dibujar solas, sin mover el scroll.
+// En la ficha, solo la pestaña Turnos (en el odontograma se perderían cambios sin guardar).
+const RUTAS_CON_TURNOS = [/^\/$/, /^\/agenda$/, /^\/pacientes\/[^/]+\/turnos$/];
+let dejarDeEscuchar = null;
+let refrescoPendiente = null;
+
+async function refrescarEnSilencio() {
+  const v = vistaActual;
+  if (!v || !RUTAS_CON_TURNOS.some((r) => r.test(v.ruta))) return;
+  // Si hay una ventana abierta (dar turno, confirmar...), esperar a que se cierre
+  if (document.querySelector('dialog[open]')) {
+    refrescoPendiente = setTimeout(refrescarEnSilencio, 800);
+    return;
+  }
+  try {
+    const nodo = await (await v.encontrada.vista())(v.ctx);
+    if (vistaActual !== v || document.querySelector('dialog[open]')) return;
+    const y = window.scrollY;
+    vaciar(v.contenido, nodo);
+    window.scrollTo(0, y);
+  } catch (e) {
+    console.warn('No se pudo actualizar la vista', e);
+  }
+}
+
+function escucharCambios() {
+  dejarDeEscuchar?.();
+  dejarDeEscuchar = null;
+  const rol = sesion?.perfil?.rol;
+  if (!rol || rol === 'paciente' || !api.escucharTurnos) return;
+  dejarDeEscuchar = api.escucharTurnos(({ nuevoPedido }) => {
+    if (nuevoPedido) aviso('Llegó un pedido de turno nuevo.');
+    clearTimeout(refrescoPendiente);
+    refrescoPendiente = setTimeout(refrescarEnSilencio, 400);
+  });
+}
+
 async function recargarSesion() {
   sesion = await api.sesion();
   if (sesion && !sesion.perfil) {
@@ -126,6 +168,7 @@ async function recargarSesion() {
     await api.salir();
     sesion = null;
   }
+  escucharCambios();
   return sesion;
 }
 
@@ -133,6 +176,7 @@ async function salir() {
   if (!(await confirmar('Vas a cerrar la sesión en este dispositivo.', { titulo: 'Cerrar sesión', aceptar: 'Cerrar sesión' }))) return;
   await api.salir();
   sesion = null;
+  escucharCambios();
   navegar('/ingresar');
 }
 

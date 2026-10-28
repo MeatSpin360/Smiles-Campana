@@ -11,6 +11,7 @@ function mostrar(agenda) {
   const est = estadoAtencion(agenda, bloqueos);
   const el = document.getElementById('estado');
   el.hidden = false;
+  document.getElementById('estado-nota').hidden = false;
   el.classList.toggle('abierto', est.abierto);
   document.getElementById('estado-texto').textContent = est.texto;
 

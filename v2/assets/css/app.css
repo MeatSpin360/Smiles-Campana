@@ -184,9 +184,16 @@ body { background: var(--esmalte); }
 .fa-paciente span { font-size: var(--t-xs); color: var(--tinta-2); }
 .fa-paciente:hover strong { color: var(--lavanda-osc); }
 .acciones-turno { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.contacto-turno { display: flex; gap: 4px; margin-right: 6px; padding-right: 10px; border-right: 1px solid var(--linea); }
-.contacto-turno .btn-icono { width: 36px; height: 36px; border: 1.5px solid var(--linea-fuerte); color: var(--lavanda-osc); }
-.contacto-turno .btn-icono svg { width: 18px; height: 18px; }
+
+/* Ofrecer cambio / cambiar horario */
+.etiqueta-cambio { background: var(--lavanda-tenue); color: var(--lavanda-osc); margin-left: 8px; font-size: 0.6875rem; padding: 1px 8px; }
+.resumen-cambio { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--esmalte); margin-bottom: 18px; }
+.paso-cambio + .paso-cambio { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--linea); }
+.paso-cambio .titulo-paso { display: flex; align-items: center; gap: 10px; }
+.numero-paso { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--lavanda-osc); color: #fff; font-size: 0.75rem; font-weight: 700; }
+.contacto-cambio { display: flex; flex-wrap: wrap; gap: 8px; }
+.oferta-hecha { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; font-size: var(--t-s); color: var(--ok); }
+.mensaje-previo { margin: 14px 0 0; padding: 12px 14px; border-left: 3px solid var(--oro); background: var(--esmalte); border-radius: 0 10px 10px 0; font-size: var(--t-s); color: var(--tinta-2); }
 
 .nav-agenda { display: flex; align-items: center; gap: 4px; margin-bottom: 18px; }
 .semana { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -324,5 +331,5 @@ body { background: var(--esmalte); }
 @media (max-width: 600px) {
   .fila-pendiente { grid-template-columns: 62px 1fr; }
   .fila-pendiente .acciones-turno { grid-column: 1 / -1; flex-wrap: nowrap; }
-  .fila-pendiente .contacto-turno { margin-right: auto; border-right: 0; padding-right: 0; }
+  .fila-pendiente .acciones-turno .btn-fantasma { margin-right: auto; padding-left: 0; }
 }

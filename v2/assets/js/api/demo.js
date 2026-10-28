@@ -311,7 +311,7 @@ export const api = {
     const ya = Date.now();
     return espera(cargar().turnos
       .filter((t) => t.estado === 'pendiente' && new Date(t.inicio).getTime() > ya)
-      .sort((a, b) => a.inicio.localeCompare(b.inicio))
+      .sort((a, b) => a.creado_en.localeCompare(b.creado_en))
       .map(conPaciente));
   },
   async crearTurno({ paciente_id, inicio, motivo }) {
@@ -329,6 +329,37 @@ export const api = {
     t.estado = estado;
     guardar();
     return espera(t);
+  },
+  async ofrecerCambio(tid) {
+    requiere(...PERSONAL);
+    const t = cargar().turnos.find((x) => x.id === tid);
+    t.cambio_ofrecido_en = ahora();
+    guardar();
+    return espera(t);
+  },
+  async cambiarHorarioTurno(tid, inicio) {
+    requiere(...PERSONAL);
+    const t = cargar().turnos.find((x) => x.id === tid);
+    if (ocupado(inicio, tid)) throw new Error('Ya hay un turno en ese horario.');
+    t.inicio_pedido ||= t.inicio;
+    Object.assign(t, { inicio, estado: 'confirmado' });
+    guardar();
+    return espera(conPaciente(t));
+  },
+  /** En la demo, los cambios hechos en otra pestaña del mismo navegador llegan como evento 'storage'. */
+  escucharTurnos(alCambiar) {
+    const pendientes = () => new Set(cargar().turnos.filter((t) => t.estado === 'pendiente').map((t) => t.id));
+    let antes = pendientes();
+    const oir = (e) => {
+      if (e.key !== CLAVE) return;
+      db = null;
+      const ahoraP = pendientes();
+      const nuevoPedido = [...ahoraP].some((x) => !antes.has(x));
+      antes = ahoraP;
+      alCambiar({ nuevoPedido });
+    };
+    window.addEventListener('storage', oir);
+    return () => window.removeEventListener('storage', oir);
   },
   async odontogramas(pid) {
     requiere(...CLINICO);

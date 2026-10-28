@@ -5,7 +5,9 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 ## Hecho
 
 - [x] Turnos a confirmar: el paciente **pide** un turno (queda "Por confirmar" y el horario queda reservado). Recepción u odontología lo **confirman** o lo **rechazan** desde *Hoy*, la agenda o la ficha. El paciente ve el estado en *Mis turnos*.
-- [x] Contacto rápido en *Turnos por confirmar*: botones de WhatsApp y de email (Gmail) con el mensaje ya escrito, para reprogramar en el momento.
+- [x] Cada pedido tiene tres acciones: **Confirmar**, **Ofrecer cambio** y **Cancelar**. *Ofrecer cambio* abre el contacto con el paciente (WhatsApp primero si tiene ambos, o correo, con el mensaje ya escrito), marca el pedido como "Cambio ofrecido" y permite elegir el horario acordado: el turno queda confirmado ahí y se guarda el horario que había pedido. En la ficha y en la agenda, los turnos confirmados tienen **Cambiar horario**.
+- [x] Aviso al paciente, plan B: si no tiene correo (o mientras los correos no estén activos) y tiene celular, al confirmar o cancelar se ofrece avisarle por WhatsApp con el mensaje ya escrito.
+- [x] *Turnos por confirmar* en orden de llegada (los pedidos nuevos se suman abajo) y **actualización automática** (Supabase Realtime) en *Hoy*, la agenda y la pestaña Turnos de la ficha.
 - [x] Límite contra abusos: con 4 cancelaciones propias en el día, el paciente no puede pedir otro turno hasta el día siguiente ("por actividad sospechosa"). Lo controla la base; las cancelaciones hechas por el personal no cuentan.
 
 ## Etapa 1: poner online
@@ -20,7 +22,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Etapa 2: integraciones con Google
 
-- [ ] **Aviso por email** al paciente cuando su turno se confirma o se rechaza.
+- [ ] **Correos automáticos** al paciente (con Google Apps Script desde la cuenta del consultorio): turno confirmado, cambio de turno, turno agendado por el personal y turno cancelado por el consultorio. Al activarlos, poner `AVISOS.correo = true` en `config.js`.
 - [ ] **Google Calendar como espejo** de la agenda (solo turnos confirmados), en un solo sentido: sistema → Calendar, al instante, por la API de Google (no por suscripción ICS, que tarda 12 a 24 h en actualizarse). Desde que el sistema arranca, los turnos se dan solo en el sistema.
 - [ ] **Copia de seguridad semanal** de la base (y de las fotos) a Google Drive. El plan gratuito de Supabase no hace backups.
 

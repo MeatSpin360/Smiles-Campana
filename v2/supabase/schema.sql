@@ -80,9 +80,13 @@ create table if not exists turnos (
   estado       estado_turno not null default 'confirmado',
   creado_por   text not null default 'personal' check (creado_por in ('paciente', 'personal')),
   creado_en    timestamptz not null default now(),
-  cancelado_en timestamptz  -- solo cuando lo cancela el propio paciente online (límite diario de pedidos)
+  cancelado_en timestamptz,  -- solo cuando lo cancela el propio paciente online (límite diario de pedidos)
+  inicio_pedido timestamptz,  -- horario original, si el personal cambió el turno a otro horario
+  cambio_ofrecido_en timestamptz  -- cuándo se le ofreció otro horario por un pedido pendiente
 );
 alter table turnos add column if not exists cancelado_en timestamptz;
+alter table turnos add column if not exists inicio_pedido timestamptz;
+alter table turnos add column if not exists cambio_ofrecido_en timestamptz;
 -- Nunca dos turnos activos en el mismo horario (un pedido pendiente también reserva el horario)
 create unique index if not exists turnos_un_horario on turnos (inicio) where estado not in ('cancelado', 'rechazado');
 create index if not exists turnos_paciente on turnos (paciente_id);
@@ -407,3 +411,12 @@ revoke execute on function al_registrarse(), al_confirmar_email(), completar_aut
 -- Las que usan las reglas de permisos: solo usuarios con sesión.
 revoke execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() from public, anon;
 grant execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() to authenticated;
+
+-- ---------- Avisos en vivo (Realtime) ----------
+-- Las pantallas del personal se actualizan solas cuando cambia un turno.
+-- Los avisos respetan las mismas reglas de permisos: el personal recibe todos; un paciente, solo los suyos.
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'turnos') then
+    alter publication supabase_realtime add table turnos;
+  end if;
+end $$;

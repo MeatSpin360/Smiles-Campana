@@ -3,6 +3,7 @@ import { aviso, confirmar, conCarga, hoja } from '../../lib/ui.js';
 import { fechaLarga, hora, mayuscula, partes, hoy } from '../../lib/dates.js';
 import { encabezado, etiquetaEstado, bloqueFecha, selectorHorario, avisoSinFicha, MOTIVOS, linkWhatsapp } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
+import { AVISOS } from '../../../../config.js';
 
 const esFuturo = (t) => new Date(t.inicio).getTime() > Date.now();
 /** Turno pedido o confirmado que todavía no pasó. */
@@ -11,7 +12,8 @@ const vigente = (t) => ['pendiente', 'confirmado'].includes(t.estado) && esFutur
 export async function misTurnos(ctx) {
   const [ficha, turnos, agenda] = await Promise.all([ctx.api.miFicha(), ctx.api.misTurnos(), ctx.api.agenda()]);
   const proximos = turnos.filter(vigente);
-  const rechazados = turnos.filter((t) => t.estado === 'rechazado' && esFuturo(t));
+  // Pedidos que el consultorio no confirmó, y turnos que el consultorio canceló (los que cancela el paciente tienen cancelado_en)
+  const rechazados = turnos.filter((t) => esFuturo(t) && (t.estado === 'rechazado' || (t.estado === 'cancelado' && !t.cancelado_en)));
   const anteriores = turnos.filter((t) => !proximos.includes(t) && !rechazados.includes(t)).reverse();
   const saludo = `Hola, ${ctx.perfil.nombre || ficha?.nombre || ''}`.trim();
 
@@ -41,15 +43,26 @@ export async function misTurnos(ctx) {
         h('h2', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`),
         h('p.texto-suave', t.motivo),
         h('div.td-acciones', cancelar)),
+      t.inicio_pedido && !pendiente ? h('p.td-pie', `Cambiamos el horario que habías pedido (${fechaLarga(t.inicio_pedido).replace(',', '')} a las ${hora(t.inicio_pedido)} h).`) : null,
       h('p.td-pie', pendiente
-        ? 'El consultorio revisa tu pedido y lo confirma. Cuando esté confirmado lo vas a ver acá.'
+        ? avisoPendiente(t)
         : `Podés cancelarlo online hasta ${agenda.horasCancelacion} h antes. Después, avisanos por WhatsApp.`));
   };
+
+  // Cómo se va a enterar el paciente de que su pedido se confirmó
+  function avisoPendiente(t) {
+    if (t.cambio_ofrecido_en) return 'Ese horario no está disponible. Te vamos a contactar para coordinar otro.';
+    if (AVISOS.correo && ficha.email) return 'Recibirás un correo cuando el turno esté confirmado.';
+    if (ficha.telefono) return 'Te vamos a avisar por WhatsApp cuando el turno esté confirmado.';
+    return 'Cuando el consultorio lo confirme, lo vas a ver acá.';
+  }
 
   const avisosRechazo = rechazados.map((t) => h('div.nota.nota-aviso',
     h('span.nota-icono', { html: ICONOS.alerta }),
     h('div',
-      h('strong', `No pudimos confirmar tu turno del ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h`),
+      h('strong', t.estado === 'rechazado'
+        ? `No pudimos confirmar tu turno del ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h`
+        : `Tuvimos que cancelar tu turno del ${fechaLarga(t.inicio)} a las ${hora(t.inicio)} h`),
       h('p', 'Elegí otro horario o escribinos y lo coordinamos.'),
       h('div.td-acciones',
         proximos.length ? null : h('a.btn.btn-primario', { href: '#/pedir-turno' }, 'Elegir otro horario'),

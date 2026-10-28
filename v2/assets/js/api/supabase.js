@@ -20,7 +20,7 @@ function ok({ data, error }) {
   return data;
 }
 
-const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, paciente:pacientes(id, nombre, apellido, dni, telefono, email)';
+const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, inicio_pedido, cambio_ofrecido_en, paciente:pacientes(id, nombre, apellido, dni, telefono, email)';
 
 const turnoDesdeDB = (t) => (t ? { ...t, inicio: new Date(t.inicio).toISOString() } : t);
 
@@ -157,7 +157,28 @@ export const api = {
   },
   async turnosPendientes() {
     return ok(await sb.from('turnos').select(COLS_TURNO_PACIENTE)
-      .eq('estado', 'pendiente').gte('inicio', new Date().toISOString()).order('inicio')).map(turnoDesdeDB);
+      .eq('estado', 'pendiente').gte('inicio', new Date().toISOString()).order('creado_en')).map(turnoDesdeDB);
+  },
+  /** Marca que se le ofreció otro horario al paciente (el pedido sigue reservando su horario). */
+  async ofrecerCambio(id) {
+    return ok(await sb.from('turnos').update({ cambio_ofrecido_en: new Date().toISOString() }).eq('id', id).select().single());
+  },
+  /** Mueve un turno vigente a otro horario y lo deja confirmado. Guarda el horario original. */
+  async cambiarHorarioTurno(id, inicio) {
+    const actual = ok(await sb.from('turnos').select('inicio, inicio_pedido').eq('id', id).single());
+    const r = await sb.from('turnos').update({ inicio, estado: 'confirmado', inicio_pedido: actual.inicio_pedido || actual.inicio })
+      .eq('id', id).select(COLS_TURNO_PACIENTE).single();
+    if (r.error?.code === '23505') throw new Error('Ya hay un turno en ese horario.');
+    return turnoDesdeDB(ok(r));
+  },
+  /** Avisa cada vez que cambia un turno (pedido nuevo, cancelación, confirmación). Devuelve la función para dejar de escuchar. */
+  escucharTurnos(alCambiar) {
+    const canal = sb.channel('turnos-personal')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos' }, (p) => {
+        alCambiar({ nuevoPedido: p.eventType === 'INSERT' && p.new?.estado === 'pendiente' });
+      })
+      .subscribe();
+    return () => sb.removeChannel(canal);
   },
   async crearTurno({ paciente_id, inicio, motivo }) {
     const { duracion } = ok(await sb.from('agenda_config').select('duracion').eq('id', 1).single());

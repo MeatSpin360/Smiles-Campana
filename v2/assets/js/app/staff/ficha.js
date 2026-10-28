@@ -5,6 +5,7 @@ import { crearOdontograma } from '../../odontograma/componente.js';
 import { hallazgos } from '../../odontograma/modelo.js';
 import { etiquetaEstado, nombreCompleto, ESTADOS, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
 import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerClinica } from './comun.js';
+import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
 
 const PESTANAS = [
@@ -80,29 +81,25 @@ async function vistaTurnos(ctx, p) {
   const fila = (t) => {
     const futuro = new Date(t.inicio).getTime() > ahora;
     const pendiente = t.estado === 'pendiente';
-    const cancelar = futuro && (pendiente || t.estado === 'confirmado') ? h('button.btn.btn-fantasma.btn-chico', {
-      type: 'button',
-      onclick: async (e) => {
-        const titulo = pendiente ? 'Rechazar pedido' : 'Cancelar turno';
-        if (!(await confirmar('El horario queda libre.', { titulo, aceptar: titulo, peligro: true }))) return;
-        await conCarga(e.target, async () => {
-          await ctx.api.cambiarEstadoTurno(t.id, pendiente ? 'rechazado' : 'cancelado');
-          aviso(pendiente ? 'Pedido rechazado.' : 'Turno cancelado.');
-          recargar();
-        });
-      },
-    }, pendiente ? 'Rechazar' : 'Cancelar') : null;
-    const confirmarBtn = futuro && pendiente ? h('button.btn.btn-primario.btn-chico', {
-      type: 'button',
-      onclick: (e) => conCarga(e.target, async () => {
-        await ctx.api.cambiarEstadoTurno(t.id, 'confirmado');
-        aviso('Turno confirmado.');
-        recargar();
-      }),
-    }, 'Confirmar') : null;
+    const vigente = futuro && (pendiente || t.estado === 'confirmado');
+    const turno = { ...t, paciente: p };
+    const accion = (clase, texto, fn) => {
+      const b = h(`button.btn.btn-chico.${clase}`, {
+        type: 'button',
+        onclick: () => conCarga(b, async () => { if (await fn()) recargar(); }),
+      }, texto);
+      return b;
+    };
+    const acciones = vigente ? [
+      accion('btn-fantasma', 'Cancelar', () => cancelarTurno(ctx.api, turno)),
+      accion('btn-secundario', pendiente ? 'Ofrecer cambio' : 'Cambiar horario', () => cambiarTurno(ctx.api, turno, { dias: agenda.diasVisibles })),
+      pendiente ? accion('btn-primario', 'Confirmar', () => confirmarTurno(ctx.api, turno)) : null,
+    ] : [];
+    const detalle = [t.motivo, t.inicio_pedido ? `Pedido originalmente para el ${fechaLarga(t.inicio_pedido).replace(',', '')} a las ${hora(t.inicio_pedido)} h` : null].filter(Boolean).join('. ');
     return h('li.fila-turno',
-      h('div', h('strong', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`), h('span.texto-suave', t.motivo)),
-      h('div.fila-turno-der', cancelar, confirmarBtn, etiquetaEstado(t.estado)));
+      h('div', h('strong', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`), h('span.texto-suave', detalle),
+        pendiente && t.cambio_ofrecido_en ? h('span.etiqueta.etiqueta-cambio', 'Cambio ofrecido') : null),
+      h('div.fila-turno-der', ...acciones, etiquetaEstado(t.estado)));
   };
   const cuenta = (e) => turnos.filter((t) => t.estado === e).length;
   return h('section.panel',

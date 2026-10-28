@@ -20,9 +20,26 @@ function ok({ data, error }) {
   return data;
 }
 
-const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, inicio_pedido, cambio_ofrecido_en, paciente:pacientes(id, nombre, apellido, dni, telefono, email)';
+const COLS_TURNO_PACIENTE = 'id, paciente_id, inicio, duracion, motivo, estado, creado_por, creado_en, inicio_pedido, cambio_ofrecido_en, sobreturno, fin, paciente:pacientes(id, nombre, apellido, dni, telefono, email)';
 
-const turnoDesdeDB = (t) => (t ? { ...t, inicio: new Date(t.inicio).toISOString() } : t);
+const turnoDesdeDB = (t) => (t ? { ...t, inicio: new Date(t.inicio).toISOString(), fin: t.fin ? new Date(t.fin).toISOString() : t.fin } : t);
+
+// Superposición con otro turno: la base responde con la regla de exclusión (23P01) o, en versiones viejas, índice único (23505)
+const SUPERPUESTO = ['23P01', '23505'];
+const mensajeSuperposicion = 'Ese horario se superpone con otro turno.';
+
+const bloqueoDesdeDB = (b) => ({ ...b, hora_desde: b.hora_desde?.slice(0, 5) ?? null, hora_hasta: b.hora_hasta?.slice(0, 5) ?? null });
+
+function agruparPorDia(lista) {
+  const porDia = new Map();
+  for (const iso of lista) {
+    const t = new Date(iso).toISOString();
+    const f = partes(t).fecha;
+    if (!porDia.has(f)) porDia.set(f, []);
+    porDia.get(f).push(t);
+  }
+  return [...porDia].map(([fecha, horarios]) => ({ fecha, horarios }));
+}
 
 async function sesionActual() {
   const { data } = await sb.auth.getSession();
@@ -69,39 +86,48 @@ export const api = {
     const [cfg, horarios, bloqueos] = await Promise.all([
       sb.from('agenda_config').select('*').eq('id', 1).single(),
       sb.from('agenda_horarios').select('dia, desde, hasta').order('dia').order('desde'),
-      sb.from('agenda_bloqueos').select('fecha, motivo').gte('fecha', partes().fecha).order('fecha'),
+      // Bloqueos vigentes: de hoy en adelante, o repetidos que todavía rigen
+      sb.from('agenda_bloqueos').select('id, fecha, hora_desde, hora_hasta, repetir, hasta_fecha, motivo')
+        .or(`fecha.gte.${partes().fecha},and(repetir.is.true,or(hasta_fecha.is.null,hasta_fecha.gte.${partes().fecha}))`)
+        .order('fecha').order('hora_desde', { nullsFirst: true }),
     ]);
     const c = ok(cfg);
     return {
       duracion: c.duracion,
+      intervalo: c.intervalo ?? c.duracion,
+      margenSobreturno: c.margen_sobreturno ?? 60,
       diasVisibles: c.dias_visibles,
       horasCancelacion: c.horas_cancelacion,
       horarios: ok(horarios).map((h) => ({ dia: h.dia, desde: h.desde.slice(0, 5), hasta: h.hasta.slice(0, 5) })),
-      bloqueos: ok(bloqueos),
+      bloqueos: ok(bloqueos).map(bloqueoDesdeDB),
     };
   },
-  async guardarAgenda({ duracion, diasVisibles, horasCancelacion, horarios }) {
-    ok(await sb.from('agenda_config').update({ duracion, dias_visibles: diasVisibles, horas_cancelacion: horasCancelacion }).eq('id', 1));
+  async guardarAgenda({ duracion, intervalo, diasVisibles, horasCancelacion, horarios }) {
+    ok(await sb.from('agenda_config').update({ duracion, intervalo, dias_visibles: diasVisibles, horas_cancelacion: horasCancelacion }).eq('id', 1));
     ok(await sb.from('agenda_horarios').delete().gte('id', 0));
     if (horarios.length) ok(await sb.from('agenda_horarios').insert(horarios.map(({ dia, desde, hasta }) => ({ dia, desde, hasta }))));
     return true;
   },
-  async agregarBloqueo(fecha, motivo) {
-    ok(await sb.from('agenda_bloqueos').upsert({ fecha, motivo }));
+  /** b: { fecha, hora_desde?, hora_hasta?, repetir?, hasta_fecha?, motivo? } */
+  async agregarBloqueo(b) {
+    ok(await sb.from('agenda_bloqueos').insert({
+      fecha: b.fecha,
+      hora_desde: b.hora_desde || null,
+      hora_hasta: b.hora_hasta || null,
+      repetir: !!b.repetir,
+      hasta_fecha: b.repetir && b.hasta_fecha ? b.hasta_fecha : null,
+      motivo: b.motivo || null,
+    }));
   },
-  async quitarBloqueo(fecha) {
-    ok(await sb.from('agenda_bloqueos').delete().eq('fecha', fecha));
+  async quitarBloqueo(id) {
+    ok(await sb.from('agenda_bloqueos').delete().eq('id', id));
   },
   async horariosLibres(desde, dias) {
-    const lista = ok(await sb.rpc('horarios_libres', { desde, dias }));
-    const porDia = new Map();
-    for (const iso of lista) {
-      const t = new Date(iso).toISOString();
-      const f = partes(t).fecha;
-      if (!porDia.has(f)) porDia.set(f, []);
-      porDia.get(f).push(t);
-    }
-    return [...porDia].map(([fecha, horarios]) => ({ fecha, horarios }));
+    return agruparPorDia(ok(await sb.rpc('horarios_libres', { desde, dias })));
+  },
+  /** Solo personal: huecos de 30 min para sobreturnos (incluye la franja extendida y los bloqueos). */
+  async horariosSobreturno(desde, dias) {
+    return agruparPorDia(ok(await sb.rpc('horarios_sobreturno', { desde, dias })));
   },
 
   // --- Paciente (su propia cuenta) ---
@@ -168,7 +194,7 @@ export const api = {
     const actual = ok(await sb.from('turnos').select('inicio, inicio_pedido').eq('id', id).single());
     const r = await sb.from('turnos').update({ inicio, estado: 'confirmado', inicio_pedido: actual.inicio_pedido || actual.inicio })
       .eq('id', id).select(COLS_TURNO_PACIENTE).single();
-    if (r.error?.code === '23505') throw new Error('Ya hay un turno en ese horario.');
+    if (SUPERPUESTO.includes(r.error?.code)) throw new Error(mensajeSuperposicion);
     return turnoDesdeDB(ok(r));
   },
   /** Avisa cada vez que cambia un turno (pedido nuevo, cancelación, confirmación). Devuelve la función para dejar de escuchar. */
@@ -180,10 +206,12 @@ export const api = {
       .subscribe();
     return () => sb.removeChannel(canal);
   },
-  async crearTurno({ paciente_id, inicio, motivo }) {
+  async crearTurno({ paciente_id, inicio, motivo, sobreturno = false }) {
     const { duracion } = ok(await sb.from('agenda_config').select('duracion').eq('id', 1).single());
-    const r = await sb.from('turnos').insert({ paciente_id, inicio, motivo: motivo || 'Consulta', duracion, creado_por: 'personal' }).select(COLS_TURNO_PACIENTE).single();
-    if (r.error?.code === '23505') throw new Error('Ya hay un turno en ese horario.');
+    const r = await sb.from('turnos').insert({
+      paciente_id, inicio, motivo: motivo || 'Consulta', duracion: sobreturno ? 30 : duracion, sobreturno, creado_por: 'personal',
+    }).select(COLS_TURNO_PACIENTE).single();
+    if (SUPERPUESTO.includes(r.error?.code)) throw new Error(mensajeSuperposicion);
     return turnoDesdeDB(ok(r));
   },
   async cambiarEstadoTurno(id, estado) {

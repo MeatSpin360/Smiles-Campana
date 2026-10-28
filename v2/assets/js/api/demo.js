@@ -1,6 +1,6 @@
 // Implementación de demostración: guarda todo en el navegador (localStorage).
 // Replica las reglas de permisos de la base real para que el comportamiento sea el mismo.
-import { AGENDA_INICIAL, horariosLibres as calcularLibres } from '../lib/agenda.js';
+import { AGENDA_INICIAL, horariosLibres as calcularLibres, huecosSobreturno, intervalos, filasExtendidas, DURACION_SOBRETURNO } from '../lib/agenda.js';
 import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
 
 const CLAVE = 'smiles-demo-v2';
@@ -44,16 +44,17 @@ function semilla() {
   for (const d of libres.slice(0, 4)) {
     for (const iso of d.horarios.filter((_, i) => i % 2 === 0).slice(0, 4)) {
       const p = pacientes[(k % (pacientes.length - 1)) + 1];
-      turnos.push({ id: id(), paciente_id: p.id, inicio: iso, duracion: 30, motivo: motivos[k % motivos.length], estado: 'confirmado', creado_por: 'personal', creado_en: ahora() });
+      turnos.push({ id: id(), paciente_id: p.id, inicio: iso, duracion: agenda.duracion, motivo: motivos[k % motivos.length], estado: 'confirmado', creado_por: 'personal', creado_en: ahora() });
       k++;
     }
   }
+  const libreEn = (dia) => dia?.horarios.find((iso) => !turnos.some((t) => Math.abs(new Date(t.inicio) - new Date(iso)) < agenda.duracion * 60000));
   const proximo = libres[1]?.horarios.at(-1);
-  if (proximo) turnos.push({ id: id(), paciente_id: pacientes[0].id, inicio: proximo, duracion: 30, motivo: 'Control de ortodoncia', estado: 'confirmado', creado_por: 'paciente', creado_en: ahora() });
+  if (proximo) turnos.push({ id: id(), paciente_id: pacientes[0].id, inicio: proximo, duracion: agenda.duracion, motivo: 'Control de ortodoncia', estado: 'confirmado', creado_por: 'paciente', creado_en: ahora() });
   turnos.push({ id: id(), paciente_id: pacientes[0].id, inicio: isoEn(sumarDias(hoy(), -40), '16:00'), duracion: 30, motivo: 'Primera consulta', estado: 'atendido', creado_por: 'personal', creado_en: ahora() });
   // Un pedido online esperando confirmación
-  const pedido = libres[2]?.horarios.find((iso) => !turnos.some((t) => t.inicio === iso));
-  if (pedido) turnos.push({ id: id(), paciente_id: pacientes[6].id, inicio: pedido, duracion: 30, motivo: 'Consulta', estado: 'pendiente', creado_por: 'paciente', creado_en: ahora() });
+  const pedido = libreEn(libres[2]);
+  if (pedido) turnos.push({ id: id(), paciente_id: pacientes[6].id, inicio: pedido, duracion: agenda.duracion, motivo: 'Consulta', estado: 'pendiente', creado_por: 'paciente', creado_en: ahora() });
 
   const inicial = { temporales: false, piezas: { 16: { caras: { O: 'r', D: 'r' }, marcas: {} }, 26: { caras: { O: 'b' }, marcas: {} }, 36: { caras: {}, marcas: { conducto: 'r', corona: 'r' } }, 48: { caras: {}, marcas: { extraccion: 'r' } }, 18: { caras: {}, marcas: { extraccion: 'b' } }, 21: { caras: { M: 'r' }, marcas: {} } } };
   const actual = structuredClone(inicial);
@@ -82,6 +83,10 @@ function cargar() {
     db = semilla();
     guardar();
   }
+  // Datos guardados por una versión anterior de la demo
+  db.agenda.intervalo ??= db.agenda.duracion;
+  db.agenda.margenSobreturno ??= 60;
+  db.bloqueos = db.bloqueos.map((b) => ({ id: b.id || id(), hora_desde: null, hora_hasta: null, repetir: false, hasta_fecha: null, ...b }));
   return db;
 }
 function guardar() {
@@ -114,9 +119,12 @@ function conPaciente(t) {
   return { ...t, paciente: p ? { id: p.id, nombre: p.nombre, apellido: p.apellido, dni: p.dni, telefono: p.telefono, email: p.email } : null };
 }
 
-function ocupado(inicio, excluirId) {
-  const t = new Date(inicio).getTime();
-  return cargar().turnos.some((x) => x.id !== excluirId && activo(x) && new Date(x.inicio).getTime() === t);
+/** ¿El rango [inicio, inicio + duracion) pisa otro turno activo? (igual que la regla de exclusión de la base) */
+function ocupado(inicio, duracion, excluirId) {
+  const a = new Date(inicio).getTime();
+  const b = a + duracion * 60000;
+  return intervalos(cargar().turnos.filter((x) => x.id !== excluirId && activo(x)))
+    .some((o) => new Date(o.inicio).getTime() < b && new Date(o.fin).getTime() > a);
 }
 
 export const modoDemo = true;
@@ -160,36 +168,48 @@ export const api = {
   // --- Agenda ---
   async agenda() {
     const d = cargar();
-    return espera({ ...d.agenda, bloqueos: [...d.bloqueos].sort((a, b) => a.fecha.localeCompare(b.fecha)) });
+    const f = hoy();
+    const vigentes = d.bloqueos.filter((b) => b.fecha >= f || (b.repetir && (!b.hasta_fecha || b.hasta_fecha >= f)));
+    return espera({ ...d.agenda, bloqueos: vigentes.sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora_desde || '').localeCompare(b.hora_desde || '')) });
   },
   async guardarAgenda(agenda) {
     requiere('recepcion', 'admin');
     const d = cargar();
-    d.agenda = { duracion: Number(agenda.duracion), diasVisibles: Number(agenda.diasVisibles), horasCancelacion: Number(agenda.horasCancelacion), horarios: agenda.horarios };
+    d.agenda = {
+      ...d.agenda,
+      duracion: Number(agenda.duracion),
+      intervalo: Number(agenda.intervalo || agenda.duracion),
+      diasVisibles: Number(agenda.diasVisibles),
+      horasCancelacion: Number(agenda.horasCancelacion),
+      horarios: agenda.horarios,
+    };
     guardar();
     return espera(true);
   },
-  async agregarBloqueo(fecha, motivo) {
+  async agregarBloqueo(b) {
     requiere('recepcion', 'admin');
+    if ((!b.hora_desde) !== (!b.hora_hasta) || (b.hora_desde && b.hora_hasta <= b.hora_desde)) throw new Error('Revisá el horario del bloqueo.');
     const d = cargar();
-    if (!d.bloqueos.some((b) => b.fecha === fecha)) d.bloqueos.push({ fecha, motivo });
+    d.bloqueos.push({
+      id: id(), fecha: b.fecha, hora_desde: b.hora_desde || null, hora_hasta: b.hora_hasta || null,
+      repetir: !!b.repetir, hasta_fecha: b.repetir && b.hasta_fecha ? b.hasta_fecha : null, motivo: b.motivo || null,
+    });
     guardar();
   },
-  async quitarBloqueo(fecha) {
+  async quitarBloqueo(bid) {
     requiere('recepcion', 'admin');
     const d = cargar();
-    d.bloqueos = d.bloqueos.filter((b) => b.fecha !== fecha);
+    d.bloqueos = d.bloqueos.filter((b) => b.id !== bid);
     guardar();
   },
   async horariosLibres(desde, dias) {
     const d = cargar();
-    return espera(calcularLibres({
-      agenda: d.agenda,
-      ocupados: d.turnos.filter(activo).map((t) => t.inicio),
-      bloqueos: d.bloqueos.map((b) => b.fecha),
-      desde,
-      dias,
-    }));
+    return espera(calcularLibres({ agenda: d.agenda, ocupados: intervalos(d.turnos.filter(activo)), bloqueos: d.bloqueos, desde, dias }));
+  },
+  async horariosSobreturno(desde, dias) {
+    requiere(...PERSONAL);
+    const d = cargar();
+    return espera(huecosSobreturno({ agenda: d.agenda, ocupados: intervalos(d.turnos.filter(activo)), desde, dias }));
   },
 
   // --- Paciente (su propia cuenta) ---
@@ -314,11 +334,15 @@ export const api = {
       .sort((a, b) => a.creado_en.localeCompare(b.creado_en))
       .map(conPaciente));
   },
-  async crearTurno({ paciente_id, inicio, motivo }) {
+  async crearTurno({ paciente_id, inicio, motivo, sobreturno = false }) {
     requiere(...PERSONAL);
-    if (ocupado(inicio)) throw new Error('Ya hay un turno en ese horario.');
     const d = cargar();
-    const t = { id: id(), paciente_id, inicio, duracion: d.agenda.duracion, motivo: motivo || 'Consulta', estado: 'confirmado', creado_por: 'personal', creado_en: ahora() };
+    const duracion = sobreturno ? DURACION_SOBRETURNO : d.agenda.duracion;
+    if (ocupado(inicio, duracion)) throw new Error('Ese horario se superpone con otro turno.');
+    if (sobreturno && !filasExtendidas(partes(inicio).fecha, d.agenda).some((x) => new Date(x).getTime() === new Date(inicio).getTime())) {
+      throw new Error(`El sobreturno tiene que estar dentro del horario de atención, con hasta ${d.agenda.margenSobreturno} minutos antes o después.`);
+    }
+    const t = { id: id(), paciente_id, inicio, duracion, sobreturno, motivo: motivo || 'Consulta', estado: 'confirmado', creado_por: 'personal', creado_en: ahora() };
     d.turnos.push(t);
     guardar();
     return espera(conPaciente(t));
@@ -340,7 +364,7 @@ export const api = {
   async cambiarHorarioTurno(tid, inicio) {
     requiere(...PERSONAL);
     const t = cargar().turnos.find((x) => x.id === tid);
-    if (ocupado(inicio, tid)) throw new Error('Ya hay un turno en ese horario.');
+    if (ocupado(inicio, t.duracion, tid)) throw new Error('Ese horario se superpone con otro turno.');
     t.inicio_pedido ||= t.inicio;
     Object.assign(t, { inicio, estado: 'confirmado' });
     guardar();

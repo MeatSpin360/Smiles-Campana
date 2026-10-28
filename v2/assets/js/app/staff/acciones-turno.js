@@ -133,6 +133,7 @@ export function cambiarTurno(api, t, { dias = 30 } = {}) {
     vaciar(horario, selectorHorario({
       api,
       dias,
+      sobreturno: !!t.sobreturno, // un sobreturno se mueve a otro hueco de sobreturno
       alElegir: async (iso) => {
         const ok = await confirmar(`${nombreCompleto(p)}: de ${cuando(t.inicio)} a ${cuando(iso)}. Queda confirmado.`,
           { titulo: 'Confirmar cambio', aceptar: 'Confirmar cambio' });

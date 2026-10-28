@@ -75,39 +75,56 @@ export function altaPaciente(api) {
 
 /**
  * Hoja para dar un turno. Si se pasa paciente, solo elige horario; si se pasa inicio, solo elige paciente.
+ * sobreturno: turno de 30 min que se puede dar en huecos, en la franja extendida o en un bloqueo.
  * Resuelve con el turno creado o null.
  */
-export function darTurno(api, { paciente = null, inicio = null, dias = 30 } = {}) {
+export function darTurno(api, { paciente = null, inicio = null, dias = 30, sobreturno = false } = {}) {
   return new Promise((resolve) => {
     let creado = null;
     let pac = paciente;
     let iso = inicio;
-    let motivo = MOTIVOS[0];
+    let esSobreturno = sobreturno;
+    let motivo = esSobreturno ? 'Urgencia' : MOTIVOS[0];
     const cuerpo = h('div.dar-turno');
-    const boton = h('button.btn.btn-primario', { type: 'button', disabled: true }, 'Dar turno');
-    const { cerrar } = hoja({ titulo: 'Dar turno', cuerpo, pie: [boton], ancho: 'ancho', alCerrar: () => resolve(creado) });
+    const boton = h('button.btn.btn-primario', { type: 'button', disabled: true });
+    const titulo = () => (esSobreturno ? 'Dar sobreturno' : 'Dar turno');
+    const { dialog, cerrar } = hoja({ titulo: titulo(), cuerpo, pie: [boton], ancho: 'ancho', alCerrar: () => resolve(creado) });
 
-    const actualizar = () => { boton.disabled = !(pac && iso); };
+    const actualizar = () => {
+      boton.disabled = !(pac && iso);
+      boton.textContent = titulo();
+      dialog.querySelector('.hoja-cabecera h2').textContent = titulo();
+      dialog.classList.toggle('hoja-sobreturno', esSobreturno);
+    };
     const resumen = () => h('div.resumen-seleccion',
       pac ? h('div.sel-item', h('span.texto-suave', 'Paciente'), h('strong', nombreCompleto(pac)),
         paciente ? null : h('button.btn.btn-fantasma.btn-chico', { type: 'button', onclick: () => { pac = null; pintar(); } }, 'Cambiar')) : null,
-      iso ? h('div.sel-item', h('span.texto-suave', 'Horario'), h('strong', `${mayuscula(fechaLarga(iso))}, ${hora(iso)} h`),
+      iso ? h('div.sel-item', h('span.texto-suave', esSobreturno ? 'Sobreturno (30 min)' : 'Horario'), h('strong', `${mayuscula(fechaLarga(iso))}, ${hora(iso)} h`),
         inicio ? null : h('button.btn.btn-fantasma.btn-chico', { type: 'button', onclick: () => { iso = null; pintar(); } }, 'Cambiar')) : null);
 
-    const selectMotivo = h('label.campo', h('span', 'Motivo'),
-      h('select', { onchange: (e) => { motivo = e.target.value; } }, MOTIVOS.map((m) => h('option', m))));
+    // Elegir entre turno común y sobreturno (solo si el horario no vino dado)
+    const tipo = inicio ? null : h('label.check-sobreturno',
+      h('input', { type: 'checkbox', checked: esSobreturno, onchange: (e) => { esSobreturno = e.target.checked; iso = null; pintar(); } }),
+      h('span', h('strong', 'Sobreturno'), ' · 30 minutos, en un hueco o hasta 1 hora antes o después del horario. Puede ir en un horario bloqueado.'));
+
+    const selectMotivo = () => h('label.campo', h('span', 'Motivo'),
+      h('select', { onchange: (e) => { motivo = e.target.value; } },
+        (esSobreturno ? ['Urgencia', ...MOTIVOS] : MOTIVOS).map((m) => h('option', { selected: m === motivo }, m))));
 
     function pintar() {
       const partes = [resumen()];
       if (!pac) partes.push(h('h3.titulo-paso', 'Paciente'), buscadorPaciente({ api, alElegir: (p) => { pac = p; pintar(); } }));
-      else if (!iso) partes.push(h('h3.titulo-paso', 'Horario'), selectorHorario({ api, dias, alElegir: (x) => { iso = x; pintar(); } }));
-      if (pac && iso) partes.push(selectMotivo);
+      else if (!iso) {
+        partes.push(tipo, h('h3.titulo-paso', esSobreturno ? 'Hueco para el sobreturno' : 'Horario'),
+          selectorHorario({ api, dias, sobreturno: esSobreturno, alElegir: (x) => { iso = x; pintar(); } }));
+      }
+      if (pac && iso) partes.push(selectMotivo());
       vaciar(cuerpo, partes);
       actualizar();
     }
     boton.onclick = () => conCarga(boton, async () => {
-      creado = await api.crearTurno({ paciente_id: pac.id, inicio: iso, motivo });
-      aviso('Turno asignado.');
+      creado = await api.crearTurno({ paciente_id: pac.id, inicio: iso, motivo, sobreturno: esSobreturno });
+      aviso(esSobreturno ? 'Sobreturno asignado.' : 'Turno asignado.');
       cerrar();
     });
     pintar();

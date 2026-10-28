@@ -35,6 +35,9 @@ export function encabezado(titulo, bajada, ...acciones) {
     acciones.length ? h('div.encabezado-acciones', ...acciones) : null);
 }
 
+/** Etiqueta dorada de los sobreturnos. */
+export const etiquetaSobreturno = (t) => (t?.sobreturno ? h('span.etiqueta.etiqueta-sobreturno', 'Sobreturno') : null);
+
 export const etiquetaEstado = (estado) => h(`span.etiqueta.etiqueta-${estado}`, ESTADOS[estado] || estado);
 
 export function bloqueFecha(iso) {
@@ -77,8 +80,9 @@ export function enlaceCorreo(email, asunto = '', texto = '') {
 /**
  * Selector de día y horario a partir de la agenda real.
  * alElegir(iso) se llama cuando se toca un horario.
+ * sobreturno: muestra los huecos de sobreturno (solo personal) en lugar de los horarios de la agenda.
  */
-export function selectorHorario({ api, dias, alElegir }) {
+export function selectorHorario({ api, dias, alElegir, sobreturno = false }) {
   const el = h('div.selector-horario', cargando());
   let datos = [];
   let fechaSel = null;
@@ -98,7 +102,8 @@ export function selectorHorario({ api, dias, alElegir }) {
       }, h('span', DIAS_CORTOS[diaDeSemana(d.fecha)]), h('strong', String(Number(dd))), h('span', `/${Number(m)}`));
     }));
     const dia = datos.find((d) => d.fecha === fechaSel);
-    tituloDia.textContent = dia ? `${mayuscula(fechaLarga(dia.horarios[0]))}: ${dia.horarios.length} ${dia.horarios.length === 1 ? 'horario libre' : 'horarios libres'}` : '';
+    const unidad = sobreturno ? ['hueco para sobreturno', 'huecos para sobreturno'] : ['horario libre', 'horarios libres'];
+    tituloDia.textContent = dia ? `${mayuscula(fechaLarga(dia.horarios[0]))}: ${dia.horarios.length} ${unidad[dia.horarios.length === 1 ? 0 : 1]}` : '';
     vaciar(grilla, (dia?.horarios || []).map((iso) => h('button.chip-hora', {
       type: 'button', 'aria-pressed': String(iso === isoSel),
       onclick: () => { isoSel = iso; pintar(); alElegir(iso); },
@@ -107,9 +112,11 @@ export function selectorHorario({ api, dias, alElegir }) {
 
   (async () => {
     try {
-      datos = await api.horariosLibres(hoy(), dias);
+      datos = sobreturno ? await api.horariosSobreturno(hoy(), dias) : await api.horariosLibres(hoy(), dias);
       if (!datos.length) {
-        vaciar(el, h('div.vacio', h('p', 'No quedan horarios libres en los próximos días.'), linkWhatsapp('Consultar por WhatsApp')));
+        vaciar(el, sobreturno
+          ? h('p.texto-suave', 'No hay huecos para sobreturnos en los próximos días.')
+          : h('div.vacio', h('p', 'No quedan horarios libres en los próximos días.'), linkWhatsapp('Consultar por WhatsApp')));
         return;
       }
       fechaSel = datos[0].fecha;

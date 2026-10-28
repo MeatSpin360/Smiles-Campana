@@ -50,10 +50,14 @@ create table if not exists antecedentes (
 
 create table if not exists agenda_config (
   id                 int primary key default 1 check (id = 1),
-  duracion           int not null default 30 check (duracion between 10 and 180),
+  duracion           int not null default 60 check (duracion between 10 and 180),  -- minutos de cada turno
+  intervalo          int not null default 30 check (intervalo between 5 and 120),   -- cada cuánto se ofrece un inicio
+  margen_sobreturno  int not null default 60 check (margen_sobreturno between 0 and 180), -- extensión de la franja, solo para sobreturnos
   dias_visibles      int not null default 30 check (dias_visibles between 1 and 120),
   horas_cancelacion  int not null default 12 check (horas_cancelacion between 0 and 168)
 );
+alter table agenda_config add column if not exists intervalo int not null default 30 check (intervalo between 5 and 120);
+alter table agenda_config add column if not exists margen_sobreturno int not null default 60 check (margen_sobreturno between 0 and 180);
 insert into agenda_config (id) values (1) on conflict do nothing;
 
 create table if not exists agenda_horarios (
@@ -66,10 +70,31 @@ insert into agenda_horarios (dia, desde, hasta)
 select * from (values (2, '15:00'::time, '21:00'::time), (4, '15:00', '21:00'), (6, '10:00', '14:00')) v
 where not exists (select 1 from agenda_horarios);
 
+-- Bloqueos: un día completo o un rango horario; opcionalmente repetido cada semana (mismo día que 'fecha')
+-- desde 'fecha' hasta 'hasta_fecha' (vacío = sin fin). Los sobreturnos son lo único que puede ocupar un bloqueo.
 create table if not exists agenda_bloqueos (
-  fecha   date primary key,
-  motivo  text
+  id           uuid primary key default gen_random_uuid(),
+  fecha        date not null,
+  hora_desde   time,   -- vacías = todo el día
+  hora_hasta   time,
+  repetir      boolean not null default false,
+  hasta_fecha  date,
+  motivo       text,
+  constraint bloqueo_horas check ((hora_desde is null) = (hora_hasta is null) and (hora_hasta is null or hora_hasta > hora_desde)),
+  constraint bloqueo_repeticion check (hasta_fecha is null or (repetir and hasta_fecha >= fecha))
 );
+-- Actualización desde la versión anterior (una fila por fecha, sin rangos)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'agenda_bloqueos' and column_name = 'id') then
+    alter table agenda_bloqueos drop constraint agenda_bloqueos_pkey;
+    alter table agenda_bloqueos add column id uuid not null default gen_random_uuid() primary key;
+    alter table agenda_bloqueos add column hora_desde time, add column hora_hasta time,
+      add column repetir boolean not null default false, add column hasta_fecha date;
+    alter table agenda_bloqueos add constraint bloqueo_horas check ((hora_desde is null) = (hora_hasta is null) and (hora_hasta is null or hora_hasta > hora_desde));
+    alter table agenda_bloqueos add constraint bloqueo_repeticion check (hasta_fecha is null or (repetir and hasta_fecha >= fecha));
+  end if;
+end $$;
+create index if not exists agenda_bloqueos_fecha on agenda_bloqueos (fecha);
 
 create table if not exists turnos (
   id           uuid primary key default gen_random_uuid(),
@@ -82,14 +107,27 @@ create table if not exists turnos (
   creado_en    timestamptz not null default now(),
   cancelado_en timestamptz,  -- solo cuando lo cancela el propio paciente online (límite diario de pedidos)
   inicio_pedido timestamptz,  -- horario original, si el personal cambió el turno a otro horario
-  cambio_ofrecido_en timestamptz  -- cuándo se le ofreció otro horario por un pedido pendiente
+  cambio_ofrecido_en timestamptz,  -- cuándo se le ofreció otro horario por un pedido pendiente
+  sobreturno   boolean not null default false,  -- turno de 30 min que da el personal en un hueco o fuera de horario
+  fin          timestamptz  -- inicio + duración; lo completa la base
 );
 alter table turnos add column if not exists cancelado_en timestamptz;
 alter table turnos add column if not exists inicio_pedido timestamptz;
 alter table turnos add column if not exists cambio_ofrecido_en timestamptz;
--- Nunca dos turnos activos en el mismo horario (un pedido pendiente también reserva el horario)
-create unique index if not exists turnos_un_horario on turnos (inicio) where estado not in ('cancelado', 'rechazado');
+alter table turnos add column if not exists sobreturno boolean not null default false;
+alter table turnos add column if not exists fin timestamptz;
+update turnos set fin = inicio + make_interval(mins => duracion) where fin is null;
+alter table turnos alter column fin set not null;
 create index if not exists turnos_paciente on turnos (paciente_id);
+-- Nunca dos turnos activos superpuestos (un pedido pendiente también reserva su horario).
+-- Reemplaza a la regla anterior, que solo impedía dos turnos a la misma hora exacta.
+drop index if exists turnos_un_horario;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'turnos_sin_superposicion') then
+    alter table turnos add constraint turnos_sin_superposicion
+      exclude using gist (tstzrange(inicio, fin) with &&) where (estado not in ('cancelado', 'rechazado'));
+  end if;
+end $$;
 
 -- Cada guardado del odontograma es una versión nueva (historial clínico inmutable).
 create table if not exists odontogramas (
@@ -293,25 +331,100 @@ create policy "clinico registra evoluciones" on evoluciones for insert to authen
 
 -- ---------- Funciones que usan los pacientes y el personal ----------
 
--- Horarios libres (no expone quién tiene los otros turnos)
+-- ¿El rango [p_inicio, p_fin) cae en algún bloqueo? (en hora argentina)
+create or replace function bloqueado(p_inicio timestamptz, p_fin timestamptz)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  with x as (
+    select p_inicio at time zone 'America/Argentina/Buenos_Aires' as i, p_fin at time zone 'America/Argentina/Buenos_Aires' as f
+  )
+  select exists (
+    select 1 from agenda_bloqueos b, x
+    where (case when b.repetir
+                then x.i::date >= b.fecha and (b.hasta_fecha is null or x.i::date <= b.hasta_fecha)
+                     and extract(dow from x.i) = extract(dow from b.fecha)
+                else x.i::date = b.fecha end)
+      and (b.hora_desde is null or (x.i::time < b.hora_hasta and (x.f::time > b.hora_desde or x.f::date > x.i::date)))
+  )
+$$;
+
+-- Horarios libres para pedir turno (no expone quién tiene los otros turnos).
+-- Un inicio cada 'intervalo' minutos; el turno completo ('duracion') tiene que entrar en la franja,
+-- no superponerse con otro turno activo y no caer en un bloqueo.
 create or replace function horarios_libres(desde date, dias int)
 returns setof timestamptz
 language sql stable security definer set search_path = public as $$
-  with c as (select duracion from agenda_config where id = 1),
+  with c as (select duracion, intervalo from agenda_config where id = 1),
   d as (select (desde + g)::date as fecha from generate_series(0, least(greatest(dias, 1), 120) - 1) g),
   s as (
-    select ((d.fecha + h.desde) + make_interval(mins => k * c.duracion)) at time zone 'America/Argentina/Buenos_Aires' as inicio
+    select distinct ((d.fecha + h.desde) + make_interval(mins => k * c.intervalo)) at time zone 'America/Argentina/Buenos_Aires' as inicio,
+           c.duracion
     from d
     join agenda_horarios h on h.dia = extract(dow from d.fecha)
     cross join c
-    cross join lateral generate_series(0, floor(extract(epoch from (h.hasta - h.desde)) / 60 / c.duracion)::int - 1) k
-    where d.fecha not in (select fecha from agenda_bloqueos)
+    cross join lateral generate_series(0, floor((extract(epoch from (h.hasta - h.desde)) / 60 - c.duracion) / c.intervalo)::int) k
   )
   select s.inicio from s
   where s.inicio > now() + interval '1 hour'
-    and not exists (select 1 from turnos t where t.inicio = s.inicio and t.estado not in ('cancelado', 'rechazado'))
+    and not bloqueado(s.inicio, s.inicio + make_interval(mins => s.duracion))
+    and not exists (select 1 from turnos t
+                    where t.estado not in ('cancelado', 'rechazado')
+                      and t.inicio < s.inicio + make_interval(mins => s.duracion) and t.fin > s.inicio)
   order by s.inicio
 $$;
+
+-- Huecos para sobreturnos (solo el personal): 30 minutos, desde 'margen_sobreturno' antes hasta
+-- 'margen_sobreturno' después de cada franja. Pueden caer en un bloqueo; nunca sobre otro turno.
+create or replace function horarios_sobreturno(desde date, dias int)
+returns setof timestamptz
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not es_personal() then raise exception 'No tenés permiso para dar sobreturnos.'; end if;
+  return query
+  with c as (select margen_sobreturno as m from agenda_config where id = 1),
+  d as (select (desde + g)::date as fecha from generate_series(0, least(greatest(dias, 1), 120) - 1) g),
+  s as (
+    select distinct ((d.fecha + h.desde) - make_interval(mins => c.m) + make_interval(mins => k * 30)) at time zone 'America/Argentina/Buenos_Aires' as inicio
+    from d
+    join agenda_horarios h on h.dia = extract(dow from d.fecha)
+    cross join c
+    cross join lateral generate_series(0, floor((extract(epoch from (h.hasta - h.desde)) / 60 + 2 * c.m - 30) / 30)::int) k
+  )
+  select s.inicio from s
+  where s.inicio > now()
+    and not exists (select 1 from turnos t
+                    where t.estado not in ('cancelado', 'rechazado')
+                      and t.inicio < s.inicio + interval '30 minutes' and t.fin > s.inicio)
+  order by s.inicio;
+end $$;
+
+-- Completa 'fin' y valida los sobreturnos (30 minutos, dentro de la franja extendida).
+create or replace function preparar_turno() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_margen int;
+  v_local timestamp := new.inicio at time zone 'America/Argentina/Buenos_Aires';
+begin
+  new.fin := new.inicio + make_interval(mins => new.duracion);
+  if new.sobreturno and (tg_op = 'INSERT' or new.inicio is distinct from old.inicio
+                         or new.duracion is distinct from old.duracion or not old.sobreturno) then
+    if new.duracion <> 30 then raise exception 'Los sobreturnos duran 30 minutos.'; end if;
+    select margen_sobreturno into v_margen from agenda_config where id = 1;
+    if not exists (
+      select 1 from agenda_horarios h
+      where h.dia = extract(dow from v_local)
+        and v_local >= (v_local::date + h.desde) - make_interval(mins => v_margen)
+        and v_local + interval '30 minutes' <= (v_local::date + h.hasta) + make_interval(mins => v_margen)
+    ) then
+      raise exception 'El sobreturno tiene que estar dentro del horario de atención, con hasta % minutos antes o después.', v_margen;
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists preparar_turno on turnos;
+create trigger preparar_turno before insert or update on turnos
+  for each row execute function preparar_turno();
 
 create or replace function pedir_turno(p_inicio timestamptz, p_motivo text default null)
 returns turnos
@@ -400,13 +513,14 @@ drop trigger if exists autor_evolucion on evoluciones;
 create trigger autor_evolucion before insert on evoluciones for each row execute function completar_autor();
 
 -- Permisos de ejecución
-revoke execute on function horarios_libres(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),
+revoke execute on function horarios_libres(date, int), horarios_sobreturno(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),
   actualizar_mis_datos(text, text, text), cuentas_sin_vincular() from public, anon;
-grant execute on function horarios_libres(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),
+grant execute on function horarios_libres(date, int), horarios_sobreturno(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),
   actualizar_mis_datos(text, text, text), cuentas_sin_vincular() to authenticated;
 
 -- Funciones internas: los disparadores y auxiliares no se llaman directamente desde la API.
-revoke execute on function al_registrarse(), al_confirmar_email(), completar_autor(), proteger_rol(), mi_nombre()
+revoke execute on function al_registrarse(), al_confirmar_email(), completar_autor(), proteger_rol(), mi_nombre(),
+  preparar_turno(), bloqueado(timestamptz, timestamptz)
   from public, anon, authenticated;
 -- Las que usan las reglas de permisos: solo usuarios con sesión.
 revoke execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() from public, anon;

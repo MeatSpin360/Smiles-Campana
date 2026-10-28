@@ -1,7 +1,7 @@
 import { h } from '../../lib/dom.js';
 import { hoy, hora, fechaLarga, mayuscula, sumarDias, partes, DIAS_CORTOS } from '../../lib/dates.js';
 import { aviso, conCarga } from '../../lib/ui.js';
-import { encabezado, etiquetaEstado, nombreCompleto, esActivo } from '../comunes.js';
+import { encabezado, etiquetaEstado, etiquetaSobreturno, nombreCompleto, esActivo } from '../comunes.js';
 import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { darTurno, altaPaciente } from './comun.js';
 import { ICONOS } from '../iconos.js';
@@ -35,9 +35,9 @@ export async function inicio(ctx) {
         }, texto);
         return b;
       })) : etiquetaEstado(t.estado);
-    return h('li.fila-agenda', { class: pasado ? 'pasado' : '' },
+    return h('li.fila-agenda', { class: `${pasado ? 'pasado' : ''} ${t.sobreturno ? 'es-sobreturno' : ''}` },
       h('span.hora', hora(t.inicio)),
-      h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
+      h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo, etiquetaSobreturno(t))),
       acciones);
   };
 
@@ -91,8 +91,8 @@ export async function inicio(ctx) {
         h('a.btn.btn-fantasma.btn-chico', { href: '#/agenda' }, 'Abrir agenda')),
       h('section.panel',
         h('h2', 'Próximos 7 días'),
-        proximosActivos.length ? h('ul.lista-agenda', proximosActivos.slice(0, 12).map((t) => h('li.fila-agenda',
+        proximosActivos.length ? h('ul.lista-agenda', proximosActivos.slice(0, 12).map((t) => h('li.fila-agenda', { class: t.sobreturno ? 'es-sobreturno' : '' },
           h('span.hora', h('small', diaCorto(t.inicio)), hora(t.inicio)),
-          h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo)),
+          h('a.fa-paciente', { href: `#/pacientes/${t.paciente_id}` }, h('strong', nombreCompleto(t.paciente)), h('span', t.motivo, etiquetaSobreturno(t))),
           t.estado === 'pendiente' ? etiquetaEstado('pendiente') : (t.creado_por === 'paciente' ? h('span.etiqueta.etiqueta-online', 'Online') : null)))) : h('p.texto-suave', 'No hay turnos en los próximos días.'))));
 }

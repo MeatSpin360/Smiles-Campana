@@ -9,6 +9,9 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Aviso al paciente, plan B: si no tiene correo (o mientras los correos no estén activos) y tiene celular, al confirmar o cancelar se ofrece avisarle por WhatsApp con el mensaje ya escrito.
 - [x] *Turnos por confirmar* en orden de llegada (los pedidos nuevos se suman abajo) y **actualización automática** (Supabase Realtime) en *Hoy*, la agenda y la pestaña Turnos de la ficha.
 - [x] **Correos automáticos** al paciente desde smiles.campana@gmail.com (Google Apps Script, `google/avisos.gs`): turno confirmado, cambio de turno, turno agendado por el personal y turno cancelado por el consultorio. Se disparan desde la base (pg_net); la dirección del script y la clave están en Vault.
+- [x] **Turnos de 1 hora que empiezan cada 30 minutos** (configurable en *Horarios*: duración e intervalo). La base impide turnos superpuestos.
+- [x] **Bloqueos** de día completo o por rango horario, y **repetidos** cada semana (con o sin fecha de fin). No se ofrecen online ni para turnos comunes; los turnos ya dados que caen en un bloqueo quedan marcados en la agenda para reprogramar.
+- [x] **Sobreturnos**: 30 minutos, solo los da el personal, en huecos libres, hasta 1 hora antes o después de cada franja y también en horarios bloqueados. Se ven en dorado en *Hoy*, la agenda y la ficha.
 - [x] Límite contra abusos: con 4 cancelaciones propias en el día, el paciente no puede pedir otro turno hasta el día siguiente ("por actividad sospechosa"). Lo controla la base; las cancelaciones hechas por el personal no cuentan.
 
 ## Etapa 1: poner online
@@ -20,13 +23,6 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Publicado en Cloudflare (Worker con archivos estáticos, configurado en `wrangler.jsonc`): https://smiles-campana.emiliobrescasin.workers.dev. Cada push a GitHub publica solo.
 - [ ] Dominio `smilescampana.com.ar`: agregarlo a Cloudflare y delegarlo desde NIC Argentina a los servidores DNS de Cloudflare.
 - [ ] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo.
-
-## Próximo: ajustes de agenda
-
-- [ ] **Turnos de 1 hora que empiezan cada 30 minutos** (14:00, 14:30…): un turno ocupa dos módulos. En *Horarios*, duración del turno y cada cuánto se ofrece un inicio, por separado. La base impide turnos superpuestos.
-- [ ] **Bloqueos por rango horario** en un día (por ejemplo, martes 10/11 de 15 a 18, con motivo), además del día completo.
-- [ ] **Bloqueos repetidos** (por ejemplo, todos los martes a la mañana, desde una fecha y hasta otra o sin fin).
-- [ ] Los turnos ya dados que caen en un bloqueo no se borran: la agenda los marca para reprogramarlos.
 
 ## Etapa 2: integraciones con Google
 

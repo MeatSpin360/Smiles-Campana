@@ -3,7 +3,7 @@ import { aviso, conCarga, confirmar, hoja, cargando, mensajeError } from '../../
 import { fechaLarga, fechaCorta, hora, mayuscula } from '../../lib/dates.js';
 import { crearOdontograma } from '../../odontograma/componente.js';
 import { hallazgos } from '../../odontograma/modelo.js';
-import { etiquetaEstado, nombreCompleto, ESTADOS, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
+import { etiquetaEstado, etiquetaSobreturno, nombreCompleto, ESTADOS, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
 import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerClinica } from './comun.js';
 import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
@@ -98,7 +98,7 @@ async function vistaTurnos(ctx, p) {
     const detalle = [t.motivo, t.inicio_pedido ? `Pedido originalmente para el ${fechaLarga(t.inicio_pedido).replace(',', '')} a las ${hora(t.inicio_pedido)} h` : null].filter(Boolean).join('. ');
     return h('li.fila-turno',
       h('div', h('strong', `${mayuscula(fechaLarga(t.inicio))}, ${hora(t.inicio)} h`), h('span.texto-suave', detalle),
-        pendiente && t.cambio_ofrecido_en ? h('span.etiqueta.etiqueta-cambio', 'Cambio ofrecido') : null),
+        pendiente && t.cambio_ofrecido_en ? h('span.etiqueta.etiqueta-cambio', 'Cambio ofrecido') : null, etiquetaSobreturno(t)),
       h('div.fila-turno-der', ...acciones, etiquetaEstado(t.estado)));
   };
   const cuenta = (e) => turnos.filter((t) => t.estado === e).length;

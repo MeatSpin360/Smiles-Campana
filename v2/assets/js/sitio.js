@@ -7,8 +7,7 @@ document.getElementById('arco').innerHTML = arcoDecorativo();
 document.getElementById('anio').textContent = partes().fecha.slice(0, 4);
 
 function mostrar(agenda) {
-  const bloqueos = (agenda.bloqueos || []).map((b) => b.fecha);
-  const est = estadoAtencion(agenda, bloqueos);
+  const est = estadoAtencion(agenda, agenda.bloqueos || []);
   const el = document.getElementById('estado');
   el.hidden = false;
   document.getElementById('estado-nota').hidden = false;

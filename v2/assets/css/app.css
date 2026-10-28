@@ -333,3 +333,52 @@ body { background: var(--esmalte); }
   .fila-pendiente .acciones-turno { grid-column: 1 / -1; flex-wrap: nowrap; }
   .fila-pendiente .acciones-turno .btn-fantasma { margin-right: auto; padding-left: 0; }
 }
+
+/* ---------- Agenda: filas de 30 min, bloqueos y sobreturnos ---------- */
+.franja .hora { display: grid; line-height: 1.1; }
+.franja .hora small { font-size: 0.6875rem; font-weight: 500; color: var(--tinta-3); }
+.franja.libre, .franja.extendida, .franja.bloqueada, .franja.continua { min-height: 46px; }
+.estado-franja { font-size: var(--t-xs); color: var(--tinta-3); }
+.franja.extendida { background: linear-gradient(90deg, transparent, var(--esmalte) 30%); }
+.franja.extendida .hora, .franja.extendida .estado-franja { color: #b4b1c4; font-style: italic; }
+.franja.bloqueada { background: repeating-linear-gradient(135deg, var(--esmalte) 0 7px, #ecebf3 7px 14px); }
+.franja.bloqueada .estado-franja { color: var(--tinta-2); font-weight: 600; }
+.franja.continua { min-height: 30px; padding: 2px 0; }
+.franja.continua .hora { color: var(--tinta-3); font-size: var(--t-xs); }
+.franja.continua .texto-suave { font-size: var(--t-xs); padding-left: 12px; border-left: 3px solid var(--lavanda-claro); }
+.acciones-franja { display: flex; gap: 6px; justify-self: end; }
+.acciones-franja .btn-libre { grid-column: auto; min-height: 36px; }
+.btn-sobreturno { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 10px; border: 1.5px dashed #d9b44a; border-radius: 10px; background: transparent; color: #8a6508; cursor: pointer; font-size: var(--t-xs); font-weight: 600; }
+.btn-sobreturno:hover { background: var(--oro-claro); border-style: solid; }
+.btn-sobreturno .icono-btn svg { width: 14px; height: 14px; }
+
+/* Sobreturnos: dorado intenso, para distinguirlos de los pedidos pendientes (dorado claro punteado) */
+.turno-btn.turno-sobreturno { border-left: 4px solid #b8860b; background: repeating-linear-gradient(135deg, #fff8e3 0 9px, #fcefc7 9px 18px); }
+.turno-btn.turno-sobreturno:hover { background: #fbe9b5; }
+.etiqueta-sobreturno { background: #b8860b; color: #fff; margin-left: 8px; font-size: 0.6875rem; padding: 1px 8px; letter-spacing: 0.02em; }
+.etiqueta-bloqueo { background: #fbe4e6; color: #9b1c2c; margin-left: 8px; font-size: 0.6875rem; padding: 1px 8px; }
+.etiqueta-repite { background: var(--lavanda-tenue); color: var(--lavanda-osc); margin-left: 8px; font-size: 0.6875rem; padding: 1px 8px; }
+
+/* Dar turno / sobreturno */
+.check-sobreturno { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin: 4px 0 6px; border: 1.5px dashed #d9b44a; border-radius: 12px; background: #fffaf0; font-size: var(--t-s); color: var(--tinta-2); cursor: pointer; }
+.check-sobreturno input { margin-top: 3px; flex: none; accent-color: #b8860b; }
+.check-sobreturno strong { color: #8a6508; }
+.hoja-sobreturno .hoja-cabecera { box-shadow: inset 0 3px 0 #b8860b; }
+
+/* Horarios: formulario de bloqueos */
+.form-bloqueo { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--linea); border-radius: var(--r-panel); background: var(--esmalte); margin-bottom: 18px; }
+.fila-bloqueo-horas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.check-linea { display: flex; align-items: center; gap: 8px; min-width: 200px; font-size: var(--t-s); color: var(--tinta); cursor: pointer; }
+.check-linea input { width: 18px; height: 18px; accent-color: var(--lavanda-osc); }
+.rango-horas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--t-s); color: var(--tinta-2); }
+.rango-horas input { width: auto; min-height: 40px; padding: 4px 8px; }
+.rango-horas input:disabled { opacity: 0.45; }
+.form-bloqueo .acciones-form { margin: 0; }
+
+@media (max-width: 720px) {
+  .franja.libre, .franja.extendida, .franja.bloqueada { grid-template-columns: 48px 1fr; }
+  .acciones-franja { grid-column: 2; justify-self: start; }
+}
+.fila-agenda.es-sobreturno { box-shadow: inset 4px 0 0 #b8860b; padding-left: 10px; }
+.turno-btn .etiqueta-sobreturno, .etiqueta-sobreturno { color: #fff; }
+.etiqueta-repite { justify-self: start; width: fit-content; margin: 4px 0 0; }

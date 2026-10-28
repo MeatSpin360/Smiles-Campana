@@ -17,8 +17,9 @@ export const CONSULTORIO = {
   instagram: 'https://www.instagram.com/smiles.campana',
 };
 
-// Avisos automáticos al paciente. 'correo' se activa cuando el envío de correos esté funcionando.
-// Mientras esté en false, al confirmar, cambiar o cancelar un turno se ofrece avisar por WhatsApp.
+// Avisos automáticos al paciente por correo (google/avisos.gs). Con 'correo' en true, al confirmar,
+// cambiar o cancelar un turno se ofrece avisar por WhatsApp solo a quien no tiene correo en la ficha.
+// Si alguna vez se desactiva el envío, poner false: la app vuelve a ofrecer WhatsApp a todos.
 export const AVISOS = {
-  correo: false,
+  correo: true,
 };

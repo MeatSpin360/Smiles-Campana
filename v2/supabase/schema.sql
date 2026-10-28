@@ -420,3 +420,79 @@ do $$ begin
     alter publication supabase_realtime add table turnos;
   end if;
 end $$;
+
+-- ---------- Correos automáticos al paciente ----------
+-- Cuando un turno se confirma, cambia de horario, lo agenda el personal o lo cancela el consultorio,
+-- la base llama al script de Google (google/avisos.gs), que envía el correo desde Gmail.
+-- La llamada es asíncrona (pg_net): no demora ni puede impedir el cambio del turno.
+-- La dirección del script y la clave secreta se guardan en Vault (avisos_url, avisos_secreto); ver google/LEEME.md.
+-- Sin correo en la ficha, o sin esos dos secretos cargados, no se envía nada.
+do $$ begin
+  create extension if not exists pg_net with schema extensions;
+exception when others then
+  raise notice 'pg_net no disponible en esta base: los correos automáticos quedan desactivados.';
+end $$;
+
+create or replace function avisar_turno() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tipo text;
+  v_anterior timestamptz;
+  v_era_pedido boolean := false;
+  v_pac pacientes%rowtype;
+  v_horas int;
+  v_url text;
+  v_secreto text;
+begin
+  if tg_op = 'INSERT' then
+    -- Turno dado directamente por el personal
+    if new.estado = 'confirmado' and new.creado_por = 'personal' then v_tipo := 'agendado'; end if;
+  elsif new.estado = 'confirmado' and old.estado in ('pendiente', 'confirmado') and new.inicio is distinct from old.inicio then
+    v_tipo := 'cambio';
+    v_anterior := old.inicio;
+  elsif new.estado = 'confirmado' and old.estado = 'pendiente' then
+    v_tipo := 'confirmado';
+  elsif new.estado in ('cancelado', 'rechazado') and old.estado in ('pendiente', 'confirmado') and new.cancelado_en is null then
+    -- Lo canceló el consultorio (cuando cancela el paciente, cancelar_mi_turno completa cancelado_en)
+    v_tipo := 'cancelado';
+    v_era_pedido := old.estado = 'pendiente';
+  end if;
+
+  if v_tipo is null or new.inicio < now() then return new; end if;
+
+  select * into v_pac from pacientes where id = new.paciente_id;
+  if coalesce(trim(v_pac.email), '') = '' then return new; end if;
+
+  begin
+    select decrypted_secret into v_url from vault.decrypted_secrets where name = 'avisos_url';
+    select decrypted_secret into v_secreto from vault.decrypted_secrets where name = 'avisos_secreto';
+    if v_url is null or v_secreto is null then return new; end if;
+    select horas_cancelacion into v_horas from agenda_config where id = 1;
+
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object(
+        'secreto', v_secreto,
+        'tipo', v_tipo,
+        'email', trim(v_pac.email),
+        'nombre', v_pac.nombre,
+        'inicio', new.inicio,
+        'inicio_anterior', v_anterior,
+        'duracion', new.duracion,
+        'motivo', new.motivo,
+        'era_pedido', v_era_pedido,
+        'horas_cancelacion', v_horas),
+      headers := '{"Content-Type": "application/json"}'::jsonb,
+      timeout_milliseconds := 15000);
+  exception when others then
+    -- Un problema con el aviso nunca debe impedir confirmar, cambiar o cancelar el turno
+    raise warning 'No se pudo encolar el correo del turno %: %', new.id, sqlerrm;
+  end;
+  return new;
+end $$;
+
+drop trigger if exists avisar_turno on turnos;
+create trigger avisar_turno after insert or update of estado, inicio on turnos
+  for each row execute function avisar_turno();
+
+revoke execute on function avisar_turno() from public, anon, authenticated;

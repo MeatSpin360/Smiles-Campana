@@ -108,6 +108,11 @@ create table if not exists evoluciones (
 );
 create index if not exists evoluciones_paciente on evoluciones (paciente_id, creado_en desc);
 
+-- Índices para las columnas de autoría (sugeridos por el analizador de Supabase)
+create index if not exists antecedentes_actualizado_por on antecedentes (actualizado_por);
+create index if not exists odontogramas_creado_por on odontogramas (creado_por);
+create index if not exists evoluciones_creado_por on evoluciones (creado_por);
+
 -- ---------- Funciones de ayuda para permisos ----------
 create or replace function mi_rol() returns rol
 language sql stable security definer set search_path = public as $$
@@ -217,50 +222,68 @@ do $$ declare r record; begin
   end loop;
 end $$;
 
+-- Las funciones van entre (select ...) para que se evalúen una vez por consulta y no una vez por fila.
+
 -- perfiles
 create policy "ver perfil propio o personal" on perfiles for select to authenticated
-  using (id = auth.uid() or es_personal());
+  using (id = (select auth.uid()) or (select es_personal()));
 create policy "admin edita perfiles" on perfiles for update to authenticated
-  using (mi_rol() = 'admin') with check (mi_rol() = 'admin');
+  using ((select mi_rol()) = 'admin') with check ((select mi_rol()) = 'admin');
 
 -- pacientes
 create policy "personal y el propio paciente ven la ficha" on pacientes for select to authenticated
-  using (es_personal() or usuario_id = auth.uid());
-create policy "personal crea fichas" on pacientes for insert to authenticated with check (es_personal());
-create policy "personal edita fichas" on pacientes for update to authenticated using (es_personal()) with check (es_personal());
-create policy "admin borra fichas" on pacientes for delete to authenticated using (mi_rol() = 'admin');
+  using ((select es_personal()) or usuario_id = (select auth.uid()));
+create policy "personal crea fichas" on pacientes for insert to authenticated
+  with check ((select es_personal()));
+create policy "personal edita fichas" on pacientes for update to authenticated
+  using ((select es_personal())) with check ((select es_personal()));
+create policy "admin borra fichas" on pacientes for delete to authenticated
+  using ((select mi_rol()) = 'admin');
 
 -- antecedentes: solo odontología y admin
 create policy "clinico gestiona antecedentes" on antecedentes for all to authenticated
-  using (es_clinico()) with check (es_clinico());
+  using ((select es_clinico())) with check ((select es_clinico()));
 
 -- agenda: lectura pública (el sitio muestra los horarios), edición recepción/admin
 create policy "agenda visible" on agenda_config for select to anon, authenticated using (true);
 create policy "agenda editable" on agenda_config for update to authenticated
-  using (mi_rol() in ('recepcion', 'admin')) with check (mi_rol() in ('recepcion', 'admin'));
+  using ((select mi_rol()) in ('recepcion', 'admin')) with check ((select mi_rol()) in ('recepcion', 'admin'));
+
 create policy "horarios visibles" on agenda_horarios for select to anon, authenticated using (true);
-create policy "horarios editables" on agenda_horarios for all to authenticated
-  using (mi_rol() in ('recepcion', 'admin')) with check (mi_rol() in ('recepcion', 'admin'));
+create policy "horarios: agregar" on agenda_horarios for insert to authenticated
+  with check ((select mi_rol()) in ('recepcion', 'admin'));
+create policy "horarios: modificar" on agenda_horarios for update to authenticated
+  using ((select mi_rol()) in ('recepcion', 'admin')) with check ((select mi_rol()) in ('recepcion', 'admin'));
+create policy "horarios: quitar" on agenda_horarios for delete to authenticated
+  using ((select mi_rol()) in ('recepcion', 'admin'));
+
 create policy "bloqueos visibles" on agenda_bloqueos for select to anon, authenticated using (true);
-create policy "bloqueos editables" on agenda_bloqueos for all to authenticated
-  using (mi_rol() in ('recepcion', 'admin')) with check (mi_rol() in ('recepcion', 'admin'));
+create policy "bloqueos: agregar" on agenda_bloqueos for insert to authenticated
+  with check ((select mi_rol()) in ('recepcion', 'admin'));
+create policy "bloqueos: modificar" on agenda_bloqueos for update to authenticated
+  using ((select mi_rol()) in ('recepcion', 'admin')) with check ((select mi_rol()) in ('recepcion', 'admin'));
+create policy "bloqueos: quitar" on agenda_bloqueos for delete to authenticated
+  using ((select mi_rol()) in ('recepcion', 'admin'));
 
 -- turnos: el paciente solo ve los suyos; los pide (quedan pendientes) y cancela con las funciones de abajo
 create policy "ver turnos" on turnos for select to authenticated
-  using (es_personal() or paciente_id = mi_paciente_id());
-create policy "personal crea turnos" on turnos for insert to authenticated with check (es_personal());
-create policy "personal edita turnos" on turnos for update to authenticated using (es_personal()) with check (es_personal());
+  using ((select es_personal()) or paciente_id = (select mi_paciente_id()));
+create policy "personal crea turnos" on turnos for insert to authenticated
+  with check ((select es_personal()));
+create policy "personal edita turnos" on turnos for update to authenticated
+  using ((select es_personal())) with check ((select es_personal()));
 
 -- odontogramas: el paciente puede verlos; solo odontología/admin crea versiones nuevas
 create policy "ver odontogramas" on odontogramas for select to authenticated
-  using (es_clinico() or paciente_id = mi_paciente_id());
+  using ((select es_clinico()) or paciente_id = (select mi_paciente_id()));
 create policy "clinico registra odontograma" on odontogramas for insert to authenticated
-  with check (es_clinico() and creado_por = auth.uid());
+  with check ((select es_clinico()) and creado_por = (select auth.uid()));
 
 -- evoluciones: solo odontología/admin
-create policy "clinico ve evoluciones" on evoluciones for select to authenticated using (es_clinico());
+create policy "clinico ve evoluciones" on evoluciones for select to authenticated
+  using ((select es_clinico()));
 create policy "clinico registra evoluciones" on evoluciones for insert to authenticated
-  with check (es_clinico() and creado_por = auth.uid());
+  with check ((select es_clinico()) and creado_por = (select auth.uid()));
 
 -- ---------- Funciones que usan los pacientes y el personal ----------
 
@@ -369,3 +392,10 @@ revoke execute on function horarios_libres(date, int), pedir_turno(timestamptz, 
   actualizar_mis_datos(text, text, text), cuentas_sin_vincular() from public, anon;
 grant execute on function horarios_libres(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),
   actualizar_mis_datos(text, text, text), cuentas_sin_vincular() to authenticated;
+
+-- Funciones internas: los disparadores y auxiliares no se llaman directamente desde la API.
+revoke execute on function al_registrarse(), al_confirmar_email(), completar_autor(), proteger_rol(), mi_nombre()
+  from public, anon, authenticated;
+-- Las que usan las reglas de permisos: solo usuarios con sesión.
+revoke execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() from public, anon;
+grant execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() to authenticated;

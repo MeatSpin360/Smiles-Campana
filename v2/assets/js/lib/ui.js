@@ -77,7 +77,7 @@ export function mensajeError(e) {
   if (/Invalid login credentials/i.test(m)) return 'El email o la clave no son correctos.';
   if (/Email not confirmed/i.test(m)) return 'Todavía no confirmaste tu email. Revisá tu casilla.';
   if (/already registered|already been registered/i.test(m)) return 'Ya existe una cuenta con ese email.';
-  if (/Password should be/i.test(m)) return 'La clave debe tener al menos 6 caracteres.';
+  if (/Password should be/i.test(m)) return 'La clave debe tener al menos 8 caracteres.';
   if (/Failed to fetch|NetworkError/i.test(m)) return 'No hay conexión con el servidor. Probá de nuevo en un momento.';
   return m;
 }

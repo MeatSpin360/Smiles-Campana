@@ -12,7 +12,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Esquema cargado en Supabase y URL de autenticación configuradas (local).
 - [x] **Gmail como remitente** de los emails del sistema (confirmación de cuenta, recuperación de clave) con contraseña de aplicación. Obligatorio: el email incluido en Supabase solo envía al equipo del proyecto. Límite de Gmail: 500 destinatarios por día.
 - [x] Primer admin creado.
-- [ ] Cloudflare Pages conectado al repositorio, publicando la carpeta `v2`.
+- [x] Publicado en Cloudflare (Worker con archivos estáticos, configurado en `wrangler.jsonc`): https://smiles-campana.emiliobrescasin.workers.dev. Cada push a GitHub publica solo.
 - [ ] Dominio `smilescampana.com.ar`: agregarlo a Cloudflare y delegarlo desde NIC Argentina a los servidores DNS de Cloudflare.
 - [ ] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo.
 

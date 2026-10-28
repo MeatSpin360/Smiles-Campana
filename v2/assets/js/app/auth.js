@@ -80,7 +80,7 @@ export function registro(ctx) {
     h('label.campo', h('span', 'Celular'), h('input', { name: 'telefono', type: 'tel', autocomplete: 'tel', inputmode: 'tel', required: true }), h('small', 'Con característica, por ejemplo 3489 444444.')),
     h('label.campo', h('span', 'Email'), h('input', { name: 'email', type: 'email', autocomplete: 'email', inputmode: 'email', required: true })),
     h('div.fila-campos',
-      h('label.campo', h('span', 'Clave'), h('input', { name: 'clave', type: 'password', autocomplete: 'new-password', required: true, minlength: 6 }), h('small', 'Al menos 6 caracteres.')),
+      h('label.campo', h('span', 'Clave'), h('input', { name: 'clave', type: 'password', autocomplete: 'new-password', required: true, minlength: 8 }), h('small', 'Al menos 8 caracteres.')),
       h('label.campo', h('span', 'Repetir clave'), h('input', { name: 'clave2', type: 'password', autocomplete: 'new-password', required: true }))),
     h('label.check-legal', h('input', { type: 'checkbox', name: 'acepto', required: true }),
       h('span', 'Acepto que Smiles Campana guarde mis datos para gestionar mis turnos y mi historia clínica, según la Ley 25.326 de protección de datos personales.')),
@@ -94,7 +94,7 @@ export function registro(ctx) {
     d.dni = (d.dni || '').replace(/\D/g, '');
     if (!d.nombre || !d.apellido || !d.dni || !d.fecha_nac || !d.telefono || !d.email || !d.clave) return mostrarError(err, 'Completá todos los campos.');
     if (!/^\d{7,8}$/.test(d.dni)) return mostrarError(err, 'El DNI debe tener 7 u 8 números.');
-    if (d.clave.length < 6) return mostrarError(err, 'La clave debe tener al menos 6 caracteres.');
+    if (d.clave.length < 8) return mostrarError(err, 'La clave debe tener al menos 8 caracteres.');
     if (d.clave !== d.clave2) return mostrarError(err, 'Las dos claves no coinciden.');
     if (!d.acepto) return mostrarError(err, 'Para crear la cuenta tenés que aceptar el uso de tus datos.');
     await conCarga(boton, async () => {
@@ -146,13 +146,13 @@ export function nuevaClave(ctx) {
   const err = errorForm();
   const boton = h('button.btn.btn-primario.btn-ancho', { type: 'submit' }, 'Guardar clave');
   const form = h('form', { novalidate: true },
-    h('label.campo', h('span', 'Clave nueva'), h('input', { name: 'clave', type: 'password', autocomplete: 'new-password', minlength: 6 })),
+    h('label.campo', h('span', 'Clave nueva'), h('input', { name: 'clave', type: 'password', autocomplete: 'new-password', minlength: 8 }), h('small', 'Al menos 8 caracteres.')),
     h('label.campo', h('span', 'Repetir clave'), h('input', { name: 'clave2', type: 'password', autocomplete: 'new-password' })),
     err, boton);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const d = datosFormulario(form);
-    if ((d.clave || '').length < 6) return mostrarError(err, 'La clave debe tener al menos 6 caracteres.');
+    if ((d.clave || '').length < 8) return mostrarError(err, 'La clave debe tener al menos 8 caracteres.');
     if (d.clave !== d.clave2) return mostrarError(err, 'Las dos claves no coinciden.');
     await conCarga(boton, async () => {
       try {

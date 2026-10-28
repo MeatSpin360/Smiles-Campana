@@ -142,7 +142,7 @@ export const api = {
   async registrarse({ email, clave, dni, nombre, apellido, telefono, fecha_nac }) {
     const d = cargar();
     if (d.usuarios.some((u) => u.email.toLowerCase() === email.toLowerCase())) throw new Error('User already registered');
-    if (clave.length < 6) throw new Error('Password should be at least 6 characters');
+    if (clave.length < 8) throw new Error('Password should be at least 8 characters');
     const u = { id: id(), email, clave, rol: 'paciente', nombre, apellido, dni };
     d.usuarios.push(u);
     // Misma regla que la base real: si ya hay una ficha con ese DNI, recepción la vincula.

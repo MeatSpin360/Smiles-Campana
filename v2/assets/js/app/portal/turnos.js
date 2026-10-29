@@ -13,7 +13,9 @@ export async function misTurnos(ctx) {
   const [ficha, turnos, agenda] = await Promise.all([ctx.api.miFicha(), ctx.api.misTurnos(), ctx.api.agenda()]);
   const proximos = turnos.filter(vigente);
   // Pedidos que el consultorio no confirmó, y turnos que el consultorio canceló (los que cancela el paciente tienen cancelado_en)
-  const rechazados = turnos.filter((t) => esFuturo(t) && (t.estado === 'rechazado' || (t.estado === 'cancelado' && !t.cancelado_en)));
+  // (si lo pidió el propio paciente por WhatsApp, cancelado_por = 'paciente', no se muestra como aviso)
+  const rechazados = turnos.filter((t) => esFuturo(t) && (t.estado === 'rechazado'
+    || (t.estado === 'cancelado' && !t.cancelado_en && t.cancelado_por !== 'paciente')));
   const anteriores = turnos.filter((t) => !proximos.includes(t) && !rechazados.includes(t)).reverse();
   const saludo = `Hola, ${ctx.perfil.nombre || ficha?.nombre || ''}`.trim();
 

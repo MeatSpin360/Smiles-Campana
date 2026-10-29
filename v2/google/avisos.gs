@@ -27,6 +27,16 @@ const CONSULTORIO = {
 };
 const ZONA = 'America/Argentina/Buenos_Aires';
 
+// Remitente de los correos de turnos. Tiene que estar agregado en Gmail como "Enviar como"
+// (ver google/CORREO-DOMINIO.md). Si todavía no lo está, se envía desde la cuenta de Gmail.
+const REMITENTE = 'turnos@smilescampana.com.ar';
+
+function opcionesEnvio(html) {
+  const op = { htmlBody: html, name: CONSULTORIO.nombre };
+  if (GmailApp.getAliases().indexOf(REMITENTE) >= 0) op.from = REMITENTE;
+  return op;
+}
+
 // ---------- Colores y tipografía (los mismos de los correos de la cuenta) ----------
 const C = {
   tinta: '#262140', tinta2: '#5d5875', tinta3: '#8a86a0',
@@ -48,8 +58,9 @@ function doPost(e) {
   if (!datos.email || !TIPOS[datos.tipo]) return respuesta({ ok: false, error: 'datos' });
 
   const correo = armarCorreo(datos);
-  GmailApp.sendEmail(datos.email, correo.asunto, correo.texto, { htmlBody: correo.html, name: CONSULTORIO.nombre });
-  return respuesta({ ok: true, tipo: datos.tipo });
+  const op = opcionesEnvio(correo.html);
+  GmailApp.sendEmail(datos.email, correo.asunto, correo.texto, op);
+  return respuesta({ ok: true, tipo: datos.tipo, desde: op.from || 'gmail' });
 }
 
 function respuesta(obj) {
@@ -67,10 +78,11 @@ function probar() {
     { tipo: 'cambio', inicio_anterior: antes.toISOString() },
     { tipo: 'agendado' },
     { tipo: 'cancelado', era_pedido: true },
+    { tipo: 'cancelado', a_pedido: true },
   ];
   ejemplos.forEach((x) => {
     const c = armarCorreo(Object.assign({ email: yo, nombre: 'Prueba', inicio: en3dias.toISOString(), duracion: 30, motivo: 'Consulta', horas_cancelacion: 12 }, x));
-    GmailApp.sendEmail(yo, '[Prueba] ' + c.asunto, c.texto, { htmlBody: c.html, name: CONSULTORIO.nombre });
+    GmailApp.sendEmail(yo, '[Prueba] ' + c.asunto, c.texto, opcionesEnvio(c.html));
   });
 }
 
@@ -132,7 +144,17 @@ const TIPOS = {
     acciones: botonesTurno(d),
     nota: notaCancelacion(d),
   }),
-  cancelado: (d) => ({
+  cancelado: (d) => (d.a_pedido ? {
+    // Lo pidió el paciente (por WhatsApp o teléfono) y lo canceló el personal
+    asunto: 'Cancelamos tu turno',
+    previo: `Cancelamos tu turno del ${cuando(d.inicio)}, como nos pediste.`,
+    titulo: 'Cancelamos tu turno',
+    intro: `Como nos pediste, cancelamos tu turno del <strong style="color:${C.tinta};font-weight:600;">${cuando(d.inicio)}</strong>.`,
+    detalle: '',
+    acciones: boton(`${SITIO}/app.html#/pedir-turno`, 'Pedir otro turno', true)
+      + boton(`https://wa.me/${CONSULTORIO.whatsapp}?text=${encodeURIComponent('Hola, quiero coordinar un nuevo turno.')}`, 'Escribir por WhatsApp', false),
+    nota: 'Cuando quieras, elegí otro horario desde Mi espacio o escribinos y lo coordinamos.',
+  } : {
     asunto: d.era_pedido ? 'No pudimos confirmar tu turno' : 'Tu turno fue cancelado',
     previo: `Sobre tu turno del ${cuando(d.inicio)}.`,
     titulo: d.era_pedido ? 'No pudimos confirmar tu turno' : 'Tuvimos que cancelar tu turno',

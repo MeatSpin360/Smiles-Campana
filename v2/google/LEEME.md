@@ -1,13 +1,15 @@
 # Correos automáticos y copias de seguridad
 
 `avisos.gs` es un script de Google Apps Script que envía los correos de turnos desde la cuenta
-**smiles.campana@gmail.com** (quedan en *Enviados*). La base de datos lo llama sola cuando:
+**smiles.campana@gmail.com**, con remitente **turnos@smilescampana.com.ar** (quedan en *Enviados*; ver
+`CORREO-DOMINIO.md`). La base de datos lo llama sola cuando:
 
 | Qué pasa | Correo |
 |---|---|
 | Se confirma un pedido | Tu turno está confirmado |
 | Se confirma en otro horario (Ofrecer cambio / Cambiar horario) | Cambio de turno |
 | El personal da un turno (Dar turno) | Tu turno quedó agendado |
+| El personal cancela porque lo pidió el paciente | Cancelamos tu turno |
 | El consultorio cancela un pedido o un turno | No pudimos confirmar tu turno / Tu turno fue cancelado |
 
 No se envía nada cuando el paciente cancela su propio turno, ni a pacientes sin correo en la ficha.

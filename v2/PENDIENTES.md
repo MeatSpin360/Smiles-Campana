@@ -12,6 +12,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] **Turnos de 1 hora que empiezan cada 30 minutos** (configurable en *Horarios*: duración e intervalo). La base impide turnos superpuestos.
 - [x] **Bloqueos** de día completo o por rango horario, y **repetidos** cada semana (con o sin fecha de fin). No se ofrecen online ni para turnos comunes; los turnos ya dados que caen en un bloqueo quedan marcados en la agenda para reprogramar.
 - [x] **Sobreturnos**: 30 minutos, solo los da el personal, en huecos libres, hasta 1 hora antes o después de cada franja y también en horarios bloqueados. Se ven en dorado en *Hoy*, la agenda y la ficha.
+- [x] Al cancelar, el personal indica **quién pide la cancelación**: si fue el paciente (por WhatsApp o teléfono), le llega "Cancelamos tu turno, como nos pediste" y no suma a su límite diario; si fue el consultorio, el aviso con disculpas.
 - [x] Límite contra abusos: con 4 cancelaciones propias en el día, el paciente no puede pedir otro turno hasta el día siguiente ("por actividad sospechosa"). Lo controla la base; las cancelaciones hechas por el personal no cuentan.
 
 ## Etapa 1: poner online
@@ -23,7 +24,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Publicado en Cloudflare (Worker con archivos estáticos, configurado en `wrangler.jsonc`): https://smiles-campana.emiliobrescasin.workers.dev. Cada push a GitHub publica solo.
 - [x] Dominio **https://smilescampana.com.ar** (y `www`): delegado desde NIC Argentina a Cloudflare y conectado al Worker. La dirección de workers.dev sigue funcionando.
 - [x] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo. Script de correos con `SITIO` en el dominio.
-- [ ] Opcional: direcciones de correo del dominio (por ejemplo `turnos@smilescampana.com.ar`) que reenvíen a Gmail con Cloudflare *Email Routing* (gratis).
+- [ ] Correos del dominio: `turnos@` (remitente del sistema) y `consultas@` (contacto del sitio). Reciben con Cloudflare *Email Routing* y envían con Resend (Supabase SMTP y Gmail "Enviar como"). Guía: `google/CORREO-DOMINIO.md`.
 
 ## Etapa 2: integraciones con Google
 

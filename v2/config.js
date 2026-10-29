@@ -13,7 +13,7 @@ export const CONSULTORIO = {
   direccion: 'Jean Jaures 568, Campana, Buenos Aires',
   telefono: '3487-728866',
   whatsapp: '5493487728866',
-  email: 'smiles.campana@gmail.com',
+  email: 'consultas@smilescampana.com.ar', // reenvía a smiles.campana@gmail.com (Cloudflare Email Routing)
   instagram: 'https://www.instagram.com/smiles.campana',
 };
 

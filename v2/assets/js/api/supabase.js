@@ -214,8 +214,9 @@ export const api = {
     if (SUPERPUESTO.includes(r.error?.code)) throw new Error(mensajeSuperposicion);
     return turnoDesdeDB(ok(r));
   },
-  async cambiarEstadoTurno(id, estado) {
-    return ok(await sb.from('turnos').update({ estado }).eq('id', id).select().single());
+  /** extra: otros campos a guardar junto con el estado (por ejemplo, cancelado_por). */
+  async cambiarEstadoTurno(id, estado, extra = {}) {
+    return ok(await sb.from('turnos').update({ estado, ...extra }).eq('id', id).select().single());
   },
   async odontogramas(pacienteId) {
     return ok(await sb.from('odontogramas').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));

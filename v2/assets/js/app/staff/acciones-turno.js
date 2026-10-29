@@ -19,6 +19,7 @@ const MENSAJE = {
   confirmado: (n, t) => `Hola ${n}, te confirmamos tu turno en Smiles Campana para el ${cuando(t.inicio)}. Te esperamos en ${direccion}.`,
   rechazado: (n, t) => `Hola ${n}, te escribimos de Smiles Campana: no pudimos confirmar el turno que pediste para el ${cuando(t.inicio)}. Si querés, coordinamos otro horario por acá.`,
   cancelado: (n, t) => `Hola ${n}, te escribimos de Smiles Campana: tuvimos que cancelar tu turno del ${cuando(t.inicio)}. Si querés, coordinamos otro horario por acá.`,
+  canceladoAPedido: (n, t) => `Hola ${n}, te confirmamos que cancelamos tu turno del ${cuando(t.inicio)}, como nos pediste. Cuando quieras, coordinamos otro horario por acá.`,
   ofrecerPedido: (n, t) => `Hola ${n}, te escribimos de Smiles Campana por el turno que pediste para el ${cuando(t.inicio)}. Ese horario no lo tenemos disponible: ¿te sirve otro día u horario?`,
   ofrecerTurno: (n, t) => `Hola ${n}, te escribimos de Smiles Campana por tu turno del ${cuando(t.inicio)}. Necesitamos cambiarlo: ¿te sirve otro día u horario?`,
 };
@@ -56,23 +57,54 @@ export async function confirmarTurno(api, t) {
   return true;
 }
 
-/** Cancela un pedido (queda "No confirmado") o un turno confirmado. Pide confirmación. */
-export async function cancelarTurno(api, t) {
-  const pedido = t.estado === 'pendiente';
-  const titulo = pedido ? 'Cancelar pedido' : 'Cancelar turno';
-  const aviso_ = avisaPorCorreo(t.paciente) ? ' Le avisamos por correo.' : '';
-  const ok = await confirmar(`${nombreCompleto(t.paciente)}, ${cuando(t.inicio)}. El horario queda libre.${aviso_}`,
-    { titulo, aceptar: titulo, peligro: true });
-  if (!ok) return false;
-  try {
-    await api.cambiarEstadoTurno(t.id, pedido ? 'rechazado' : 'cancelado');
-  } catch (e) {
-    aviso(mensajeError(e), 'error');
-    return false;
-  }
-  aviso(pedido ? 'Pedido cancelado. El horario quedó libre.' : 'Turno cancelado. El horario quedó libre.');
-  await ofrecerWhatsapp(t.paciente, MENSAJE[pedido ? 'rechazado' : 'cancelado'](t.paciente?.nombre, t), titulo);
-  return true;
+/**
+ * Cancela un pedido o un turno confirmado. Pregunta quién pide la cancelación:
+ * - el paciente (por WhatsApp o teléfono): queda "Cancelado" y le llega "Cancelamos tu turno, como nos pediste";
+ * - el consultorio: un pedido queda "No confirmado" y un turno "Cancelado", con el aviso de disculpas.
+ */
+export function cancelarTurno(api, t) {
+  return new Promise((resolve) => {
+    const pedido = t.estado === 'pendiente';
+    const titulo = pedido ? 'Cancelar pedido' : 'Cancelar turno';
+    let quien = null;
+    let hecho = false;
+    const opcion = (valor, texto, detalle) => h('label.opcion-quien',
+      h('input', { type: 'radio', name: 'quien', value: valor, onchange: () => { quien = valor; boton.disabled = false; } }),
+      h('span', h('strong', texto), h('small', detalle)));
+    const conCorreo = avisaPorCorreo(t.paciente);
+    const boton = h('button.btn.btn-peligro', { type: 'button', disabled: true }, titulo);
+    const volver = h('button.btn.btn-secundario', { type: 'button' }, 'Volver');
+    const { cerrar } = hoja({
+      titulo,
+      ancho: 'chico',
+      alCerrar: () => resolve(hecho),
+      cuerpo: [
+        h('p', `${nombreCompleto(t.paciente)}, ${cuando(t.inicio)}. El horario queda libre.`),
+        h('fieldset.quien-cancela',
+          h('legend', '¿Quién pide la cancelación?'),
+          opcion('paciente', 'El paciente', conCorreo ? 'Le llega "Cancelamos tu turno, como nos pediste".' : 'Por ejemplo, lo pidió por WhatsApp o por teléfono.'),
+          opcion('consultorio', 'El consultorio', conCorreo ? 'Le llega un aviso con disculpas y el enlace para pedir otro turno.' : 'Por ejemplo, un imprevisto de la agenda.')),
+      ],
+      pie: [volver, boton],
+    });
+    volver.onclick = cerrar;
+    boton.onclick = async () => {
+      boton.disabled = true;
+      const estado = quien === 'consultorio' && pedido ? 'rechazado' : 'cancelado';
+      try {
+        await api.cambiarEstadoTurno(t.id, estado, { cancelado_por: quien });
+      } catch (e) {
+        aviso(mensajeError(e), 'error');
+        boton.disabled = false;
+        return;
+      }
+      hecho = true;
+      cerrar();
+      aviso(`${pedido ? 'Pedido cancelado' : 'Turno cancelado'}. El horario quedó libre.${conCorreo ? ' Le enviamos un correo.' : ''}`);
+      const texto = quien === 'paciente' ? MENSAJE.canceladoAPedido : MENSAJE[pedido ? 'rechazado' : 'cancelado'];
+      await ofrecerWhatsapp(t.paciente, texto(t.paciente?.nombre, t), titulo);
+    };
+  });
 }
 
 /**

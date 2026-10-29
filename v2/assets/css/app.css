@@ -382,3 +382,12 @@ body { background: var(--esmalte); }
 .fila-agenda.es-sobreturno { box-shadow: inset 4px 0 0 #b8860b; padding-left: 10px; }
 .turno-btn .etiqueta-sobreturno, .etiqueta-sobreturno { color: #fff; }
 .etiqueta-repite { justify-self: start; width: fit-content; margin: 4px 0 0; }
+
+/* Cancelar: quién pide la cancelación */
+.quien-cancela { border: 0; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+.quien-cancela legend { font-weight: 600; margin-bottom: 6px; color: var(--tinta); }
+.opcion-quien { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1.5px solid var(--linea); border-radius: 12px; cursor: pointer; }
+.opcion-quien:has(input:checked) { border-color: var(--lavanda-osc); background: var(--lavanda-tenue); }
+.opcion-quien input { margin-top: 3px; accent-color: var(--lavanda-osc); }
+.opcion-quien span { display: grid; gap: 2px; }
+.opcion-quien small { color: var(--tinta-3); font-size: var(--t-xs); }

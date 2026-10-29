@@ -258,6 +258,7 @@ export const api = {
     }
     t.estado = 'cancelado';
     t.cancelado_en = ahora();
+    t.cancelado_por = 'paciente';
     guardar();
     return espera(t);
   },
@@ -347,10 +348,10 @@ export const api = {
     guardar();
     return espera(conPaciente(t));
   },
-  async cambiarEstadoTurno(tid, estado) {
+  async cambiarEstadoTurno(tid, estado, extra = {}) {
     requiere(...PERSONAL);
     const t = cargar().turnos.find((x) => x.id === tid);
-    t.estado = estado;
+    Object.assign(t, extra, { estado });
     guardar();
     return espera(t);
   },

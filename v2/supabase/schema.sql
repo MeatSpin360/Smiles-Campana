@@ -109,12 +109,14 @@ create table if not exists turnos (
   inicio_pedido timestamptz,  -- horario original, si el personal cambió el turno a otro horario
   cambio_ofrecido_en timestamptz,  -- cuándo se le ofreció otro horario por un pedido pendiente
   sobreturno   boolean not null default false,  -- turno de 30 min que da el personal en un hueco o fuera de horario
+  cancelado_por text check (cancelado_por in ('paciente', 'consultorio')),  -- quién pidió la cancelación
   fin          timestamptz  -- inicio + duración; lo completa la base
 );
 alter table turnos add column if not exists cancelado_en timestamptz;
 alter table turnos add column if not exists inicio_pedido timestamptz;
 alter table turnos add column if not exists cambio_ofrecido_en timestamptz;
 alter table turnos add column if not exists sobreturno boolean not null default false;
+alter table turnos add column if not exists cancelado_por text check (cancelado_por in ('paciente', 'consultorio'));
 alter table turnos add column if not exists fin timestamptz;
 update turnos set fin = inicio + make_interval(mins => duracion) where fin is null;
 alter table turnos alter column fin set not null;
@@ -473,7 +475,7 @@ begin
   if v_turno.estado = 'confirmado' and v_turno.inicio - now() < make_interval(hours => v_horas) then
     raise exception 'Los turnos se pueden cancelar online hasta % h antes. Escribinos por WhatsApp.', v_horas;
   end if;
-  update turnos set estado = 'cancelado', cancelado_en = now() where id = p_id returning * into v_turno;
+  update turnos set estado = 'cancelado', cancelado_en = now(), cancelado_por = 'paciente' where id = p_id returning * into v_turno;
   return v_turno;
 end $$;
 
@@ -553,6 +555,7 @@ declare
   v_tipo text;
   v_anterior timestamptz;
   v_era_pedido boolean := false;
+  v_a_pedido boolean := false;
   v_pac pacientes%rowtype;
   v_horas int;
   v_url text;
@@ -567,9 +570,11 @@ begin
   elsif new.estado = 'confirmado' and old.estado = 'pendiente' then
     v_tipo := 'confirmado';
   elsif new.estado in ('cancelado', 'rechazado') and old.estado in ('pendiente', 'confirmado') and new.cancelado_en is null then
-    -- Lo canceló el consultorio (cuando cancela el paciente, cancelar_mi_turno completa cancelado_en)
+    -- Lo canceló el personal (cuando cancela el paciente online, cancelar_mi_turno completa cancelado_en).
+    -- a_pedido: el paciente lo pidió por WhatsApp o teléfono; si no, lo canceló el consultorio.
     v_tipo := 'cancelado';
     v_era_pedido := old.estado = 'pendiente';
+    v_a_pedido := new.cancelado_por is not distinct from 'paciente';
   end if;
 
   if v_tipo is null or new.inicio < now() then return new; end if;
@@ -595,6 +600,7 @@ begin
         'duracion', new.duracion,
         'motivo', new.motivo,
         'era_pedido', v_era_pedido,
+        'a_pedido', v_a_pedido,
         'horas_cancelacion', v_horas),
       headers := '{"Content-Type": "application/json"}'::jsonb,
       timeout_milliseconds := 15000);

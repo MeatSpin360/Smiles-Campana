@@ -1,9 +1,12 @@
 /**
- * Smiles Campana: envío de correos de turnos.
+ * Smiles Campana: correos de turnos y copias de seguridad.
  *
- * Corre en Google Apps Script con la cuenta smiles.campana@gmail.com y envía desde Gmail
- * (los correos quedan en "Enviados"). La base de datos lo llama cada vez que un turno se
- * confirma, se cambia de horario, lo agenda el personal o lo cancela el consultorio.
+ * Corre en Google Apps Script con la cuenta smiles.campana@gmail.com.
+ * - Correos: envía desde Gmail (quedan en "Enviados"). La base lo llama cada vez que un turno se
+ *   confirma, se cambia de horario, lo agenda el personal o lo cancela el consultorio.
+ * - Copias de seguridad: una vez por semana la base le manda una copia de sus tablas y el script la
+ *   guarda en la carpeta de Drive "Smiles Campana – Respaldos" (borra las de más de 3 meses).
+ *   Los lunes, 'controlarRespaldo' avisa por correo si falta la copia de la semana.
  *
  * Seguridad: solo atiende pedidos que traen la clave secreta guardada en
  * Configuración del proyecto → Propiedades del script → SECRETO.
@@ -12,11 +15,11 @@
  */
 
 // ---------- Datos del consultorio ----------
-const SITIO = 'https://smiles-campana.emiliobrescasin.workers.dev'; // cambiar al dominio definitivo cuando esté
+const SITIO = 'https://smilescampana.com.ar'; // dirección del sitio: la usan el logo y los botones de los correos
 const CONSULTORIO = {
   nombre: 'Smiles Campana',
-  direccion: 'Jean Jaurès 568, Campana',
-  mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Jean Jaurès 568, Campana, Buenos Aires'),
+  direccion: 'Jean Jaures 568, Campana',
+  mapa: 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Jean Jaures 568, Campana, Buenos Aires'),
   whatsapp: '5493487728866',
   whatsappTexto: '3487-728866',
   instagram: 'https://www.instagram.com/smiles.campana',
@@ -41,6 +44,7 @@ function doPost(e) {
   }
   const secreto = PropertiesService.getScriptProperties().getProperty('SECRETO');
   if (!secreto || datos.secreto !== secreto) return respuesta({ ok: false, error: 'clave' });
+  if (datos.tipo === 'respaldo') return respuesta(guardarRespaldo(datos.respaldo));
   if (!datos.email || !TIPOS[datos.tipo]) return respuesta({ ok: false, error: 'datos' });
 
   const correo = armarCorreo(datos);
@@ -234,4 +238,74 @@ function armarCorreo(d) {
     '', x.nota, '', `${CONSULTORIO.nombre} · WhatsApp ${CONSULTORIO.whatsappTexto}`,
   ].join('\n');
   return { asunto: x.asunto, html, texto };
+}
+
+// ---------- Copias de seguridad ----------
+const CARPETA_RESPALDOS = 'Smiles Campana – Respaldos';
+const DIAS_CONSERVAR = 92; // unos 3 meses: quedan ~13 copias semanales
+
+function carpetaRespaldos() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('CARPETA_RESPALDOS_ID');
+  if (id) {
+    try {
+      const f = DriveApp.getFolderById(id);
+      if (!f.isTrashed()) return f;
+    } catch (err) { /* la carpeta se borró: se crea de nuevo */ }
+  }
+  const existentes = DriveApp.getFoldersByName(CARPETA_RESPALDOS);
+  const carpeta = existentes.hasNext() ? existentes.next() : DriveApp.createFolder(CARPETA_RESPALDOS);
+  props.setProperty('CARPETA_RESPALDOS_ID', carpeta.getId());
+  return carpeta;
+}
+
+/** Guarda la copia que manda la base y borra las de más de 3 meses. */
+function guardarRespaldo(respaldo) {
+  if (!respaldo || !respaldo.tablas) return { ok: false, error: 'respaldo vacío' };
+  const carpeta = carpetaRespaldos();
+  const fecha = Utilities.formatDate(new Date(), ZONA, 'yyyy-MM-dd_HHmm');
+  const contenido = JSON.stringify(respaldo, null, 1);
+  const archivo = carpeta.createFile(`respaldo-${fecha}.json`, contenido, MimeType.PLAIN_TEXT);
+  archivo.setDescription('Copia de seguridad de la base de Smiles Campana. Contiene datos clínicos: no compartir.');
+
+  // Limpieza: a la papelera las copias de más de DIAS_CONSERVAR días (nunca la recién creada)
+  const limite = Date.now() - DIAS_CONSERVAR * 864e5;
+  let borradas = 0;
+  const archivos = carpeta.getFiles();
+  while (archivos.hasNext()) {
+    const a = archivos.next();
+    if (a.getId() !== archivo.getId() && /^respaldo-/.test(a.getName()) && a.getDateCreated().getTime() < limite) {
+      a.setTrashed(true);
+      borradas++;
+    }
+  }
+  const filas = Object.keys(respaldo.tablas).reduce((n, k) => n + (respaldo.tablas[k] || []).length, 0);
+  return { ok: true, tipo: 'respaldo', archivo: archivo.getName(), bytes: contenido.length, filas, borradas };
+}
+
+/** Control de los lunes: si no hay una copia de los últimos 8 días, avisa por correo. */
+function controlarRespaldo() {
+  const carpeta = carpetaRespaldos();
+  let ultima = 0;
+  const archivos = carpeta.getFiles();
+  while (archivos.hasNext()) {
+    const a = archivos.next();
+    if (/^respaldo-/.test(a.getName())) ultima = Math.max(ultima, a.getDateCreated().getTime());
+  }
+  if (Date.now() - ultima < 8 * 864e5) return;
+  const yo = Session.getEffectiveUser().getEmail();
+  const cuando = ultima ? Utilities.formatDate(new Date(ultima), ZONA, 'dd/MM/yyyy') : 'nunca';
+  GmailApp.sendEmail(yo, 'Atención: falta la copia de seguridad semanal',
+    `No se encontró una copia de seguridad de la base en los últimos 8 días (la última es del ${cuando}).\n\n`
+    + `Revisá en Supabase que el proyecto esté activo (el plan gratuito se pausa tras 7 días sin uso) y la tarea "respaldo-semanal". `
+    + `Carpeta: ${carpeta.getUrl()}`, { name: CONSULTORIO.nombre });
+}
+
+/** Ejecutar una sola vez desde el editor: programa el control de los lunes a las 9. */
+function instalarControlRespaldo() {
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'controlarRespaldo')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('controlarRespaldo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9).inTimezone(ZONA).create();
+  carpetaRespaldos(); // crea la carpeta y pide el permiso de Drive ahora
 }

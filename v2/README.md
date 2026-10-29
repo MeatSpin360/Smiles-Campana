@@ -84,8 +84,8 @@ Cualquier hosting estático sirve. Opciones gratuitas y simples: **Cloudflare Pa
 
 En Supabase, **Authentication > URL Configuration**:
 
-- *Site URL*: la dirección del sitio, por ejemplo `https://smilescampana.com.ar`
-- *Redirect URLs*: agregar `https://smilescampana.com.ar/app.html**`
+- *Site URL*: `https://smilescampana.com.ar`
+- *Redirect URLs*: `https://smilescampana.com.ar/**` y `https://www.smilescampana.com.ar/**` (y, mientras se use, la de workers.dev)
 - Para probar en la PC con Live Server, agregar también `http://127.0.0.1:5500/**` y `http://localhost:5500/**`
 
 ### 4. Crear el primer administrador

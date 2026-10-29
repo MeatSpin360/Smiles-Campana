@@ -610,3 +610,51 @@ create trigger avisar_turno after insert or update of estado, inicio on turnos
   for each row execute function avisar_turno();
 
 revoke execute on function avisar_turno() from public, anon, authenticated;
+
+-- ---------- Copia de seguridad semanal ----------
+-- Una vez por semana la base arma una copia de sus tablas y se la manda al script de Google
+-- (google/avisos.gs), que la guarda en Drive. Usa la misma dirección y clave de Vault que los correos.
+-- No incluye las cuentas (auth.users): al reconstruir, cada paciente vuelve a crear su cuenta y queda
+-- vinculado a su ficha por DNI y correo. Para restaurar: supabase/restaurar.sql.
+create or replace function enviar_respaldo() returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_url text;
+  v_secreto text;
+  v_respaldo jsonb;
+begin
+  select decrypted_secret into v_url from vault.decrypted_secrets where name = 'avisos_url';
+  select decrypted_secret into v_secreto from vault.decrypted_secrets where name = 'avisos_secreto';
+  if v_url is null or v_secreto is null then
+    raise exception 'Faltan los secretos avisos_url / avisos_secreto en Vault.';
+  end if;
+  v_respaldo := jsonb_build_object(
+    'version', 1,
+    'creado', now(),
+    'tablas', jsonb_build_object(
+      'perfiles',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from perfiles x),
+      'pacientes',       (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from pacientes x),
+      'antecedentes',    (select coalesce(jsonb_agg(to_jsonb(x) order by x.paciente_id), '[]') from antecedentes x),
+      'agenda_config',   (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from agenda_config x),
+      'agenda_horarios', (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from agenda_horarios x),
+      'agenda_bloqueos', (select coalesce(jsonb_agg(to_jsonb(x) order by x.fecha), '[]') from agenda_bloqueos x),
+      'turnos',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.inicio), '[]') from turnos x),
+      'odontogramas',    (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from odontogramas x),
+      'evoluciones',     (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from evoluciones x)));
+  return net.http_post(
+    url := v_url,
+    body := jsonb_build_object('secreto', v_secreto, 'tipo', 'respaldo', 'respaldo', v_respaldo),
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    timeout_milliseconds := 60000);
+end $$;
+revoke execute on function enviar_respaldo() from public, anon, authenticated;
+
+-- Tarea semanal: domingos a las 3:00 de Argentina (6:00 UTC). Requiere pg_cron (incluido en Supabase).
+do $$ begin
+  create extension if not exists pg_cron with schema pg_catalog;
+  grant usage on schema cron to postgres;
+  grant all privileges on all tables in schema cron to postgres;
+  perform cron.schedule('respaldo-semanal', '0 6 * * 0', 'select public.enviar_respaldo()');
+exception when others then
+  raise notice 'pg_cron no disponible en esta base: la copia semanal no queda programada (%).', sqlerrm;
+end $$;

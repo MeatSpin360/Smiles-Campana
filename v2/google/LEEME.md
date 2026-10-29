@@ -1,4 +1,4 @@
-# Correos automáticos de turnos
+# Correos automáticos y copias de seguridad
 
 `avisos.gs` es un script de Google Apps Script que envía los correos de turnos desde la cuenta
 **smiles.campana@gmail.com** (quedan en *Enviados*). La base de datos lo llama sola cuando:
@@ -59,7 +59,7 @@ select vault.update_secret((select id from vault.secrets where name = 'avisos_ur
 Editar el código → guardar → **Implementar** → *Gestionar implementaciones* → ✏️ → Versión: **Nueva versión** →
 *Implementar*. La URL no cambia, así que no hay que tocar Supabase.
 
-Al pasar al dominio definitivo, cambiar `SITIO` al principio de `avisos.gs` (el logo y los botones lo usan).
+`SITIO`, al principio de `avisos.gs`, es la dirección del sitio (`https://smilescampana.com.ar`): la usan el logo y los botones.
 
 ## Si un correo no llega
 
@@ -72,3 +72,37 @@ select created, status_code, content from net._http_response order by created de
 Las respuestas se guardan unas horas. Un envío correcto responde `200` con `{"ok":true,...}`;
 `{"ok":false,"error":"clave"}` indica que la clave de Vault no coincide con la propiedad SECRETO del script.
 En el script: *Ejecuciones* (menú de la izquierda) muestra cada envío y cualquier error.
+
+## Copias de seguridad semanales
+
+Todos los domingos a las 3:00 la base arma una copia de sus tablas (pacientes, antecedentes, turnos,
+odontogramas, evoluciones, perfiles y agenda) y se la manda a este mismo script, que la guarda en Drive en la
+carpeta **Smiles Campana – Respaldos** como `respaldo-AAAA-MM-DD_HHMM.json`. Se conservan unos 3 meses
+(las más viejas van a la papelera de Drive). Los lunes a las 9 el script revisa que haya una copia de la
+última semana y, si falta, manda un correo de aviso a la casilla del consultorio.
+
+La copia **no** incluye las claves de las cuentas: si alguna vez hay que reconstruir todo, cada paciente crea
+su cuenta de nuevo con su correo y DNI y queda vinculado solo a su ficha, con todo su historial.
+
+Los archivos tienen datos clínicos: la carpeta es privada; no la compartas. Conviene que la cuenta de Google
+del consultorio tenga activada la verificación en dos pasos.
+
+### Instalar (una sola vez)
+
+1. En el proyecto del script, reemplazar todo el código por el `avisos.gs` actualizado y guardar.
+2. Elegir la función `instalarControlRespaldo` → **Ejecutar**. Google pide un permiso nuevo para usar
+   **Drive**: aceptarlo igual que antes (*Configuración avanzada* → *Ir a…* → marcar todo → *Permitir*).
+   Se crea la carpeta en Drive y queda programado el control de los lunes.
+3. **Implementar** → *Gestionar implementaciones* → ✏️ → Versión: **Nueva versión** → *Implementar*.
+   La dirección no cambia.
+
+### Restaurar
+
+Usar `supabase/restaurar.sql` en el SQL Editor de Supabase: pegar el contenido del archivo de respaldo donde
+dice `PEGAR_ACA` y ejecutar. Agrega lo que falta sin pisar lo que existe (sirve para recuperar algo borrado
+por error o para reconstruir en un proyecto nuevo) y no envía correos mientras restaura.
+
+### Hacer una copia en cualquier momento
+
+En Supabase → SQL Editor: `select enviar_respaldo();` (en uno o dos minutos aparece el archivo en Drive).
+

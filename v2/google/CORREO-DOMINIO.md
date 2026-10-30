@@ -1,16 +1,19 @@
 # Correos con el dominio smilescampana.com.ar
 
-Dos direcciones, las dos llegan a la casilla de siempre (**smiles.campana@gmail.com**):
+Tres direcciones, las tres llegan a la casilla de siempre (**smiles.campana@gmail.com**):
 
 | Dirección | Para qué |
 |---|---|
-| `turnos@smilescampana.com.ar` | Remitente de los correos automáticos (cuenta y turnos). Si un paciente responde, llega a Gmail. |
+| `cuentas@smilescampana.com.ar` | Correos de la cuenta, que envía Supabase: confirmar la cuenta, "Olvidé mi clave", cambio de correo. |
+| `turnos@smilescampana.com.ar` | Avisos de turnos, que envía el script (confirmado, cambio, agendado, cancelado). |
 | `consultas@smilescampana.com.ar` | Contacto general: la que se muestra en el sitio. |
 
-- **Recibir**: Cloudflare *Email Routing* reenvía las dos direcciones a Gmail (gratis).
+Si un paciente responde cualquiera de ellos, la respuesta llega a Gmail.
+
+- **Recibir**: Cloudflare *Email Routing* reenvía las tres direcciones a Gmail (gratis).
 - **Enviar**: **Resend** (servicio de envío, plan gratuito) firma los correos con el dominio para que lleguen a la
-  bandeja de entrada y no a spam. Lo usan Supabase (correos de la cuenta) y Gmail "Enviar como" (correos de turnos;
-  así siguen quedando en *Enviados*).
+  bandeja de entrada y no a spam. Lo usan Supabase (`cuentas@`) y Gmail "Enviar como" (`turnos@`; así los avisos
+  siguen quedando en *Enviados*).
 
 Trabajar con la sesión de **smiles.campana@gmail.com** (en una ventana de incógnito si hay varias cuentas abiertas).
 La clave de Resend se carga solo en Supabase y en Gmail: no la compartas.
@@ -23,7 +26,7 @@ La clave de Resend se carga solo en Supabase y en Gmail: no la compartas.
    abrirlo y verificar.
 3. **Routing rules** → *Custom addresses* → *Create address*:
    - `turnos` → *Send to an email* → `smiles.campana@gmail.com` → *Save*.
-   - `consultas` → lo mismo.
+   - `consultas` y `cuentas` → lo mismo.
 4. Prueba: desde otra cuenta, mandar un correo a `consultas@smilescampana.com.ar`; tiene que llegar a Gmail.
 
 ## 2. Enviar: Resend (15 min)
@@ -47,7 +50,7 @@ Supabase → **Authentication** → **Emails** → **SMTP Settings** (donde hoy 
 
 | Campo | Valor |
 |---|---|
-| Sender email | `turnos@smilescampana.com.ar` |
+| Sender email | `cuentas@smilescampana.com.ar` |
 | Sender name | `Smiles Campana` |
 | Host | `smtp.resend.com` |
 | Port | `465` |
@@ -77,7 +80,8 @@ implementaciones* → ✏️ → **Nueva versión**. El script usa `turnos@` aut
 
 ## 6. Prueba
 
-1. En el script, ejecutar `probar`: llegan 5 correos "[Prueba]" **de** `turnos@smilescampana.com.ar`.
-2. Abrir uno → ⋮ → **Mostrar original**: SPF, DKIM y DMARC tienen que decir **PASS**.
-3. En el sitio, "Olvidé mi clave" con una cuenta de prueba: el correo tiene que llegar de `turnos@…`.
+1. En el script, ejecutar `probar`: llegan 5 correos "[Prueba]" **de** `turnos@smilescampana.com.ar` (en Gmail se
+   ven dos copias de cada uno, la enviada y la recibida; a un paciente le llega uno solo).
+2. Abrir uno recibido → ⋮ → **Mostrar original**: SPF, DKIM y DMARC tienen que decir **PASS**.
+3. En el sitio, "Olvidé mi clave" con una cuenta de prueba: el correo tiene que llegar de `cuentas@…`.
 4. Confirmar un turno de prueba y revisar que llegue a la bandeja de entrada (no a spam).

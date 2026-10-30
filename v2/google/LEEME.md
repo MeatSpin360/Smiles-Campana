@@ -2,7 +2,8 @@
 
 `avisos.gs` es un script de Google Apps Script que envía los correos de turnos desde la cuenta
 **smiles.campana@gmail.com**, con remitente **turnos@smilescampana.com.ar** (quedan en *Enviados*; ver
-`CORREO-DOMINIO.md`). La base de datos lo llama sola cuando:
+`CORREO-DOMINIO.md`). Los correos de la cuenta (confirmación, clave) no pasan por acá: los envía Supabase desde
+**cuentas@smilescampana.com.ar**. La base de datos llama al script sola cuando:
 
 | Qué pasa | Correo |
 |---|---|

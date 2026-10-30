@@ -24,7 +24,8 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Publicado en Cloudflare (Worker con archivos estáticos, configurado en `wrangler.jsonc`): https://smiles-campana.emiliobrescasin.workers.dev. Cada push a GitHub publica solo.
 - [x] Dominio **https://smilescampana.com.ar** (y `www`): delegado desde NIC Argentina a Cloudflare y conectado al Worker. La dirección de workers.dev sigue funcionando.
 - [x] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo. Script de correos con `SITIO` en el dominio.
-- [ ] Correos del dominio: `turnos@` (remitente del sistema) y `consultas@` (contacto del sitio). Reciben con Cloudflare *Email Routing* y envían con Resend (Supabase SMTP y Gmail "Enviar como"). Guía: `google/CORREO-DOMINIO.md`.
+- [x] Correos del dominio: `cuentas@` (correos de la cuenta, desde Supabase), `turnos@` (avisos de turnos, desde el script) y `consultas@` (contacto del sitio). Reciben con Cloudflare *Email Routing* y envían con Resend (Supabase SMTP y Gmail "Enviar como"). Guía: `google/CORREO-DOMINIO.md`.
+- [ ] Revocar la contraseña de aplicación de Gmail que usaba Supabase (ya no hace falta).
 
 ## Etapa 2: integraciones con Google
 

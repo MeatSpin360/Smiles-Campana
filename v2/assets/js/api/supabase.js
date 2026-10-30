@@ -2,6 +2,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../config.js';
 import { isoEn, partes } from '../lib/dates.js';
+import { prepararFoto } from '../lib/imagenes.js';
 
 // Los enlaces de los emails (confirmar cuenta, recuperar clave) vuelven con la sesión en la URL.
 // Se detecta antes de crear el cliente, que limpia la URL al leerla.
@@ -44,6 +45,20 @@ function agruparPorDia(lista) {
 async function sesionActual() {
   const { data } = await sb.auth.getSession();
   return data.session;
+}
+
+const urlsFotos = new Map();
+
+/** Pedido al Worker del sitio con la sesión actual. Si responde con error, lanza su mensaje. */
+async function alWorker(ruta, init = {}) {
+  const s = await sesionActual();
+  if (!s) throw new Error('Tu sesión terminó. Ingresá de nuevo.');
+  const r = await fetch(ruta, { ...init, headers: { ...(init.headers || {}), Authorization: `Bearer ${s.access_token}` } });
+  if (!r.ok) {
+    const datos = await r.json().catch(() => null);
+    throw new Error(datos?.error || 'No se pudo completar la operación con las fotos.');
+  }
+  return r;
 }
 
 export const api = {
@@ -169,9 +184,16 @@ export const api = {
   async actualizarPaciente(id, datos) {
     return ok(await sb.from('pacientes').update(limpiar(datos)).eq('id', id).select().single());
   },
-  /** Solo admin, solo en la etapa de pruebas: borra la ficha, todo lo suyo y su cuenta. */
+  /** Solo admin, solo en la etapa de pruebas: borra la ficha, todo lo suyo, su cuenta y sus fotos. */
   async eliminarPaciente(id) {
     ok(await sb.rpc('eliminar_paciente', { p_id: id }));
+    try {
+      await alWorker(`/api/pacientes/${id}/fotos`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn(e);
+      return { aviso: 'Paciente eliminado. Sus fotos no se pudieron borrar del depósito; avisá para limpiarlas.' };
+    }
+    return {};
   },
   async antecedentes(id) {
     return ok(await sb.from('antecedentes').select('*').eq('paciente_id', id).maybeSingle()) || { paciente_id: id, texto: '' };
@@ -241,6 +263,56 @@ export const api = {
     const filas = ok(await sb.from('odontogramas').delete().eq('id', id).select('id'));
     if (!filas.length) throw new Error('Este registro ya no se puede borrar (pasaron más de 48 h).');
   },
+  // --- Fotos (archivos en Cloudflare R2, a través del Worker: worker/index.js) ---
+  async fotosDePaciente(pacienteId) {
+    const [secciones, fotos] = await Promise.all([
+      sb.from('foto_secciones').select('*').eq('paciente_id', pacienteId).order('orden').order('creado_en'),
+      sb.from('fotos').select('*').eq('paciente_id', pacienteId).order('orden').order('creado_en'),
+    ]);
+    return { secciones: ok(secciones), fotos: ok(fotos) };
+  },
+  /** Achica la foto en el navegador y la sube. Devuelve la fila creada. */
+  async subirFoto(pacienteId, archivo, { seccionId = null, orden = 0 } = {}) {
+    const p = await prepararFoto(archivo);
+    const form = new FormData();
+    form.set('paciente_id', pacienteId);
+    if (seccionId) form.set('seccion_id', seccionId);
+    form.set('orden', String(orden));
+    form.set('ancho', String(p.ancho));
+    form.set('alto', String(p.alto));
+    form.set('foto', p.foto, 'foto.jpg');
+    form.set('mini', p.mini, 'mini.jpg');
+    return (await alWorker('/api/fotos', { method: 'POST', body: form })).json();
+  },
+  /** Dirección local (blob:) para mostrar la foto o su miniatura. */
+  urlFoto(id, { mini = false } = {}) {
+    const k = `${id}${mini ? ':mini' : ''}`;
+    if (!urlsFotos.has(k)) {
+      const pedido = alWorker(`/api/fotos/${id}${mini ? '?mini' : ''}`).then((r) => r.blob()).then((b) => URL.createObjectURL(b));
+      pedido.catch(() => urlsFotos.delete(k));
+      urlsFotos.set(k, pedido);
+    }
+    return urlsFotos.get(k);
+  },
+  async borrarFoto(id) {
+    await alWorker(`/api/fotos/${id}`, { method: 'DELETE' });
+  },
+  /** Mueve o reordena fotos: [{ id, seccion_id, orden }]. */
+  async ordenarFotos(cambios) {
+    const r = await Promise.all(cambios.map(({ id, seccion_id, orden }) => sb.from('fotos').update({ seccion_id, orden }).eq('id', id)));
+    r.forEach(ok);
+  },
+  async crearSeccion(pacienteId, { titulo, orden = 0 }) {
+    return ok(await sb.from('foto_secciones').insert({ paciente_id: pacienteId, titulo, orden }).select().single());
+  },
+  async actualizarSeccion(id, cambios) {
+    return ok(await sb.from('foto_secciones').update(cambios).eq('id', id).select().single());
+  },
+  /** Borra la sección; sus fotos quedan "Sin sección" (para borrarlas, borrarFoto antes). */
+  async borrarSeccion(id) {
+    ok(await sb.from('foto_secciones').delete().eq('id', id));
+  },
+
   async evoluciones(pacienteId) {
     return ok(await sb.from('evoluciones').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));
   },

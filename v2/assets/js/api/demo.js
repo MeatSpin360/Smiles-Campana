@@ -2,6 +2,7 @@
 // Replica las reglas de permisos de la base real para que el comportamiento sea el mismo.
 import { AGENDA_INICIAL, horariosLibres as calcularLibres, huecosSobreturno, intervalos, filasExtendidas, DURACION_SOBRETURNO } from '../lib/agenda.js';
 import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
+import { prepararFoto } from '../lib/imagenes.js';
 
 const CLAVE = 'smiles-demo-v2';
 const CLAVE_SESION = 'smiles-demo-sesion';
@@ -86,12 +87,41 @@ function cargar() {
   // Datos guardados por una versión anterior de la demo
   db.agenda.intervalo ??= db.agenda.duracion;
   db.agenda.margenSobreturno ??= 60;
+  db.fotos ??= [];
+  db.foto_secciones ??= [];
   db.bloqueos = db.bloqueos.map((b) => ({ id: b.id || id(), hora_desde: null, hora_hasta: null, repetir: false, hasta_fecha: null, ...b }));
   return db;
 }
 function guardar() {
   try { localStorage.setItem(CLAVE, JSON.stringify(db)); } catch { /* almacenamiento no disponible */ }
 }
+
+// Archivos de las fotos de la demo: en IndexedDB del navegador (localStorage no alcanza para imágenes)
+const archivos = {
+  abrir() {
+    this.db ??= new Promise((ok, mal) => {
+      const r = indexedDB.open('smiles-demo-fotos', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('archivos');
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => mal(r.error);
+    });
+    return this.db;
+  },
+  async hacer(modo, fn) {
+    const base = await this.abrir();
+    return new Promise((ok, mal) => {
+      const tx = base.transaction('archivos', modo);
+      const r = fn(tx.objectStore('archivos'));
+      tx.oncomplete = () => ok(r?.result);
+      tx.onerror = () => mal(tx.error);
+    });
+  },
+  guardar(k, blob) { return this.hacer('readwrite', (st) => st.put(blob, k)); },
+  leer(k) { return this.hacer('readonly', (st) => st.get(k)); },
+  borrar(k) { return this.hacer('readwrite', (st) => st.delete(k)); },
+  vaciar() { return this.hacer('readwrite', (st) => st.clear()); },
+};
+const urlsFotos = new Map();
 
 function usuarioActual() {
   let uid = null;
@@ -300,6 +330,12 @@ export const api = {
     if (!p) throw new Error('No encontramos ese paciente.');
     for (const t of ['turnos', 'odontogramas', 'evoluciones']) d[t] = d[t].filter((x) => x.paciente_id !== pid);
     d.antecedentes = d.antecedentes.filter((x) => x.paciente_id !== pid);
+    for (const f of d.fotos.filter((x) => x.paciente_id === pid)) {
+      archivos.borrar(f.id).catch(() => {});
+      archivos.borrar(`${f.id}:mini`).catch(() => {});
+    }
+    d.fotos = d.fotos.filter((x) => x.paciente_id !== pid);
+    d.foto_secciones = d.foto_secciones.filter((x) => x.paciente_id !== pid);
     const cuenta = d.usuarios.find((u) => u.id === p.usuario_id);
     if (cuenta?.rol === 'paciente') d.usuarios = d.usuarios.filter((u) => u !== cuenta);
     d.pacientes = d.pacientes.filter((x) => x !== p);
@@ -431,6 +467,82 @@ export const api = {
     guardar();
     return espera();
   },
+  // --- Fotos ---
+  async fotosDePaciente(pid) {
+    requiere(...CLINICO);
+    const d = cargar();
+    const orden = (a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en);
+    return espera({
+      secciones: d.foto_secciones.filter((x) => x.paciente_id === pid).sort(orden),
+      fotos: d.fotos.filter((x) => x.paciente_id === pid).sort(orden),
+    });
+  },
+  async subirFoto(pid, archivo, { seccionId = null, orden = 0 } = {}) {
+    const u = requiere(...CLINICO);
+    const p = await prepararFoto(archivo);
+    const f = { id: id(), paciente_id: pid, seccion_id: seccionId, orden, ancho: p.ancho, alto: p.alto, bytes: p.foto.size, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora() };
+    await archivos.guardar(f.id, p.foto);
+    await archivos.guardar(`${f.id}:mini`, p.mini);
+    cargar().fotos.push(f);
+    guardar();
+    return espera(f);
+  },
+  urlFoto(fid, { mini = false } = {}) {
+    requiere(...CLINICO);
+    const k = `${fid}${mini ? ':mini' : ''}`;
+    if (!urlsFotos.has(k)) {
+      urlsFotos.set(k, archivos.leer(k).then((b) => {
+        if (!b) throw new Error('No encontramos el archivo de esa foto.');
+        return URL.createObjectURL(b);
+      }));
+    }
+    return urlsFotos.get(k);
+  },
+  async borrarFoto(fid) {
+    requiere(...CLINICO);
+    const d = cargar();
+    d.fotos = d.fotos.filter((x) => x.id !== fid);
+    guardar();
+    await archivos.borrar(fid);
+    await archivos.borrar(`${fid}:mini`);
+    return espera();
+  },
+  async ordenarFotos(cambios) {
+    requiere(...CLINICO);
+    const d = cargar();
+    for (const c of cambios) {
+      const f = d.fotos.find((x) => x.id === c.id);
+      if (c.seccion_id && d.foto_secciones.find((x) => x.id === c.seccion_id)?.paciente_id !== f.paciente_id) throw new Error('Esa sección es de otro paciente.');
+      Object.assign(f, { seccion_id: c.seccion_id, orden: c.orden });
+    }
+    guardar();
+    return espera();
+  },
+  async crearSeccion(pid, { titulo, orden = 0 }) {
+    const u = requiere(...CLINICO);
+    if (!titulo?.trim()) throw new Error('Escribí un título para la sección.');
+    const s = { id: id(), paciente_id: pid, titulo, orden, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora() };
+    cargar().foto_secciones.push(s);
+    guardar();
+    return espera(s);
+  },
+  async actualizarSeccion(sid, cambios) {
+    requiere(...CLINICO);
+    if ('titulo' in cambios && !cambios.titulo?.trim()) throw new Error('Escribí un título para la sección.');
+    const s = cargar().foto_secciones.find((x) => x.id === sid);
+    Object.assign(s, { titulo: cambios.titulo ?? s.titulo, orden: cambios.orden ?? s.orden });
+    guardar();
+    return espera(s);
+  },
+  async borrarSeccion(sid) {
+    requiere(...CLINICO);
+    const d = cargar();
+    d.foto_secciones = d.foto_secciones.filter((x) => x.id !== sid);
+    for (const f of d.fotos) if (f.seccion_id === sid) f.seccion_id = null;
+    guardar();
+    return espera();
+  },
+
   async evoluciones(pid) {
     requiere(...CLINICO);
     return espera(cargar().evoluciones.filter((e) => e.paciente_id === pid).sort((a, b) => b.creado_en.localeCompare(a.creado_en)));
@@ -471,6 +583,7 @@ export const api = {
   reiniciarDemo() {
     localStorage.removeItem(CLAVE);
     localStorage.removeItem(CLAVE_SESION);
+    archivos.vaciar().catch(() => {});
     db = null;
   },
 };

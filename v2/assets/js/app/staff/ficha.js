@@ -86,9 +86,10 @@ function zonaEliminar(ctx, p) {
     });
     volver.onclick = cerrar;
     ok.onclick = () => conCarga(ok, async () => {
-      await ctx.api.eliminarPaciente(p.id);
+      const r = await ctx.api.eliminarPaciente(p.id);
       cerrar();
-      aviso('Paciente eliminado.');
+      if (r?.aviso) aviso(r.aviso, 'error');
+      else aviso('Paciente eliminado.');
       ctx.navegar('/pacientes');
     });
     dni.focus();

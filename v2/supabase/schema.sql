@@ -161,6 +161,37 @@ create table if not exists evoluciones (
 );
 create index if not exists evoluciones_paciente on evoluciones (paciente_id, creado_en desc);
 
+-- Fotos clínicas, agrupadas en secciones (por ejemplo "Primera consulta 02/11/2026").
+-- Los archivos están en Cloudflare R2 (pacientes/<paciente_id>/<foto_id>.jpg y -mini.jpg); el Worker
+-- (worker/index.js) los sube, entrega y borra solo si la base se lo permite a quien lo pide.
+create table if not exists foto_secciones (
+  id                 uuid primary key default gen_random_uuid(),
+  paciente_id        uuid not null references pacientes on delete cascade,
+  titulo             text not null check (length(trim(titulo)) > 0),
+  orden              int not null default 0,
+  creado_por         uuid references perfiles(id),
+  creado_por_nombre  text,
+  creado_en          timestamptz not null default now()
+);
+create index if not exists foto_secciones_paciente on foto_secciones (paciente_id, orden);
+
+create table if not exists fotos (
+  id                 uuid primary key default gen_random_uuid(),
+  paciente_id        uuid not null references pacientes on delete cascade,
+  seccion_id         uuid references foto_secciones on delete set null,  -- sin sección: "Sin sección"
+  orden              int not null default 0,
+  ancho              int,
+  alto               int,
+  bytes              int,
+  creado_por         uuid references perfiles(id),
+  creado_por_nombre  text,
+  creado_en          timestamptz not null default now()
+);
+create index if not exists fotos_paciente on fotos (paciente_id, seccion_id, orden);
+create index if not exists fotos_seccion on fotos (seccion_id);
+create index if not exists foto_secciones_creado_por on foto_secciones (creado_por);
+create index if not exists fotos_creado_por on fotos (creado_por);
+
 -- Índices para las columnas de autoría (sugeridos por el analizador de Supabase)
 create index if not exists antecedentes_actualizado_por on antecedentes (actualizado_por);
 create index if not exists odontogramas_creado_por on odontogramas (creado_por);
@@ -267,6 +298,8 @@ alter table agenda_bloqueos  enable row level security;
 alter table turnos           enable row level security;
 alter table odontogramas     enable row level security;
 alter table evoluciones      enable row level security;
+alter table foto_secciones   enable row level security;
+alter table fotos            enable row level security;
 
 -- Borra políticas previas para poder re-ejecutar el script
 do $$ declare r record; begin
@@ -339,6 +372,12 @@ create policy "autor o admin corrige odontograma" on odontogramas for update to 
 create policy "autor o admin borra odontograma reciente" on odontogramas for delete to authenticated
   using ((select es_clinico()) and (creado_por = (select auth.uid()) or (select mi_rol()) = 'admin')
          and creado_en > now() - interval '48 hours');
+
+-- fotos y secciones: solo odontología/admin (el paciente, más adelante)
+create policy "clinico gestiona secciones de fotos" on foto_secciones for all to authenticated
+  using ((select es_clinico())) with check ((select es_clinico()));
+create policy "clinico gestiona fotos" on fotos for all to authenticated
+  using ((select es_clinico())) with check ((select es_clinico()));
 
 -- evoluciones: solo odontología/admin
 create policy "clinico ve evoluciones" on evoluciones for select to authenticated
@@ -529,6 +568,47 @@ create trigger autor_odontograma before insert on odontogramas for each row exec
 drop trigger if exists autor_evolucion on evoluciones;
 create trigger autor_evolucion before insert on evoluciones for each row execute function completar_autor();
 
+drop trigger if exists autor_foto_seccion on foto_secciones;
+create trigger autor_foto_seccion before insert on foto_secciones for each row execute function completar_autor();
+drop trigger if exists autor_foto on fotos;
+create trigger autor_foto before insert on fotos for each row execute function completar_autor();
+
+-- Una foto no cambia de paciente (su archivo está en la carpeta del paciente) y solo puede ir a una
+-- sección del mismo paciente. Al mover o reordenar, el resto de los datos queda como estaba.
+create or replace function validar_foto() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.paciente_id := old.paciente_id;
+    new.creado_por := old.creado_por;
+    new.creado_por_nombre := old.creado_por_nombre;
+    new.creado_en := old.creado_en;
+  end if;
+  if new.seccion_id is not null and not exists (
+    select 1 from foto_secciones s where s.id = new.seccion_id and s.paciente_id = new.paciente_id) then
+    raise exception 'Esa sección es de otro paciente.';
+  end if;
+  return new;
+end $$;
+revoke execute on function validar_foto() from public, anon, authenticated;
+drop trigger if exists validar_foto on fotos;
+create trigger validar_foto before insert or update on fotos for each row execute function validar_foto();
+
+create or replace function validar_foto_seccion() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.id := old.id;
+  new.paciente_id := old.paciente_id;
+  new.creado_por := old.creado_por;
+  new.creado_por_nombre := old.creado_por_nombre;
+  new.creado_en := old.creado_en;
+  return new;
+end $$;
+revoke execute on function validar_foto_seccion() from public, anon, authenticated;
+drop trigger if exists validar_foto_seccion on foto_secciones;
+create trigger validar_foto_seccion before update on foto_secciones for each row execute function validar_foto_seccion();
+
 -- Corregir o borrar un odontograma: solo la última versión del paciente. Al corregir, solo cambian el
 -- dibujo y la nota; lo anterior se agrega a "correcciones" con fecha y autor.
 create or replace function corregir_odontograma() returns trigger
@@ -711,7 +791,10 @@ begin
       'agenda_bloqueos', (select coalesce(jsonb_agg(to_jsonb(x) order by x.fecha), '[]') from agenda_bloqueos x),
       'turnos',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.inicio), '[]') from turnos x),
       'odontogramas',    (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from odontogramas x),
-      'evoluciones',     (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from evoluciones x)));
+      'evoluciones',     (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from evoluciones x),
+      -- De las fotos se copia la lista y las secciones; los archivos quedan guardados en Cloudflare R2
+      'foto_secciones',  (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from foto_secciones x),
+      'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x)));
   return net.http_post(
     url := v_url,
     body := jsonb_build_object('secreto', v_secreto, 'tipo', 'respaldo', 'respaldo', v_respaldo),

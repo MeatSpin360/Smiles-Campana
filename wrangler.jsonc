@@ -1,10 +1,23 @@
 // Configuración de publicación en Cloudflare (Workers con archivos estáticos).
 // Publica solo la carpeta v2. La v1 queda en el repositorio como referencia, pero no se publica.
+// worker/index.js atiende /api/... (fotos clínicas en R2); todo lo demás son los archivos de v2.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "smiles-campana",
   "compatibility_date": "2026-10-27",
+  "main": "worker/index.js",
   "assets": {
-    "directory": "./v2"
+    "directory": "./v2",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  // Depósito privado de fotos (Cloudflare → R2). Las fotos solo se acceden a través del Worker.
+  "r2_buckets": [
+    { "binding": "FOTOS", "bucket_name": "smiles-fotos" }
+  ],
+  // Datos públicos de Supabase (los mismos de v2/config.js). No van claves secretas acá.
+  "vars": {
+    "SUPABASE_URL": "https://spmdxhnqvnintedcrnnw.supabase.co",
+    "SUPABASE_KEY": "sb_publishable_tgF3pypzypXmKnQ0wdY5Cg_xRw8UqGu"
   }
 }

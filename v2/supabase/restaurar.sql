@@ -22,6 +22,8 @@ select ($respaldo$PEGAR_ACA$respaldo$)::jsonb -> 'tablas' as t;
 alter table turnos disable trigger user;
 alter table odontogramas disable trigger user;
 alter table evoluciones disable trigger user;
+alter table foto_secciones disable trigger user;
+alter table fotos disable trigger user;
 
 -- Perfiles: solo de cuentas que existen en este proyecto (recupera nombre y rol)
 insert into perfiles
@@ -77,14 +79,32 @@ from respaldo, jsonb_populate_recordset(null::evoluciones, t -> 'evoluciones') x
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+-- Fotos: la lista y las secciones (los archivos siguen en Cloudflare R2). Copias viejas no las traen.
+insert into foto_secciones
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end))).*
+from respaldo, jsonb_populate_recordset(null::foto_secciones, coalesce(t -> 'foto_secciones', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
+insert into fotos
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end))).*
+from respaldo, jsonb_populate_recordset(null::fotos, coalesce(t -> 'fotos', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
 alter table turnos enable trigger user;
 alter table odontogramas enable trigger user;
 alter table evoluciones enable trigger user;
+alter table foto_secciones enable trigger user;
+alter table fotos enable trigger user;
 
 -- Resumen de lo que quedó
 select 'pacientes' as tabla, count(*) from pacientes
 union all select 'turnos', count(*) from turnos
 union all select 'odontogramas', count(*) from odontogramas
-union all select 'evoluciones', count(*) from evoluciones;
+union all select 'evoluciones', count(*) from evoluciones
+union all select 'fotos', count(*) from fotos;
 
 commit;

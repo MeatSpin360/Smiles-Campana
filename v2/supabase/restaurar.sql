@@ -14,9 +14,11 @@
 -- se recuperan cuando cada uno vuelve a crear su cuenta y se vuelve a ejecutar este script.
 
 begin;
+set local smiles.sin_registro = 'on';  -- lo restaurado no se anota fila por fila en el registro de acciones
 
 create temp table respaldo on commit drop as
-select ($respaldo$PEGAR_ACA$respaldo$)::jsonb -> 'tablas' as t;
+select j -> 'tablas' as t, j ->> 'creado' as creado
+from (select ($respaldo$PEGAR_ACA$respaldo$)::jsonb as j) x;
 
 -- Sin correos ni autores automáticos mientras se restaura
 alter table turnos disable trigger user;
@@ -94,11 +96,20 @@ from respaldo, jsonb_populate_recordset(null::fotos, coalesce(t -> 'fotos', '[]'
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+-- Registro de acciones (copias anteriores a octubre de 2026 no lo traen)
+insert into registro overriding system value
+select x.* from respaldo, jsonb_populate_recordset(null::registro, coalesce(t -> 'registro', '[]')) x
+on conflict do nothing;
+select setval(pg_get_serial_sequence('registro', 'id'), greatest((select max(id) from registro), 1));
+
 alter table turnos enable trigger user;
 alter table odontogramas enable trigger user;
 alter table evoluciones enable trigger user;
 alter table foto_secciones enable trigger user;
 alter table fotos enable trigger user;
+
+set local smiles.sin_registro = 'off';
+select anotar('sistema.restauracion', null, jsonb_build_object('copia_del', (select creado from respaldo)));
 
 -- Resumen de lo que quedó
 select 'pacientes' as tabla, count(*) from pacientes

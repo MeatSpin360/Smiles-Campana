@@ -30,6 +30,7 @@ const RUTAS = [
   { p: '/pacientes/:id/:pestana', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/ficha.js').then((m) => m.ficha) },
   { p: '/horarios', roles: ['recepcion', 'admin'], vista: () => import('./staff/horarios.js').then((m) => m.horarios) },
   { p: '/usuarios', roles: ['admin'], vista: () => import('./staff/usuarios.js').then((m) => m.usuarios) },
+  { p: '/panel', roles: ['admin'], vista: () => import('./staff/panel.js').then((m) => m.panel) },
 ];
 
 const MENU = {
@@ -44,6 +45,7 @@ const MENU = {
     { ruta: '/pacientes', texto: 'Pacientes', icono: 'personas' },
     { ruta: '/horarios', texto: 'Horarios', icono: 'reloj', roles: ['recepcion', 'admin'] },
     { ruta: '/usuarios', texto: 'Usuarios', icono: 'llave', roles: ['admin'] },
+    { ruta: '/panel', texto: 'Panel', icono: 'panel', roles: ['admin'] },
   ],
 };
 

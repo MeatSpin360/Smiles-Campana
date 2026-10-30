@@ -71,7 +71,10 @@ function semilla() {
     { id: id(), paciente_id: pacientes[0].id, texto: 'Obturación con resina en 16 (O, D) y 21 (M). Sin complicaciones.', piezas: '16, 21', creado_por_nombre: 'Florencia D\'Ambrosio', creado_en: isoEn(sumarDias(hoy(), -12), '17:10') },
   ];
   const antecedentes = [{ paciente_id: pacientes[0].id, texto: 'Alergia a la penicilina. No toma medicación habitual.', actualizado_en: ahora() }];
-  return { usuarios, pacientes, turnos, agenda, bloqueos: [], odontogramas, evoluciones, antecedentes };
+  // Última copia de seguridad: el domingo pasado a las 3:00
+  const domingo = sumarDias(hoy(), -new Date(`${hoy()}T12:00:00`).getDay());
+  const registro = [{ id: 1, creado_en: new Date(isoEn(domingo, '03:00')).toISOString(), usuario_id: null, usuario_nombre: 'Sistema', usuario_rol: null, accion: 'sistema.copia', paciente_id: null, paciente_nombre: null, detalle: { pacientes: pacientes.length, turnos: turnos.length, fotos: 0 } }];
+  return { usuarios, pacientes, turnos, agenda, bloqueos: [], odontogramas, evoluciones, antecedentes, registro };
 }
 
 let db;
@@ -587,3 +590,148 @@ export const api = {
     db = null;
   },
 };
+
+// ---------- Registro de acciones (igual que en la base real: lo anota "la base", no cada pantalla) ----------
+function anotar(accion, pacienteId = null, detalle = {}, pacienteNombre = null) {
+  const d = cargar();
+  d.registro ??= [];
+  const u = usuarioActual();
+  const p = d.pacientes.find((x) => x.id === pacienteId);
+  d.registro.push({
+    id: (d.registro.at(-1)?.id || 0) + 1,
+    creado_en: ahora(),
+    usuario_id: u?.id || null,
+    usuario_nombre: u ? nombreUsuario(u) || u.email : 'Sistema',
+    usuario_rol: u?.rol || null,
+    accion,
+    paciente_id: pacienteId,
+    paciente_nombre: pacienteNombre || (p ? `${p.apellido}, ${p.nombre}` : null),
+    detalle,
+  });
+  guardar();
+}
+
+const turnoPorId = (tid) => cargar().turnos.find((t) => t.id === tid);
+const tituloSeccion = (sid) => cargar().foto_secciones.find((s) => s.id === sid)?.titulo || null;
+const camposCambiados = (antes, despues) => Object.keys(despues).filter((k) => k in antes && (antes[k] ?? '') !== (despues[k] ?? '')).sort();
+
+// Para cada función: qué anotar, con el estado de antes (pre) y el resultado (post)
+const ANOTACIONES = {
+  registrarse: { post: ([datos]) => anotar('usuario.registrado', null, { cuenta: datos.email }) },
+  guardarAgenda: { post: ([a]) => anotar('agenda.horarios', null, { franjas: (a.horarios || []).map((x) => ({ dia: x.dia, desde: x.desde, hasta: x.hasta })) }) },
+  agregarBloqueo: { post: ([b]) => anotar('agenda.bloqueo_agregado', null, { fecha: b.fecha, hasta_fecha: b.hasta_fecha || null, desde: b.hora_desde || null, hasta: b.hora_hasta || null, repetir: !!b.repetir, motivo: b.motivo || null }) },
+  quitarBloqueo: {
+    pre: ([bid]) => ({ ...cargar().bloqueos.find((b) => b.id === bid) }),
+    post: (a, r, b) => anotar('agenda.bloqueo_quitado', null, { fecha: b.fecha, hasta_fecha: b.hasta_fecha, desde: b.hora_desde, hasta: b.hora_hasta, repetir: b.repetir, motivo: b.motivo }),
+  },
+  actualizarMisDatos: {
+    pre: () => ({ ...miPaciente() }),
+    post: ([datos], r, antes) => { const c = camposCambiados(antes, datos); if (c.length) anotar('paciente.editado', antes.id, { campos: c }); },
+  },
+  pedirTurno: { post: (a, t) => anotar('turno.pedido', t.paciente_id, { inicio: t.inicio, motivo: t.motivo, sobreturno: false }) },
+  cancelarMiTurno: {
+    pre: ([tid]) => ({ ...turnoPorId(tid) }),
+    post: (a, r, t) => anotar('turno.cancelado', t.paciente_id, { inicio: t.inicio, antes: t.estado, online: true, cancelado_por: 'paciente' }),
+  },
+  crearPaciente: { post: (a, p) => anotar('paciente.creado', p.id, { dni: p.dni, desde: 'personal' }) },
+  eliminarPaciente: {
+    pre: ([pid]) => ({ ...cargar().pacientes.find((x) => x.id === pid) }),
+    post: (a, r, p) => anotar('paciente.eliminado', p.id, { dni: p.dni }, `${p.apellido}, ${p.nombre}`),
+  },
+  actualizarPaciente: {
+    pre: ([pid]) => ({ ...cargar().pacientes.find((x) => x.id === pid) }),
+    post: ([pid, datos], r, antes) => { const c = camposCambiados(antes, datos); if (c.length) anotar('paciente.editado', pid, { campos: c }); },
+  },
+  guardarAntecedentes: { post: ([pid]) => anotar('antecedentes.actualizados', pid) },
+  crearTurno: { post: (a, t) => anotar('turno.dado', t.paciente_id, { inicio: t.inicio, sobreturno: !!t.sobreturno, motivo: t.motivo }) },
+  cambiarEstadoTurno: {
+    pre: ([tid]) => ({ ...turnoPorId(tid) }),
+    post: ([tid, estado, extra = {}], r, t) => { if (estado !== t.estado) anotar(`turno.${estado}`, t.paciente_id, { inicio: t.inicio, antes: t.estado, cancelado_por: extra.cancelado_por || null }); },
+  },
+  ofrecerCambio: { pre: ([tid]) => ({ ...turnoPorId(tid) }), post: (a, r, t) => { if (!t.cambio_ofrecido_en) anotar('turno.cambio_ofrecido', t.paciente_id, { inicio: t.inicio }); } },
+  cambiarHorarioTurno: {
+    pre: ([tid]) => ({ ...turnoPorId(tid) }),
+    post: ([tid, inicio], r, t) => {
+      anotar('turno.cambiado', t.paciente_id, { de: t.inicio, a: inicio, estado: t.estado });
+      if (t.estado === 'pendiente') anotar('turno.confirmado', t.paciente_id, { inicio, antes: 'pendiente' });
+    },
+  },
+  guardarOdontograma: { post: ([pid, datos, nota]) => anotar('odontograma.registrado', pid, { nota: nota || '' }) },
+  corregirOdontograma: { post: (a, o) => anotar('odontograma.corregido', o.paciente_id, { registro_del: o.creado_en, nota: o.nota }) },
+  borrarOdontograma: {
+    pre: ([oid]) => ({ ...cargar().odontogramas.find((o) => o.id === oid) }),
+    post: (a, r, o) => anotar('odontograma.borrado', o.paciente_id, { registro_del: o.creado_en, nota: o.nota }),
+  },
+  agregarEvolucion: { post: ([pid, e]) => anotar('evolucion.registrada', pid, { piezas: e?.piezas || '' }) },
+  subirFoto: { post: (a, f) => anotar('foto.subida', f.paciente_id, { seccion: tituloSeccion(f.seccion_id) }) },
+  borrarFoto: {
+    pre: ([fid]) => ({ ...cargar().fotos.find((f) => f.id === fid) }),
+    post: (a, r, f) => anotar('foto.borrada', f.paciente_id, { seccion: tituloSeccion(f.seccion_id) }),
+  },
+  ordenarFotos: {
+    pre: ([cambios]) => cambios.map((c) => ({ ...cargar().fotos.find((f) => f.id === c.id) })),
+    post: ([cambios], r, antes) => cambios.forEach((c, i) => {
+      if ((antes[i].seccion_id || null) !== (c.seccion_id || null)) {
+        anotar('foto.movida', antes[i].paciente_id, { de: tituloSeccion(antes[i].seccion_id), a: tituloSeccion(c.seccion_id) });
+      }
+    }),
+  },
+  crearSeccion: { post: (a, s) => anotar('fotos.seccion_creada', s.paciente_id, { titulo: s.titulo }) },
+  actualizarSeccion: {
+    pre: ([sid]) => ({ ...cargar().foto_secciones.find((s) => s.id === sid) }),
+    post: ([sid, c], r, s) => { if ('titulo' in c && c.titulo !== s.titulo) anotar('fotos.seccion_renombrada', s.paciente_id, { de: s.titulo, a: c.titulo }); },
+  },
+  borrarSeccion: {
+    pre: ([sid]) => ({ ...cargar().foto_secciones.find((s) => s.id === sid) }),
+    post: (a, r, s) => anotar('fotos.seccion_borrada', s.paciente_id, { titulo: s.titulo }),
+  },
+  vincularCuenta: { post: ([perfilId, pid]) => anotar('paciente.cuenta_vinculada', pid, { cuenta: cargar().usuarios.find((u) => u.id === perfilId)?.email }) },
+  cambiarRol: {
+    pre: ([perfilId]) => ({ ...cargar().usuarios.find((u) => u.id === perfilId) }),
+    post: ([perfilId, rol], r, u) => { if (u.rol !== rol) anotar('usuario.rol', null, { cuenta: u.email, de: u.rol, a: rol }); },
+  },
+};
+for (const [nombre, { pre, post }] of Object.entries(ANOTACIONES)) {
+  const original = api[nombre];
+  api[nombre] = async function (...args) {
+    const antes = pre ? pre(args) : undefined;
+    const r = await original.apply(this, args);
+    post(args, r, antes);
+    return r;
+  };
+}
+
+Object.assign(api, {
+  async resumenPanel() {
+    requiere('admin');
+    const d = cargar();
+    const lunes = sumarDias(hoy(), -((new Date(`${hoy()}T12:00:00`).getDay() + 6) % 7));
+    const enSemana = (t) => t.inicio >= isoEn(lunes, '00:00') && t.inicio < isoEn(sumarDias(lunes, 7), '00:00');
+    const personal = {};
+    for (const u of d.usuarios) if (u.rol !== 'paciente') personal[u.rol] = (personal[u.rol] || 0) + 1;
+    const hace30 = new Date(Date.now() - 30 * 864e5).toISOString();
+    return espera({
+      turnos_semana: d.turnos.filter((t) => ['confirmado', 'atendido', 'ausente'].includes(t.estado) && enSemana(t)).length,
+      pendientes: d.turnos.filter((t) => t.estado === 'pendiente' && t.inicio > ahora()).length,
+      pacientes: d.pacientes.length,
+      pacientes_nuevos: d.pacientes.filter((p) => p.creado_en > hace30).length,
+      con_cuenta: d.pacientes.filter((p) => p.usuario_id).length,
+      fotos: d.fotos.length,
+      fotos_bytes: d.fotos.reduce((s, f) => s + (f.bytes || 0), 0),
+      personal,
+      cuentas_sin_vincular: d.usuarios.filter((u) => u.rol === 'paciente' && !d.pacientes.some((p) => p.usuario_id === u.id)).length,
+      ultima_copia: [...(d.registro || [])].reverse().find((r) => r.accion === 'sistema.copia')?.creado_en || null,
+      acciones_hoy: (d.registro || []).filter((r) => r.creado_en >= isoEn(hoy(), '00:00')).length,
+    });
+  },
+  async registro({ desde, hasta, quien, prefijos, pacienteId, paciente, pagina = 0, porPagina = 50 } = {}) {
+    requiere('admin');
+    const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const lista = [...(cargar().registro || [])].reverse().filter((r) => (!desde || r.creado_en >= isoEn(desde, '00:00'))
+      && (!hasta || r.creado_en < isoEn(sumarDias(hasta, 1), '00:00'))
+      && (!quien || (quien === 'pacientes' ? r.usuario_rol === 'paciente' : quien === 'sistema' ? !r.usuario_id : r.usuario_id === quien))
+      && (!prefijos?.length || prefijos.some((x) => r.accion.startsWith(`${x}.`)))
+      && (pacienteId ? r.paciente_id === pacienteId : !paciente?.trim() || norm(r.paciente_nombre).includes(norm(paciente.trim()))));
+    return espera(lista.slice(pagina * porPagina, (pagina + 1) * porPagina));
+  },
+});

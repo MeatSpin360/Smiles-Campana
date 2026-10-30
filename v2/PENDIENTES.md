@@ -49,8 +49,15 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Panel de control (admin)
 
-- [ ] **Registro de acciones** para trazabilidad: quién hizo qué y cuándo (turnos, fichas, odontogramas, historia, fotos, roles). Hoy no existe; se guardan solo los autores de odontogramas y evoluciones, las correcciones del odontograma y las fechas de los turnos.
-- [ ] Ventana *Panel de control* para el admin: ver y filtrar el registro, y reunir ahí otras herramientas (copias de seguridad, usuarios).
+- [x] **Registro de acciones**: la base anota sola quién hizo qué y cuándo (turnos, fichas, odontograma, historia, fotos, usuarios, agenda, copias de seguridad). Guarda qué cambió, no el contenido clínico. Nadie lo puede modificar ni borrar desde la app; queda aunque se elimine el paciente y entra en la copia semanal.
+- [x] Ventana **Panel** (solo admin): resumen (turnos de la semana, pedidos, pacientes, fotos y espacio usado, última copia de seguridad, personal y cuentas sin vincular) y el registro con filtros por fecha, persona, tipo de acción y paciente. Desde la ficha, el ícono de historial abre la actividad de ese paciente.
+
+## Etapa 2b: documentos clínicos
+
+- [ ] **Planes de tratamiento**: etapas, prácticas, piezas, honorarios y forma de pago; estado (propuesto, aceptado, en curso); impresión o PDF con el logo.
+- [ ] **Consentimientos**: plantillas por práctica completadas con los datos del paciente; impresión; copia firmada escaneada en la ficha (R2). Firma en pantalla opcional (firma electrónica, consultar su valor con el Colegio o un abogado).
+- [ ] **Recetas**: se emiten en una plataforma registrada en el ReNaPDiS (obligatorio desde 2025). En el sistema: acceso a esa plataforma y registro en la historia clínica de qué se recetó, con el PDF adjunto.
+- [ ] A consultar: la Ley 27.706 (historia clínica electrónica) pide firma digital en los registros.
 
 ## Etapa 4: app Android para el odontólogo
 

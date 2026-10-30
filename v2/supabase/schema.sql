@@ -794,7 +794,10 @@ begin
       'evoluciones',     (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from evoluciones x),
       -- De las fotos se copia la lista y las secciones; los archivos quedan guardados en Cloudflare R2
       'foto_secciones',  (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from foto_secciones x),
-      'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x)));
+      'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x),
+      'registro',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from registro x)));
+  perform anotar('sistema.copia', null, jsonb_build_object('pacientes', jsonb_array_length(v_respaldo -> 'tablas' -> 'pacientes'),
+    'turnos', jsonb_array_length(v_respaldo -> 'tablas' -> 'turnos'), 'fotos', jsonb_array_length(v_respaldo -> 'tablas' -> 'fotos')));
   return net.http_post(
     url := v_url,
     body := jsonb_build_object('secreto', v_secreto, 'tipo', 'respaldo', 'respaldo', v_respaldo),
@@ -812,3 +815,223 @@ do $$ begin
 exception when others then
   raise notice 'pg_cron no disponible en esta base: la copia semanal no queda programada (%).', sqlerrm;
 end $$;
+
+-- ---------- Registro de acciones (trazabilidad) ----------
+-- La base anota sola cada acción importante: quién, cuándo, qué y sobre qué paciente. Lo ve solo el admin
+-- (Panel de control) y nadie puede modificarlo ni borrarlo desde la app. Guarda qué cambió, no el contenido
+-- clínico (por ejemplo, "corrigió el odontograma", no el dibujo). No tiene vínculo con la ficha, así que
+-- queda aunque el paciente se elimine.
+create table if not exists registro (
+  id               bigint generated always as identity primary key,
+  creado_en        timestamptz not null default now(),
+  usuario_id       uuid,          -- quién (vacío = el sistema: tareas programadas, restauraciones)
+  usuario_nombre   text,
+  usuario_rol      text,
+  accion           text not null, -- por ejemplo 'turno.confirmado', 'foto.subida'
+  paciente_id      uuid,
+  paciente_nombre  text,
+  detalle          jsonb not null default '{}'
+);
+create index if not exists registro_fecha on registro (creado_en desc);
+create index if not exists registro_paciente on registro (paciente_id, creado_en desc);
+create index if not exists registro_usuario on registro (usuario_id, creado_en desc);
+create index if not exists registro_accion on registro (accion, creado_en desc);
+alter table registro enable row level security;
+create policy "admin ve el registro" on registro for select to authenticated
+  using ((select mi_rol()) = 'admin');
+
+-- Anota una acción con el usuario actual. La usan los disparadores de abajo y algunas funciones.
+create or replace function anotar(p_accion text, p_paciente uuid default null, p_detalle jsonb default '{}',
+                                  p_paciente_nombre text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_perfil perfiles%rowtype;
+begin
+  -- Restauraciones de copias: se anota una sola vez, no fila por fila
+  if current_setting('smiles.sin_registro', true) = 'on' then return; end if;
+  select * into v_perfil from perfiles where id = auth.uid();
+  insert into registro (usuario_id, usuario_nombre, usuario_rol, accion, paciente_id, paciente_nombre, detalle)
+  values (auth.uid(),
+          coalesce(nullif(trim(coalesce(v_perfil.nombre, '') || ' ' || coalesce(v_perfil.apellido, '')), ''), v_perfil.email,
+                   case when auth.uid() is null then 'Sistema' end),
+          v_perfil.rol::text, p_accion, p_paciente,
+          coalesce(p_paciente_nombre, (select apellido || ', ' || nombre from pacientes where id = p_paciente)),
+          coalesce(p_detalle, '{}'));
+end $$;
+revoke execute on function anotar(text, uuid, jsonb, text) from public, anon, authenticated;
+
+-- El registro no se modifica ni se borra (salvo desde el SQL Editor de Supabase, con permisos de dueño)
+create or replace function registro_inmutable() returns trigger language plpgsql as $$
+begin
+  raise exception 'El registro de acciones no se puede modificar.';
+end $$;
+drop trigger if exists registro_inmutable on registro;
+create trigger registro_inmutable before update or delete on registro
+  for each row when (current_user not in ('postgres', 'supabase_admin')) execute function registro_inmutable();
+
+create or replace function registrar_cambio() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  r record := case when tg_op = 'DELETE' then old else new end;
+  v_pac uuid := (to_jsonb(r) ->> 'paciente_id')::uuid;  -- vacío en las tablas que no son de un paciente
+  v_campos text[];
+  v_titulo text;
+begin
+  -- Al eliminar un paciente se borra todo lo suyo: alcanza con anotar la eliminación de la ficha
+  if tg_op = 'DELETE' and v_pac is not null and not exists (select 1 from pacientes where id = v_pac) then
+    return old;
+  end if;
+
+  case tg_table_name
+  when 'turnos' then
+    if tg_op = 'INSERT' then
+      perform anotar(case when new.creado_por = 'paciente' then 'turno.pedido' else 'turno.dado' end, v_pac,
+        jsonb_build_object('inicio', new.inicio, 'sobreturno', new.sobreturno, 'motivo', new.motivo));
+    elsif tg_op = 'UPDATE' then
+      if new.inicio is distinct from old.inicio then
+        perform anotar('turno.cambiado', v_pac, jsonb_build_object('de', old.inicio, 'a', new.inicio, 'estado', new.estado));
+      end if;
+      if new.estado is distinct from old.estado then
+        perform anotar('turno.' || new.estado, v_pac, jsonb_build_object('inicio', new.inicio, 'antes', old.estado,
+          'cancelado_por', new.cancelado_por, 'online', new.cancelado_en is not null and old.cancelado_en is null));
+      end if;
+      if new.cambio_ofrecido_en is not null and old.cambio_ofrecido_en is null then
+        perform anotar('turno.cambio_ofrecido', v_pac, jsonb_build_object('inicio', new.inicio));
+      end if;
+    else
+      perform anotar('turno.borrado', v_pac, jsonb_build_object('inicio', old.inicio, 'estado', old.estado));
+    end if;
+
+  when 'pacientes' then
+    if tg_op = 'INSERT' then
+      perform anotar('paciente.creado', new.id, jsonb_build_object('dni', new.dni,
+        'desde', case when new.usuario_id is not null then 'registro online' else 'personal' end));
+    elsif tg_op = 'UPDATE' then
+      if new.usuario_id is distinct from old.usuario_id then
+        perform anotar(case when new.usuario_id is null then 'paciente.cuenta_desvinculada' else 'paciente.cuenta_vinculada' end,
+          new.id, jsonb_build_object('cuenta', (select email from perfiles where id = coalesce(new.usuario_id, old.usuario_id))));
+      end if;
+      -- Solo los nombres de los campos cambiados, no los valores
+      select array_agg(k order by k) into v_campos
+      from jsonb_each(to_jsonb(new)) n(k, v)
+      where k not in ('usuario_id', 'creado_en') and v is distinct from to_jsonb(old) -> k;
+      if v_campos is not null then
+        perform anotar('paciente.editado', new.id, jsonb_build_object('campos', v_campos));
+      end if;
+    else
+      perform anotar('paciente.eliminado', old.id, jsonb_build_object('dni', old.dni), old.apellido || ', ' || old.nombre);
+    end if;
+
+  when 'antecedentes' then
+    if tg_op <> 'DELETE' and (tg_op = 'INSERT' or new.texto is distinct from old.texto) then
+      perform anotar('antecedentes.actualizados', v_pac);
+    end if;
+
+  when 'odontogramas' then
+    perform anotar(case tg_op when 'INSERT' then 'odontograma.registrado' when 'UPDATE' then 'odontograma.corregido'
+                   else 'odontograma.borrado' end, v_pac,
+      jsonb_build_object('registro_del', r.creado_en, 'nota', r.nota));
+
+  when 'evoluciones' then
+    if tg_op = 'INSERT' then
+      perform anotar('evolucion.registrada', v_pac, jsonb_build_object('piezas', new.piezas));
+    end if;
+
+  when 'foto_secciones' then
+    if tg_op = 'INSERT' then
+      perform anotar('fotos.seccion_creada', v_pac, jsonb_build_object('titulo', new.titulo));
+    elsif tg_op = 'UPDATE' then
+      if new.titulo is distinct from old.titulo then
+        perform anotar('fotos.seccion_renombrada', v_pac, jsonb_build_object('de', old.titulo, 'a', new.titulo));
+      end if;  -- reordenar no se anota
+    else
+      perform anotar('fotos.seccion_borrada', v_pac, jsonb_build_object('titulo', old.titulo));
+    end if;
+
+  when 'fotos' then
+    select titulo into v_titulo from foto_secciones where id = r.seccion_id;
+    if tg_op = 'INSERT' then
+      perform anotar('foto.subida', v_pac, jsonb_build_object('seccion', v_titulo));
+    elsif tg_op = 'UPDATE' then
+      if new.seccion_id is distinct from old.seccion_id then
+        perform anotar('foto.movida', v_pac, jsonb_build_object(
+          'de', (select titulo from foto_secciones where id = old.seccion_id), 'a', v_titulo));
+      end if;  -- reordenar no se anota
+    else
+      perform anotar('foto.borrada', v_pac, jsonb_build_object('seccion', v_titulo));
+    end if;
+
+  when 'perfiles' then
+    if tg_op = 'INSERT' then
+      perform anotar('usuario.registrado', null, jsonb_build_object('cuenta', new.email));
+    elsif tg_op = 'UPDATE' and new.rol is distinct from old.rol then
+      perform anotar('usuario.rol', null, jsonb_build_object('cuenta', new.email, 'de', old.rol, 'a', new.rol));
+    elsif tg_op = 'DELETE' then
+      perform anotar('usuario.cuenta_borrada', null, jsonb_build_object('cuenta', old.email, 'rol', old.rol));
+    end if;
+
+  when 'agenda_config' then
+    select array_agg(k order by k) into v_campos
+    from jsonb_each(to_jsonb(new)) n(k, v) where v is distinct from to_jsonb(old) -> k;
+    if v_campos is not null then
+      perform anotar('agenda.configuracion', null, jsonb_build_object('campos', v_campos,
+        'antes', to_jsonb(old) - 'id', 'ahora', to_jsonb(new) - 'id'));
+    end if;
+
+  when 'agenda_bloqueos' then
+    perform anotar(case tg_op when 'INSERT' then 'agenda.bloqueo_agregado' when 'DELETE' then 'agenda.bloqueo_quitado'
+                   else 'agenda.bloqueo_modificado' end, null,
+      jsonb_build_object('fecha', r.fecha, 'hasta_fecha', r.hasta_fecha, 'desde', r.hora_desde, 'hasta', r.hora_hasta,
+                         'repetir', r.repetir, 'motivo', r.motivo));
+  end case;
+  return r;
+end $$;
+revoke execute on function registrar_cambio() from public, anon, authenticated;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['turnos', 'pacientes', 'antecedentes', 'odontogramas', 'evoluciones', 'foto_secciones',
+                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos'] loop
+    execute format('drop trigger if exists registrar on %I', t);
+    execute format('create trigger registrar after insert or update or delete on %I for each row execute function registrar_cambio()', t);
+  end loop;
+end $$;
+
+-- Horarios de atención: se guardan todos juntos (se borran y se cargan de nuevo); se anota una vez por guardado
+create or replace function registrar_horarios() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform anotar('agenda.horarios', null, jsonb_build_object('franjas',
+    (select coalesce(jsonb_agg(jsonb_build_object('dia', dia, 'desde', desde, 'hasta', hasta)
+       order by dia, desde), '[]') from agenda_horarios)));
+  return null;
+end $$;
+revoke execute on function registrar_horarios() from public, anon, authenticated;
+drop trigger if exists registrar on agenda_horarios;
+create trigger registrar after insert on agenda_horarios for each statement execute function registrar_horarios();
+
+-- Resumen para el Panel de control (solo admin)
+create or replace function resumen_panel() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_semana_desde timestamptz := date_trunc('week', now() at time zone 'America/Argentina/Buenos_Aires') at time zone 'America/Argentina/Buenos_Aires';
+begin
+  if mi_rol() is distinct from 'admin' then raise exception 'Solo un admin puede ver el panel.'; end if;
+  return jsonb_build_object(
+    'turnos_semana', (select count(*) from turnos where estado in ('confirmado', 'atendido', 'ausente')
+                        and inicio >= v_semana_desde and inicio < v_semana_desde + interval '7 days'),
+    'pendientes', (select count(*) from turnos where estado = 'pendiente' and inicio > now()),
+    'pacientes', (select count(*) from pacientes),
+    'pacientes_nuevos', (select count(*) from pacientes where creado_en > now() - interval '30 days'),
+    'con_cuenta', (select count(*) from pacientes where usuario_id is not null),
+    'fotos', (select count(*) from fotos),
+    'fotos_bytes', (select coalesce(sum(bytes), 0) from fotos),
+    'personal', (select jsonb_object_agg(rol, n) from (select rol, count(*) n from perfiles where rol <> 'paciente' group by rol) x),
+    'cuentas_sin_vincular', (select count(*) from perfiles p where rol = 'paciente'
+                               and not exists (select 1 from pacientes where usuario_id = p.id)),
+    'ultima_copia', (select max(creado_en) from registro where accion = 'sistema.copia'),
+    'acciones_hoy', (select count(*) from registro where creado_en >= date_trunc('day', now() at time zone 'America/Argentina/Buenos_Aires') at time zone 'America/Argentina/Buenos_Aires'));
+end $$;
+revoke execute on function resumen_panel() from public, anon;
+grant execute on function resumen_panel() to authenticated;

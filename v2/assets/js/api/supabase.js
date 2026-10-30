@@ -1,7 +1,7 @@
 // Implementación real sobre Supabase. Los permisos los hace cumplir la base (ver supabase/schema.sql).
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../config.js';
-import { isoEn, partes } from '../lib/dates.js';
+import { isoEn, partes, sumarDias } from '../lib/dates.js';
 import { prepararFoto } from '../lib/imagenes.js';
 
 // Los enlaces de los emails (confirmar cuenta, recuperar clave) vuelven con la sesión en la URL.
@@ -318,6 +318,27 @@ export const api = {
   },
   async agregarEvolucion(pacienteId, { texto, piezas }) {
     return ok(await sb.from('evoluciones').insert({ paciente_id: pacienteId, texto, piezas }).select().single());
+  },
+  // --- Panel de control (solo admin) ---
+  async resumenPanel() {
+    return ok(await sb.rpc('resumen_panel'));
+  },
+  /**
+   * Registro de acciones, del más nuevo al más viejo.
+   * desde/hasta: 'AAAA-MM-DD'; quien: id de usuario, 'pacientes' o 'sistema'; prefijos: tipos de acción.
+   */
+  async registro({ desde, hasta, quien, prefijos, pacienteId, paciente, pagina = 0, porPagina = 50 } = {}) {
+    let q = sb.from('registro').select('*').order('id', { ascending: false })
+      .range(pagina * porPagina, pagina * porPagina + porPagina - 1);
+    if (desde) q = q.gte('creado_en', isoEn(desde, '00:00'));
+    if (hasta) q = q.lt('creado_en', isoEn(sumarDias(hasta, 1), '00:00'));
+    if (quien === 'pacientes') q = q.eq('usuario_rol', 'paciente');
+    else if (quien === 'sistema') q = q.is('usuario_id', null);
+    else if (quien) q = q.eq('usuario_id', quien);
+    if (prefijos?.length) q = q.or(prefijos.map((x) => `accion.like.${x}.*`).join(','));
+    if (pacienteId) q = q.eq('paciente_id', pacienteId);
+    else if (paciente?.trim()) q = q.ilike('paciente_nombre', `%${paciente.trim().replace(/[%,()]/g, ' ')}%`);
+    return ok(await q);
   },
   async cuentasSinVincular() {
     return ok(await sb.rpc('cuentas_sin_vincular'));

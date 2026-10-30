@@ -18,6 +18,7 @@ export const ICONOS = {
   arriba: i('<path d="m6 15 6-6 6 6"/>'),
   abajo: i('<path d="m6 9 6 6 6-6"/>'),
   cerrar: i('<path d="M6 6l12 12M18 6 6 18"/>'),
+  panel: i('<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>'),
   buscar: i('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>'),
   izquierda: i('<path d="m15 5-7 7 7 7"/>'),
   derecha: i('<path d="m9 5 7 7-7 7"/>'),

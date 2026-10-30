@@ -35,7 +35,8 @@ export async function ficha(ctx) {
       h('div.ficha-contacto',
         enlaceWhatsapp(p.telefono) ? h('a.btn-icono', { href: enlaceWhatsapp(p.telefono), target: '_blank', rel: 'noopener', 'aria-label': 'WhatsApp', title: 'WhatsApp', html: ICONOS.whatsapp }) : null,
         enlaceCorreo(p.email) ? h('a.btn-icono', { href: enlaceCorreo(p.email), target: '_blank', rel: 'noopener', 'aria-label': 'Escribir un email', title: p.email, html: ICONOS.correo }) : null,
-        tel ? h('a.btn-icono', { href: `tel:${tel}`, 'aria-label': 'Llamar', html: ICONOS.telefono }) : null)),
+        tel ? h('a.btn-icono', { href: `tel:${tel}`, 'aria-label': 'Llamar', html: ICONOS.telefono }) : null,
+        ctx.rol === 'admin' ? h('a.btn-icono', { href: `#/panel?paciente=${id}`, 'aria-label': 'Actividad en el registro', title: 'Actividad en el registro', html: ICONOS.historial }) : null)),
     h('nav.pestanas', { 'aria-label': 'Secciones de la ficha' }, visibles.map((t) => h('a.pestana', {
       href: `#/pacientes/${id}/${t.id}`, 'aria-current': t.id === pestana ? 'page' : null,
     }, t.texto))));

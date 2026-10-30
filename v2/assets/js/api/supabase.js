@@ -148,7 +148,9 @@ export const api = {
     return ok(await sb.rpc('cancelar_mi_turno', { p_id: id }));
   },
   async miOdontograma() {
-    return ok(await sb.from('odontogramas').select('*').order('creado_en', { ascending: false }));
+    // Sin "correcciones": el paciente ve solo cómo quedó cada registro
+    return ok(await sb.from('odontogramas').select('id, paciente_id, datos, nota, creado_por_nombre, creado_en, corregido_en')
+      .order('creado_en', { ascending: false }));
   },
 
   // --- Personal ---
@@ -166,6 +168,10 @@ export const api = {
   },
   async actualizarPaciente(id, datos) {
     return ok(await sb.from('pacientes').update(limpiar(datos)).eq('id', id).select().single());
+  },
+  /** Solo admin, solo en la etapa de pruebas: borra la ficha, todo lo suyo y su cuenta. */
+  async eliminarPaciente(id) {
+    ok(await sb.rpc('eliminar_paciente', { p_id: id }));
   },
   async antecedentes(id) {
     return ok(await sb.from('antecedentes').select('*').eq('paciente_id', id).maybeSingle()) || { paciente_id: id, texto: '' };
@@ -223,6 +229,17 @@ export const api = {
   },
   async guardarOdontograma(pacienteId, datos, nota) {
     return ok(await sb.from('odontogramas').insert({ paciente_id: pacienteId, datos, nota }).select().single());
+  },
+  /** Corrige el último registro (lo anterior queda guardado en la base). */
+  async corregirOdontograma(id, datos, nota) {
+    const filas = ok(await sb.from('odontogramas').update({ datos, nota }).eq('id', id).select());
+    if (!filas.length) throw new Error('No tenés permiso para corregir este registro.');
+    return filas[0];
+  },
+  /** Borra el último registro, dentro de las 48 h de creado. */
+  async borrarOdontograma(id) {
+    const filas = ok(await sb.from('odontogramas').delete().eq('id', id).select('id'));
+    if (!filas.length) throw new Error('Este registro ya no se puede borrar (pasaron más de 48 h).');
   },
   async evoluciones(pacienteId) {
     return ok(await sb.from('evoluciones').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));

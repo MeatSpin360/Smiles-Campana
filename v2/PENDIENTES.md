@@ -2,6 +2,9 @@
 
 Registro de lo acordado para después de poner el sitio online. El orden es el sugerido; se puede cambiar.
 
+> **Antes de cargar pacientes reales:** quitar *Eliminar paciente* (función `eliminar_paciente` y su botón en
+> la ficha). Es solo para la etapa de pruebas: la historia clínica se conserva al menos 10 años (Ley 26.529).
+
 ## Hecho
 
 - [x] Turnos a confirmar: el paciente **pide** un turno (queda "Por confirmar" y el horario queda reservado). Recepción u odontología lo **confirman** o lo **rechazan** desde *Hoy*, la agenda o la ficha. El paciente ve el estado en *Mis turnos*.
@@ -13,6 +16,8 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] **Bloqueos** de día completo o por rango horario, y **repetidos** cada semana (con o sin fecha de fin). No se ofrecen online ni para turnos comunes; los turnos ya dados que caen en un bloqueo quedan marcados en la agenda para reprogramar.
 - [x] **Sobreturnos**: 30 minutos, solo los da el personal, en huecos libres, hasta 1 hora antes o después de cada franja y también en horarios bloqueados. Se ven en dorado en *Hoy*, la agenda y la ficha.
 - [x] Al cancelar, el personal indica **quién pide la cancelación**: si fue el paciente (por WhatsApp o teléfono), le llega "Cancelamos tu turno, como nos pediste" y no suma a su límite diario; si fue el consultorio, el aviso con disculpas.
+- [x] **Odontograma**: el último registro se puede **corregir** (quien lo creó o un admin); queda marcado "Corregido el …" y lo que tenía antes se guarda en la base. **Borrarlo** solo dentro de las 48 h de creado.
+- [x] **Eliminar paciente** (solo admin, solo etapa de pruebas): borra la ficha con todo lo suyo y su cuenta de Mi espacio; se confirma escribiendo el DNI.
 - [x] Límite contra abusos: con 4 cancelaciones propias en el día, el paciente no puede pedir otro turno hasta el día siguiente ("por actividad sospechosa"). Lo controla la base; las cancelaciones hechas por el personal no cuentan.
 
 ## Etapa 1: poner online
@@ -32,14 +37,19 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [ ] **Google Calendar como espejo** de la agenda (solo turnos confirmados), en un solo sentido: sistema → Calendar, al instante, por la API de Google (no por suscripción ICS, que tarda 12 a 24 h en actualizarse). Desde que el sistema arranca, los turnos se dan solo en el sistema.
 - [x] **Copia de seguridad semanal** de la base a Google Drive (domingos 3:00, se conservan ~3 meses, aviso por correo si falta una). Restaurar con `supabase/restaurar.sql`. Las fotos (etapa 3) se resuelven aparte.
 
-## Etapa 3: fotos clínicas
+## Etapa 3: fotos clínicas (en curso)
 
-- [ ] Almacenamiento en **Cloudflare R2** (10 GB gratis, sin costo de descarga). Acceso solo a través de una función que verifica la sesión y el rol: el paciente ve las suyas, odontología y admin todas, recepción ninguna.
-- [ ] Fotos reprocesadas antes de subir: **máximo 1 MB** cada una. Con 10 GB entran unas 10.000 fotos (~2.500 consultas de 4 fotos).
-- [ ] Tabla de fotos asociada al **paciente** y, opcionalmente, a una **evolución** (consulta).
-- [ ] Subir fotos desde la PC al registrar una **nueva evolución**.
-- [ ] **Adjuntar fotos a evoluciones anteriores** (cuando no se pudo en el momento).
-- [ ] En *Historia clínica* (personal), cada evolución muestra sus fotos en miniatura, con vista ampliada.
+- [ ] Almacenamiento en **Cloudflare R2** (10 GB gratis, sin costo de descarga). Acceso solo a través del Worker, que verifica la sesión y el rol: odontología y admin; recepción no.
+- [ ] Fotos reducidas en el navegador antes de subir (unos 300 a 700 KB) y una miniatura para la grilla.
+- [ ] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
+  - modo ver: secciones con título (por ejemplo "Primera consulta 02/11/2026") y miniaturas; vista ampliada pasando de una foto a otra;
+  - modo *Editar*: agregar sección (rectángulo con título y fotos), arrastrar fotos desde la PC o buscarlas, moverlas entre secciones, borrar fotos, renombrar o borrar secciones.
+- [ ] Más adelante: el paciente ve sus fotos en *Mi espacio* (ver etapa 5).
+
+## Panel de control (admin)
+
+- [ ] **Registro de acciones** para trazabilidad: quién hizo qué y cuándo (turnos, fichas, odontogramas, historia, fotos, roles). Hoy no existe; se guardan solo los autores de odontogramas y evoluciones, las correcciones del odontograma y las fechas de los turnos.
+- [ ] Ventana *Panel de control* para el admin: ver y filtrar el registro, y reunir ahí otras herramientas (copias de seguridad, usuarios).
 
 ## Etapa 4: app Android para el odontólogo
 

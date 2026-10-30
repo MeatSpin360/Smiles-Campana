@@ -139,8 +139,15 @@ create table if not exists odontogramas (
   nota               text,
   creado_por         uuid references perfiles(id),
   creado_por_nombre  text,
-  creado_en          timestamptz not null default now()
+  creado_en          timestamptz not null default now(),
+  -- Correcciones: la última versión se puede corregir; lo que tenía antes queda guardado en "correcciones"
+  corregido_en           timestamptz,
+  corregido_por_nombre   text,
+  correcciones           jsonb not null default '[]'
 );
+alter table odontogramas add column if not exists corregido_en timestamptz;
+alter table odontogramas add column if not exists corregido_por_nombre text;
+alter table odontogramas add column if not exists correcciones jsonb not null default '[]';
 create index if not exists odontogramas_paciente on odontogramas (paciente_id, creado_en desc);
 
 create table if not exists evoluciones (
@@ -324,6 +331,14 @@ create policy "ver odontogramas" on odontogramas for select to authenticated
   using ((select es_clinico()) or paciente_id = (select mi_paciente_id()));
 create policy "clinico registra odontograma" on odontogramas for insert to authenticated
   with check ((select es_clinico()) and creado_por = (select auth.uid()));
+-- Corregir: la última versión, quien la creó o admin, en cualquier momento (queda registro en "correcciones").
+-- Borrar: lo mismo, pero solo dentro de las 48 h de creada. "Solo la última" lo controla corregir_odontograma().
+create policy "autor o admin corrige odontograma" on odontogramas for update to authenticated
+  using ((select es_clinico()) and (creado_por = (select auth.uid()) or (select mi_rol()) = 'admin'))
+  with check ((select es_clinico()) and (creado_por = (select auth.uid()) or (select mi_rol()) = 'admin'));
+create policy "autor o admin borra odontograma reciente" on odontogramas for delete to authenticated
+  using ((select es_clinico()) and (creado_por = (select auth.uid()) or (select mi_rol()) = 'admin')
+         and creado_en > now() - interval '48 hours');
 
 -- evoluciones: solo odontología/admin
 create policy "clinico ve evoluciones" on evoluciones for select to authenticated
@@ -513,6 +528,56 @@ drop trigger if exists autor_odontograma on odontogramas;
 create trigger autor_odontograma before insert on odontogramas for each row execute function completar_autor();
 drop trigger if exists autor_evolucion on evoluciones;
 create trigger autor_evolucion before insert on evoluciones for each row execute function completar_autor();
+
+-- Corregir o borrar un odontograma: solo la última versión del paciente. Al corregir, solo cambian el
+-- dibujo y la nota; lo anterior se agrega a "correcciones" con fecha y autor.
+create or replace function corregir_odontograma() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  -- Al eliminar el paciente se borran todas sus versiones juntas
+  if tg_op = 'DELETE' and not exists (select 1 from pacientes where id = old.paciente_id) then return old; end if;
+  if exists (select 1 from odontogramas o where o.paciente_id = old.paciente_id and o.id <> old.id
+             and o.creado_en > old.creado_en) then
+    raise exception 'Solo se puede % el último registro del odontograma.',
+      case tg_op when 'DELETE' then 'borrar' else 'corregir' end;
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  new.id := old.id;
+  new.paciente_id := old.paciente_id;
+  new.creado_por := old.creado_por;
+  new.creado_por_nombre := old.creado_por_nombre;
+  new.creado_en := old.creado_en;
+  new.corregido_en := now();
+  new.corregido_por_nombre := mi_nombre();
+  new.correcciones := old.correcciones || jsonb_build_array(jsonb_build_object(
+    'datos', old.datos, 'nota', old.nota, 'reemplazado_en', now(),
+    'por', auth.uid(), 'por_nombre', mi_nombre()));
+  return new;
+end $$;
+revoke execute on function corregir_odontograma() from public, anon, authenticated;
+
+drop trigger if exists corregir_odontograma on odontogramas;
+create trigger corregir_odontograma before update or delete on odontogramas
+  for each row execute function corregir_odontograma();
+
+-- Eliminar un paciente con todo lo suyo (turnos, odontogramas, historia) y su cuenta de Mi espacio.
+-- SOLO PARA LA ETAPA DE PRUEBAS: se quita antes de cargar pacientes reales (ver PENDIENTES.md).
+create or replace function eliminar_paciente(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_usuario uuid;
+begin
+  if mi_rol() is distinct from 'admin' then raise exception 'Solo un admin puede eliminar pacientes.'; end if;
+  select usuario_id into v_usuario from pacientes where id = p_id;
+  if not found then raise exception 'No encontramos ese paciente.'; end if;
+  delete from pacientes where id = p_id;  -- borrar turnos no envía correos (el aviso es solo al crear o cambiar)
+  -- La cuenta solo se borra si es de paciente (nunca la de alguien del personal)
+  if v_usuario is not null and (select rol from perfiles where id = v_usuario) = 'paciente' then
+    delete from auth.users where id = v_usuario;
+  end if;
+end $$;
+revoke execute on function eliminar_paciente(uuid) from public, anon;
+grant execute on function eliminar_paciente(uuid) to authenticated;
 
 -- Permisos de ejecución
 revoke execute on function horarios_libres(date, int), horarios_sobreturno(date, int), pedir_turno(timestamptz, text), cancelar_mi_turno(uuid),

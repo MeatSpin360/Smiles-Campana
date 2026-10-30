@@ -293,6 +293,19 @@ export const api = {
     guardar();
     return espera(p);
   },
+  async eliminarPaciente(pid) {
+    requiere('admin');
+    const d = cargar();
+    const p = d.pacientes.find((x) => x.id === pid);
+    if (!p) throw new Error('No encontramos ese paciente.');
+    for (const t of ['turnos', 'odontogramas', 'evoluciones']) d[t] = d[t].filter((x) => x.paciente_id !== pid);
+    d.antecedentes = d.antecedentes.filter((x) => x.paciente_id !== pid);
+    const cuenta = d.usuarios.find((u) => u.id === p.usuario_id);
+    if (cuenta?.rol === 'paciente') d.usuarios = d.usuarios.filter((u) => u !== cuenta);
+    d.pacientes = d.pacientes.filter((x) => x !== p);
+    guardar();
+    return espera();
+  },
   async actualizarPaciente(pid, datos) {
     requiere(...PERSONAL);
     const d = cargar();
@@ -396,6 +409,27 @@ export const api = {
     cargar().odontogramas.push(o);
     guardar();
     return espera(o);
+  },
+  async corregirOdontograma(oid, datos, nota) {
+    const u = requiere(...CLINICO);
+    const d = cargar();
+    const o = d.odontogramas.find((x) => x.id === oid);
+    if (d.odontogramas.some((x) => x.paciente_id === o.paciente_id && x.creado_en > o.creado_en)) throw new Error('Solo se puede corregir el último registro del odontograma.');
+    if (o.creado_por !== u.id && u.rol !== 'admin') throw new Error('No tenés permiso para corregir este registro.');
+    o.correcciones = [...(o.correcciones || []), { datos: o.datos, nota: o.nota, reemplazado_en: ahora(), por: u.id, por_nombre: nombreUsuario(u) }];
+    Object.assign(o, { datos, nota: nota || '', corregido_en: ahora(), corregido_por_nombre: nombreUsuario(u) });
+    guardar();
+    return espera(o);
+  },
+  async borrarOdontograma(oid) {
+    const u = requiere(...CLINICO);
+    const d = cargar();
+    const o = d.odontogramas.find((x) => x.id === oid);
+    if (d.odontogramas.some((x) => x.paciente_id === o.paciente_id && x.creado_en > o.creado_en)) throw new Error('Solo se puede borrar el último registro del odontograma.');
+    if ((o.creado_por !== u.id && u.rol !== 'admin') || Date.now() - new Date(o.creado_en) > 48 * 3600e3) throw new Error('Este registro ya no se puede borrar (pasaron más de 48 h).');
+    d.odontogramas = d.odontogramas.filter((x) => x !== o);
+    guardar();
+    return espera();
   },
   async evoluciones(pid) {
     requiere(...CLINICO);

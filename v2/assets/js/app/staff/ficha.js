@@ -66,7 +66,37 @@ async function vistaDatos(ctx, p) {
       aviso('Datos guardados.');
     });
   });
-  return form;
+  return ctx.rol === 'admin' ? h('div', form, zonaEliminar(ctx, p)) : form;
+}
+
+// SOLO PARA LA ETAPA DE PRUEBAS (ver PENDIENTES.md): el admin elimina la ficha con todo lo suyo.
+function zonaEliminar(ctx, p) {
+  const abrir = () => {
+    const dni = h('input', { inputmode: 'numeric', autocomplete: 'off', 'aria-label': 'DNI del paciente' });
+    const ok = h('button.btn.btn-peligro', { type: 'button', disabled: true }, 'Eliminar definitivamente');
+    const volver = h('button.btn.btn-secundario', { type: 'button' }, 'Volver');
+    dni.addEventListener('input', () => { ok.disabled = dni.value.trim() !== String(p.dni); });
+    const { cerrar } = hoja({
+      titulo: 'Eliminar paciente',
+      ancho: 'chico',
+      cuerpo: h('div',
+        h('p', `Se borran la ficha de ${p.nombre} ${p.apellido}, sus turnos, odontogramas, antecedentes y evoluciones${p.usuario_id ? ', y su cuenta de Mi espacio' : ''}. No se puede deshacer.`),
+        h('label.campo', h('span', `Para confirmar, escribí su DNI (${p.dni})`), dni)),
+      pie: [volver, ok],
+    });
+    volver.onclick = cerrar;
+    ok.onclick = () => conCarga(ok, async () => {
+      await ctx.api.eliminarPaciente(p.id);
+      cerrar();
+      aviso('Paciente eliminado.');
+      ctx.navegar('/pacientes');
+    });
+    dni.focus();
+  };
+  return h('section.panel.zona-peligro',
+    h('div', h('h2', 'Eliminar paciente'),
+      h('p.texto-suave.nota-chica', 'Disponible solo durante la etapa de pruebas.')),
+    h('button.btn.btn-peligro', { type: 'button', onclick: abrir }, 'Eliminar…'));
 }
 
 async function vistaTurnos(ctx, p) {
@@ -123,19 +153,45 @@ async function vistaOdontograma(ctx, p) {
         h('p', 'Todavía no hay odontograma para este paciente.'), editar));
       return;
     }
+    // El último registro lo puede corregir quien lo creó o un admin; borrar, solo dentro de las 48 h
+    const propio = v.creado_por === ctx.perfil?.id || ctx.rol === 'admin';
+    const puedeCorregir = indice === 0 && propio;
+    const puedeBorrar = puedeCorregir && Date.now() - new Date(v.creado_en).getTime() < 48 * 3600e3;
+    const corregir = h('button.btn.btn-secundario', { type: 'button', onclick: () => modoEdicion(v.datos, v) }, 'Corregir');
+    const borrar = h('button.btn.btn-fantasma', {
+      type: 'button',
+      onclick: async () => {
+        const anterior = versiones[1];
+        const ok = await confirmar(`Se borra el registro del ${fechaCorta(v.creado_en)} a las ${hora(v.creado_en)} h. ${anterior
+          ? `Vuelve a quedar como actual el del ${fechaCorta(anterior.creado_en)}.` : 'El paciente queda sin odontograma.'}`,
+        { titulo: 'Borrar registro', aceptar: 'Borrar', peligro: true });
+        if (!ok) return;
+        await conCarga(borrar, async () => {
+          await ctx.api.borrarOdontograma(v.id);
+          versiones = await ctx.api.odontogramas(p.id);
+          aviso('Registro borrado.');
+          modoLectura(0);
+        });
+      },
+    }, 'Borrar');
     const od = crearOdontograma({ data: v.datos, editable: false });
     const selector = h('select', { 'aria-label': 'Versión', onchange: (e) => modoLectura(Number(e.target.value)) },
       versiones.map((x, i) => h('option', { value: i, selected: i === indice },
         `${fechaCorta(x.creado_en)}${i === 0 ? ' (actual)' : ''}${i === versiones.length - 1 && versiones.length > 1 ? ' (inicial)' : ''}`)));
+    const corregido = v.corregido_en
+      ? `Corregido el ${fechaCorta(v.corregido_en)} a las ${hora(v.corregido_en)} h${v.corregido_por_nombre ? ` por ${v.corregido_por_nombre}` : ''}` : null;
     vaciar(contenedor,
       h('div.barra-version',
         h('label.selector-version', h('span.icono-btn', { html: ICONOS.historial }), h('span', 'Registro del'), selector),
-        h('p.texto-suave.version-nota', [v.nota, v.creado_por_nombre ? `Por ${v.creado_por_nombre}` : null].filter(Boolean).join('. ')),
-        indice === 0 ? editar : h('button.btn.btn-secundario', { type: 'button', onclick: () => modoLectura(0) }, 'Ver actual')),
+        h('p.texto-suave.version-nota', [v.nota, v.creado_por_nombre ? `Por ${v.creado_por_nombre}` : null, corregido].filter(Boolean).join('. ')),
+        indice === 0
+          ? h('div.barra-version-acciones', puedeBorrar ? borrar : null, puedeCorregir ? corregir : null, editar)
+          : h('button.btn.btn-secundario', { type: 'button', onclick: () => modoLectura(0) }, 'Ver actual')),
       od.el);
   };
 
-  const modoEdicion = (base) => {
+  // corrigiendo: el registro que se corrige (se reemplaza); si no, se guarda uno nuevo
+  const modoEdicion = (base, corrigiendo = null) => {
     let cambios = false;
     const od = crearOdontograma({ data: base, editable: true, onChange: () => { cambios = true; } });
     salirSinGuardar = (e) => { if (cambios) { e.preventDefault(); e.returnValue = ''; } };
@@ -153,30 +209,41 @@ async function vistaOdontograma(ctx, p) {
       type: 'button',
       onclick: () => {
         const datos = od.obtener();
-        const nota = h('input', { name: 'nota', placeholder: versiones.length ? 'Por ejemplo: obturación en 16' : 'Odontograma inicial', value: versiones.length ? '' : 'Odontograma inicial' });
-        const ok = h('button.btn.btn-primario', { type: 'button' }, 'Guardar registro');
+        const nuevo = !versiones.length;
+        const nota = h('input', {
+          name: 'nota',
+          placeholder: nuevo ? 'Odontograma inicial' : 'Por ejemplo: obturación en 16',
+          value: corrigiendo ? (corrigiendo.nota || '') : (nuevo ? 'Odontograma inicial' : ''),
+        });
+        const ok = h('button.btn.btn-primario', { type: 'button' }, corrigiendo ? 'Guardar corrección' : 'Guardar registro');
         const resumen = hallazgos(datos);
         const { cerrar } = hoja({
-          titulo: 'Guardar odontograma',
+          titulo: corrigiendo ? 'Guardar corrección' : 'Guardar odontograma',
           ancho: 'chico',
           cuerpo: h('div',
-            h('p.texto-suave', 'Se guarda como un registro nuevo con fecha de hoy. Los anteriores quedan en el historial.'),
+            h('p.texto-suave', corrigiendo
+              ? `Se corrige el registro del ${fechaCorta(corrigiendo.creado_en)}. Queda marcado como corregido y lo que tenía antes se guarda.`
+              : 'Se guarda como un registro nuevo con fecha de hoy. Los anteriores quedan en el historial.'),
             h('label.campo', h('span', 'Nota (opcional)'), nota),
             h('p.texto-suave.nota-chica', `${resumen.length} ${resumen.length === 1 ? 'pieza con hallazgos' : 'piezas con hallazgos'}.`)),
           pie: [ok],
         });
         ok.onclick = () => conCarga(ok, async () => {
-          await ctx.api.guardarOdontograma(p.id, datos, nota.value.trim());
+          if (corrigiendo) await ctx.api.corregirOdontograma(corrigiendo.id, datos, nota.value.trim());
+          else await ctx.api.guardarOdontograma(p.id, datos, nota.value.trim());
           cambios = false;
           versiones = await ctx.api.odontogramas(p.id);
           cerrar();
-          aviso('Odontograma guardado.');
+          aviso(corrigiendo ? 'Corrección guardada.' : 'Odontograma guardado.');
           modoLectura(0);
         });
       },
     }, 'Guardar');
     vaciar(contenedor,
-      h('div.barra-edicion', h('p', h('strong', 'Editando'), versiones.length ? ' a partir del registro actual' : ' odontograma inicial'), h('div.barra-edicion-acciones', cancelar, guardar)),
+      h('div.barra-edicion', h('p', corrigiendo
+        ? [h('strong', 'Corrigiendo'), ` el registro del ${fechaCorta(corrigiendo.creado_en)}`]
+        : [h('strong', 'Editando'), versiones.length ? ' a partir del registro actual' : ' odontograma inicial']),
+      h('div.barra-edicion-acciones', cancelar, guardar)),
       od.el);
   };
 

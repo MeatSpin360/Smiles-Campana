@@ -169,6 +169,7 @@ body { background: var(--esmalte); }
 .selector-version { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-s); color: var(--tinta-2); }
 .selector-version select { width: auto; min-height: 40px; padding: 6px 12px; font-size: var(--t-s); }
 .version-nota { margin: 0; font-size: var(--t-s); flex: 1; min-width: 200px; }
+.barra-version-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---- Intranet: inicio y agenda ---- */
 .columnas-inicio { display: grid; gap: 16px; }
@@ -391,3 +392,8 @@ body { background: var(--esmalte); }
 .opcion-quien input { margin-top: 3px; accent-color: var(--lavanda-osc); }
 .opcion-quien span { display: grid; gap: 2px; }
 .opcion-quien small { color: var(--tinta-3); font-size: var(--t-xs); }
+
+/* Eliminar paciente (solo etapa de pruebas) */
+.zona-peligro { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-color: color-mix(in srgb, var(--error) 35%, transparent); }
+.zona-peligro h2 { margin: 0 0 2px; font-size: var(--t-m, 1.05rem); }
+.zona-peligro p { margin: 0; }

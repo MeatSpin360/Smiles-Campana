@@ -397,3 +397,76 @@ body { background: var(--esmalte); }
 .zona-peligro { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-color: color-mix(in srgb, var(--error) 35%, transparent); }
 .zona-peligro h2 { margin: 0 0 2px; font-size: var(--t-m, 1.05rem); }
 .zona-peligro p { margin: 0; }
+
+/* ---------- Fotos clínicas ---------- */
+.fotos-cabecera { align-items: center; margin-bottom: 0; }
+.fotos-cabecera h2 { margin: 0; }
+.fotos-cabecera p { margin: 2px 0 0; }
+.panel-fotos-cabecera { padding-top: 16px; padding-bottom: 16px; }
+.seccion-fotos-titulo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.seccion-fotos-titulo h3 { margin: 0; font-size: var(--t-m); }
+.grilla-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+@media (min-width: 900px) { .grilla-fotos { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+.foto-mini {
+  position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; padding: 0; border: 0;
+  background: var(--lavanda-tenue); display: block; width: 100%;
+}
+button.foto-mini { cursor: zoom-in; }
+.foto-mini img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s ease; }
+button.foto-mini:hover img { transform: scale(1.04); }
+button.foto-mini:focus-visible { outline: none; box-shadow: var(--foco); }
+.foto-mini img:not([src]) { visibility: hidden; }
+.foto-error::after { content: 'No se pudo cargar'; position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--t-xs); color: var(--tinta-3); }
+
+/* Modo editar */
+.barra-fotos p { flex: 1; min-width: 240px; }
+.seccion-fotos-editando { border-style: dashed; border-color: var(--linea-fuerte); }
+.seccion-fotos-editar-cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+.seccion-fotos-editar-cabecera h3 { margin: 0; font-size: var(--t-m); }
+.titulo-seccion { flex: 1; min-width: 200px; font-weight: 700; font-size: var(--t-m); }
+.seccion-fotos-acciones { display: flex; gap: 2px; }
+.seccion-fotos-acciones .btn-icono svg, .foto-acciones .btn-icono svg { width: 19px; height: 19px; }
+.btn-icono:disabled { opacity: 0.35; cursor: default; background: transparent; }
+.btn-icono-peligro:hover { background: var(--error-claro); color: var(--error); }
+.zona-fotos { min-height: 120px; border-radius: 12px; padding: 4px; margin: -4px; transition: background 0.15s, box-shadow 0.15s; }
+.zona-fotos.soltar-aqui { background: var(--lavanda-tenue); box-shadow: inset 0 0 0 2px var(--lavanda); }
+.foto-editable { cursor: grab; }
+.foto-editable.arrastrando { opacity: 0.35; }
+.foto-acciones {
+  position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px;
+}
+.foto-acciones .btn-icono { width: 34px; height: 34px; background: rgb(255 255 255 / 0.92); color: var(--tinta); box-shadow: 0 2px 8px rgb(38 33 64 / 0.18); }
+.foto-acciones .btn-icono-peligro:hover { background: var(--error-claro); }
+.foto-agregar {
+  aspect-ratio: 4 / 3; border-radius: 12px; border: 1.5px dashed var(--linea-fuerte); display: grid; place-content: center; justify-items: center;
+  gap: 6px; padding: 10px; text-align: center; color: var(--lavanda-osc); font-size: var(--t-xs); font-weight: 600; cursor: pointer; background: var(--papel);
+}
+.foto-agregar:hover { border-color: var(--lavanda); background: var(--lavanda-tenue); }
+.foto-agregar .icono-btn svg { width: 24px; height: 24px; }
+.foto-agregar:only-child { grid-column: 1 / -1; aspect-ratio: auto; min-height: 120px; }
+.foto-subiendo { display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--tinta-2); }
+.girador { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--lavanda-osc); border-color: var(--lavanda-osc) var(--lavanda-osc) transparent transparent; animation: girar 0.7s linear infinite; }
+.lista-destinos { display: grid; gap: 8px; }
+.lista-destinos .destino { justify-content: flex-start; }
+
+/* Visor */
+.visor {
+  width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: rgb(18 16 30 / 0.96); color: #fff; overflow: hidden;
+}
+.visor::backdrop { background: rgb(18 16 30 / 0.9); }
+.visor-marco { position: absolute; inset: 56px 16px 64px; display: grid; place-items: center; }
+.visor-imagen { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; user-select: none; -webkit-user-drag: none; }
+.visor-flecha, .visor-cerrar {
+  position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgb(255 255 255 / 0.12); color: #fff;
+}
+.visor-flecha:hover, .visor-cerrar:hover { background: rgb(255 255 255 / 0.24); }
+.visor-flecha svg, .visor-cerrar svg { width: 24px; height: 24px; }
+.visor-flecha { top: 50%; transform: translateY(-50%); }
+.visor-flecha[hidden] { display: none; }
+.visor-anterior { left: 16px; }
+.visor-siguiente { right: 16px; }
+.visor-cerrar { top: 12px; right: 12px; }
+.visor-pie { position: absolute; left: 0; right: 0; bottom: 18px; margin: 0; text-align: center; font-size: var(--t-s); color: rgb(255 255 255 / 0.8); }
+@media (max-width: 600px) { .visor-flecha { top: auto; bottom: 8px; transform: none; } .visor-marco { inset: 56px 0 72px; } }

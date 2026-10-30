@@ -37,12 +37,12 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [ ] **Google Calendar como espejo** de la agenda (solo turnos confirmados), en un solo sentido: sistema → Calendar, al instante, por la API de Google (no por suscripción ICS, que tarda 12 a 24 h en actualizarse). Desde que el sistema arranca, los turnos se dan solo en el sistema.
 - [x] **Copia de seguridad semanal** de la base a Google Drive (domingos 3:00, se conservan ~3 meses, aviso por correo si falta una). Restaurar con `supabase/restaurar.sql`. Las fotos (etapa 3) se resuelven aparte.
 
-## Etapa 3: fotos clínicas (en curso)
+## Etapa 3: fotos clínicas
 
 - [x] Almacenamiento en **Cloudflare R2** (depósito `smiles-fotos`, 10 GB gratis, sin costo de descarga). Acceso solo a través del Worker (`worker/index.js`), que consulta a la base con la sesión de quien pide: odontología y admin; recepción y pacientes no. Tablas `foto_secciones` y `fotos`; la copia semanal incluye la lista y las secciones.
 - [x] Fotos reducidas en el navegador antes de subir (2000 px, unos 300 a 700 KB) y una miniatura de 400 px.
 - [ ] Más adelante: **convertir fotos HEIC** (formato de iPhone) en el navegador. Hoy, si una foto no se puede leer, la app pide exportarla como JPG.
-- [ ] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
+- [x] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
   - modo ver: secciones con título (por ejemplo "Primera consulta 02/11/2026") y miniaturas; vista ampliada pasando de una foto a otra;
   - modo *Editar*: agregar sección (rectángulo con título y fotos), arrastrar fotos desde la PC o buscarlas, moverlas entre secciones, borrar fotos, renombrar o borrar secciones.
 - [ ] Más adelante: el paciente ve sus fotos en *Mi espacio* (ver etapa 5).

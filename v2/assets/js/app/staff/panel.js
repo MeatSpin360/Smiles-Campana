@@ -13,7 +13,28 @@ const DIAS_COPIA = 8; // la copia es semanal: más de 8 días sin copia es una a
 
 const megas = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : b >= 1024 ** 2 ? `${Math.round(b / 1024 ** 2)} MB` : `${Math.round(b / 1024)} KB`);
 
+const SECCIONES = [
+  { id: '', texto: 'Resumen y registro' },
+  { id: 'usuarios', texto: 'Usuarios', vista: () => import('./usuarios.js').then((m) => m.usuarios) },
+  { id: 'horarios', texto: 'Horarios', vista: () => import('./horarios.js').then((m) => m.horarios) },
+];
+
 export async function panel(ctx) {
+  const seccion = SECCIONES.find((x) => x.id === (ctx.params.seccion || '')) || SECCIONES[0];
+  const pestanas = h('nav.pestanas', { 'aria-label': 'Secciones del panel' }, SECCIONES.map((x) => h('a.pestana', {
+    href: `#/panel${x.id ? `/${x.id}` : ''}`, 'aria-current': x === seccion ? 'page' : null,
+  }, x.texto)));
+  const cabecera = encabezado('Panel de control', 'Resumen del consultorio, registro de acciones, usuarios y horarios.');
+  if (seccion.vista) {
+    // Las pantallas de Usuarios y Horarios, adentro del panel: al guardar vuelven a esta pestaña
+    const vista = await seccion.vista();
+    const propio = { ...ctx, navegar: (r) => ctx.navegar(r === `/${seccion.id}` ? `/panel/${seccion.id}` : r) };
+    return h('div.panel-control', cabecera, pestanas, h('div.panel-subvista', await vista(propio)));
+  }
+  return resumenYRegistro(ctx, cabecera, pestanas);
+}
+
+async function resumenYRegistro(ctx, cabecera, pestanas) {
   const pacienteId = ctx.query.get('paciente') || null;
   const [resumen, usuarios, paciente] = await Promise.all([
     ctx.api.resumenPanel(),
@@ -45,7 +66,7 @@ export async function panel(ctx) {
       { icono: 'historial', alerta: !copiaOk }),
     tarjeta('Personal', String(Object.values(resumen.personal || {}).reduce((a, b) => a + b, 0)), [personal, resumen.cuentas_sin_vincular
       ? `${resumen.cuentas_sin_vincular} ${resumen.cuentas_sin_vincular === 1 ? 'cuenta' : 'cuentas'} de paciente sin vincular` : 'Todas las cuentas vinculadas'].filter(Boolean).join(' · '),
-    { icono: 'llave', alerta: resumen.cuentas_sin_vincular > 0, enlace: '#/usuarios' }));
+    { icono: 'llave', alerta: resumen.cuentas_sin_vincular > 0, enlace: '#/panel/usuarios' }));
 
   // ---------- Registro ----------
   const desde = h('input', { type: 'date', value: pacienteId ? '' : sumarDias(hoy(), -6), 'aria-label': 'Desde' });
@@ -109,9 +130,8 @@ export async function panel(ctx) {
 
   cargar();
   return h('div.panel-control',
-    encabezado('Panel de control', 'Resumen del consultorio y registro de todo lo que se hace en el sistema.',
-      h('a.btn.btn-secundario', { href: '#/usuarios' }, h('span.icono-btn', { html: ICONOS.llave }), 'Usuarios'),
-      h('a.btn.btn-secundario', { href: '#/horarios' }, h('span.icono-btn', { html: ICONOS.reloj }), 'Horarios')),
+    cabecera,
+    pestanas,
     tarjetas,
     h('section.panel.panel-registro',
       h('div.panel-cabecera', h('div', h('h2', 'Registro de acciones'),

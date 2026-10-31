@@ -4,10 +4,12 @@ import { AGENDA_INICIAL, horariosLibres as calcularLibres, huecosSobreturno, int
 import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
 import { prepararFoto } from '../lib/imagenes.js';
 
+const PRECIOS_INICIALES = [{"servicio": "Aparatos removibles", "precio": 400000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Aparatos removibles inferior", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Apertura de urgencia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento ambulatorio", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Blanqueamiento interno", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento láser", "precio": 150000, "moneda": "ARS", "nota": "Ambas arcadas", "activo": true}, {"servicio": "Blanqueamiento láser, 2.ª sesión", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Botón", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket metálico", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket de porcelana", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bucodental: evaluación FF. AA. o escolar", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cajita porta brackets", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compleja", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compuesta", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries con surco inicial", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Carillas de resina", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (x 2 unidades)", "precio": 6000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (unidad)", "precio": 3500, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo de ortodoncia", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Compostura simple: rebasado acrílico", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de ortodoncia", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de guardia", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención fija", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención final", "precio": 70000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Control de aparato removible", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de contención", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de ortodoncia invisible", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control metálico", "precio": 56000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de porcelana", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de tratamiento periodontal", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Corona provisoria", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Desgaste estético", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción de resto mucoso", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Ferulización periodontal", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Flúor", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Gomas intermaxilares (x 100 unidades)", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Implante", "precio": 700, "moneda": "USD", "nota": null, "activo": true}, {"servicio": "Incrustación de resina", "precio": 180000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets metálicos", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets de porcelana", "precio": 250000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillos interdentales", "precio": 3000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Kit de ortodoncia", "precio": 7000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Levante de mordida", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza con brochita", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza de sarro", "precio": 75000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Ortodoncia invisible", "precio": 1800000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Piercing dental / gema", "precio": 40000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Pieza dentaria retenida mucosa", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Placa de bruxismo", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Placa de levante", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis de acrílico completa", "precio": 600000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Prótesis de acrílico parcial", "precio": 450000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Arañita flex (3 piezas)", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis flex parcial", "precio": 200000, "moneda": "ARS", "nota": "Por maxilar. Ambos maxilares: $390.000", "activo": true}, {"servicio": "Raspaje: retiro de cemento de aparatología fija", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Reparación de puntos de contención fija", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Sellador de puntos y fisuras", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Tratamiento de conducto multirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento de conducto unirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento periodontal", "precio": 55000, "moneda": "ARS", "nota": "Por sesión y por sector", "activo": true}, {"servicio": "Tubo", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Urgencia de ortodoncia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}];
 const CLAVE = 'smiles-demo-v2';
 const CLAVE_SESION = 'smiles-demo-sesion';
 const PERSONAL = ['recepcion', 'odontologia', 'admin'];
 const CLINICO = ['odontologia', 'admin'];
+const CONTABLE = ['contabilidad', 'admin'];
 const activo = (t) => !['cancelado', 'rechazado'].includes(t.estado);
 
 const id = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
@@ -33,6 +35,7 @@ function semilla() {
     { email: 'recepcion@demo.com', rol: 'recepcion', nombre: 'Romina', apellido: 'Acosta' },
     { email: 'odontologia@demo.com', rol: 'odontologia', nombre: 'Florencia', apellido: "D'Ambrosio" },
     { email: 'admin@demo.com', rol: 'admin', nombre: 'Administración', apellido: '' },
+    { email: 'contabilidad@demo.com', rol: 'contabilidad', nombre: 'Carla', apellido: 'Contable' },
   ].map((u) => ({ id: id(), clave: 'demo1234', ...u }));
   pacientes[0].usuario_id = usuarios[0].id;
 
@@ -91,6 +94,9 @@ function cargar() {
   db.agenda.intervalo ??= db.agenda.duracion;
   db.agenda.margenSobreturno ??= 60;
   db.fotos ??= [];
+  db.planes ??= [];
+  db.precios ??= PRECIOS_INICIALES.map((x, i) => ({ id: id(), ...x, orden: i, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null }));
+  if (!db.usuarios.some((u) => u.rol === 'contabilidad')) db.usuarios.push({ id: id(), clave: 'demo1234', email: 'contabilidad@demo.com', rol: 'contabilidad', nombre: 'Carla', apellido: 'Contable' });
   db.foto_secciones ??= [];
   db.bloqueos = db.bloqueos.map((b) => ({ id: b.id || id(), hora_desde: null, hora_hasta: null, repetir: false, hasta_fecha: null, ...b }));
   return db;
@@ -339,6 +345,7 @@ export const api = {
     }
     d.fotos = d.fotos.filter((x) => x.paciente_id !== pid);
     d.foto_secciones = d.foto_secciones.filter((x) => x.paciente_id !== pid);
+    d.planes = d.planes.filter((x) => x.paciente_id !== pid);
     const cuenta = d.usuarios.find((u) => u.id === p.usuario_id);
     if (cuenta?.rol === 'paciente') d.usuarios = d.usuarios.filter((u) => u !== cuenta);
     d.pacientes = d.pacientes.filter((x) => x !== p);
@@ -691,6 +698,124 @@ const ANOTACIONES = {
     post: ([perfilId, rol], r, u) => { if (u.rol !== rol) anotar('usuario.rol', null, { cuenta: u.email, de: u.rol, a: rol }); },
   },
 };
+const normal = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+Object.assign(api, {
+  async precios() {
+    requiere(...PERSONAL, 'contabilidad');
+    return espera(cargar().precios.map((x) => ({ ...x })).sort((a, b) => a.servicio.localeCompare(b.servicio)));
+  },
+  async guardarPrecio(p) {
+    const u = requiere(...CONTABLE);
+    const d = cargar();
+    const servicio = (p.servicio || '').trim();
+    if (!servicio) throw new Error('Escribí el nombre del servicio.');
+    if (d.precios.some((x) => x.id !== p.id && normal(x.servicio) === normal(servicio))) throw new Error('Ya hay un servicio con ese nombre.');
+    const datos = { servicio, precio: p.precio === '' || p.precio == null ? null : Number(p.precio), moneda: p.moneda || 'ARS', nota: (p.nota || '').trim() || null, activo: p.activo !== false };
+    let x = p.id && d.precios.find((y) => y.id === p.id);
+    if (x) Object.assign(x, datos, { actualizado_en: ahora(), actualizado_por_nombre: nombreUsuario(u) });
+    else {
+      x = { id: id(), ...datos, orden: d.precios.length, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null };
+      d.precios.push(x);
+    }
+    guardar();
+    return espera({ ...x });
+  },
+  async borrarPrecio(pid) {
+    requiere(...CONTABLE);
+    const d = cargar();
+    d.precios = d.precios.filter((x) => x.id !== pid);
+    guardar();
+    return espera();
+  },
+  async aumentarPrecios(porcentaje, redondeo = 0) {
+    requiere(...CONTABLE);
+    const pct = Number(porcentaje);
+    if (!Number.isFinite(pct) || pct <= -100 || pct > 500) throw new Error('Revisá el porcentaje.');
+    let n = 0;
+    for (const x of cargar().precios) {
+      if (!x.activo || x.moneda !== 'ARS' || x.precio == null) continue;
+      const v = x.precio * (1 + pct / 100);
+      x.precio = redondeo > 0 ? Math.round(v / redondeo) * redondeo : Math.round(v * 100) / 100;
+      n++;
+    }
+    guardar();
+    return espera(n);
+  },
+  async planes(pid) {
+    requiere(...PERSONAL);
+    return espera(cargar().planes.filter((x) => x.paciente_id === pid).sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map((x) => ({ ...x })));
+  },
+  async guardarPlan(plan) {
+    const u = requiere(...PERSONAL);
+    const d = cargar();
+    if (!plan.titulo?.trim()) throw new Error('Escribí un título para el plan.');
+    const descuento = Number(plan.descuento) || 0;
+    const descuentoMonto = Number(plan.descuento_monto) || 0;
+    if (descuento < 0 || descuento > 100) throw new Error('El descuento tiene que estar entre 0 y 100 %.');
+    if (descuentoMonto < 0) throw new Error('El descuento no puede ser negativo.');
+    const subtotal = (plan.items || []).reduce((s, i) => s + (Number(i.cantidad ?? 1) || 0) * (Number(i.precio) || 0)
+      * (1 - Math.min(Math.max(Number(i.descuento) || 0, 0), 100) / 100), 0);
+    const campos = {
+      titulo: plan.titulo, estado: plan.estado || 'borrador', items: plan.items || [], descuento, descuento_monto: descuentoMonto,
+      forma_pago: plan.forma_pago || null, notas: plan.notas || null, validez: plan.validez || null,
+      total: Math.max(Math.round((subtotal * (1 - descuento / 100) - descuentoMonto) * 100) / 100, 0),
+    };
+    let x = plan.id && d.planes.find((y) => y.id === plan.id);
+    if (x) Object.assign(x, campos, { actualizado_en: ahora(), actualizado_por_nombre: nombreUsuario(u) });
+    else {
+      x = { id: id(), paciente_id: plan.paciente_id, ...campos, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora(), actualizado_en: null, aceptado_en: null };
+      d.planes.push(x);
+    }
+    if (['aceptado', 'en_curso', 'terminado'].includes(x.estado) && !x.aceptado_en) x.aceptado_en = ahora();
+    guardar();
+    return espera({ ...x });
+  },
+  async borrarPlan(pid) {
+    requiere(...PERSONAL);
+    const d = cargar();
+    const x = d.planes.find((y) => y.id === pid);
+    if (x.estado !== 'borrador') throw new Error('Un plan que ya se propuso no se borra: marcalo como descartado.');
+    d.planes = d.planes.filter((y) => y !== x);
+    guardar();
+    return espera();
+  },
+  async practicasUsadas() {
+    requiere(...PERSONAL);
+    const vistas = new Map();
+    for (const f of [...cargar().planes].sort((a, b) => b.creado_en.localeCompare(a.creado_en))) {
+      for (const i of f.items || []) if (i.practica && !vistas.has(i.practica)) vistas.set(i.practica, i.precio ?? null);
+    }
+    return espera([...vistas].map(([practica, precio]) => ({ practica, precio })).sort((a, b) => a.practica.localeCompare(b.practica)));
+  },
+});
+Object.assign(ANOTACIONES, {
+  guardarPrecio: {
+    pre: ([p]) => (p.id ? { ...cargar().precios.find((x) => x.id === p.id) } : null),
+    post: ([p], r, antes) => {
+      if (!antes) return anotar('precio.creado', null, { servicio: r.servicio, precio: r.precio, moneda: r.moneda });
+      if (antes.precio !== r.precio || antes.moneda !== r.moneda) anotar('precio.cambiado', null, { servicio: r.servicio, de: antes.precio, a: r.precio, moneda: r.moneda, moneda_antes: antes.moneda });
+      if (antes.servicio !== r.servicio || (antes.nota || null) !== (r.nota || null) || antes.activo !== r.activo) anotar('precio.editado', null, { servicio: r.servicio, servicio_antes: antes.servicio, activo: r.activo, activo_antes: antes.activo });
+    },
+  },
+  borrarPrecio: {
+    pre: ([pid]) => ({ ...cargar().precios.find((x) => x.id === pid) }),
+    post: (a, r, x) => anotar('precio.borrado', null, { servicio: x.servicio, precio: x.precio }),
+  },
+  aumentarPrecios: { post: ([porcentaje, redondeo = 0], n) => anotar('precios.aumento', null, { porcentaje: Number(porcentaje), redondeo, cantidad: n }) },
+  guardarPlan: {
+    pre: ([plan]) => (plan.id ? { ...cargar().planes.find((x) => x.id === plan.id) } : null),
+    post: ([plan], r, antes) => {
+      if (!antes) return anotar('plan.creado', r.paciente_id, { titulo: r.titulo, total: r.total, estado: r.estado });
+      if (antes.estado !== r.estado) anotar('plan.estado', r.paciente_id, { titulo: r.titulo, de: antes.estado, a: r.estado });
+      const clave = (x) => JSON.stringify([x.items, Number(x.descuento), x.titulo, x.forma_pago || null, x.notas || null, x.validez || null]);
+      if (clave(antes) !== clave(r)) anotar('plan.editado', r.paciente_id, { titulo: r.titulo, total: r.total, total_antes: antes.total });
+    },
+  },
+  borrarPlan: {
+    pre: ([pid]) => ({ ...cargar().planes.find((x) => x.id === pid) }),
+    post: (a, r, x) => anotar('plan.borrado', x.paciente_id, { titulo: x.titulo }),
+  },
+});
 for (const [nombre, { pre, post }] of Object.entries(ANOTACIONES)) {
   const original = api[nombre];
   api[nombre] = async function (...args) {

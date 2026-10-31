@@ -57,6 +57,7 @@ export function ingresar(ctx) {
       ['recepcion@demo.com', 'Recepción'],
       ['odontologia@demo.com', 'Odontología'],
       ['admin@demo.com', 'Administración'],
+      ['contabilidad@demo.com', 'Contabilidad'],
     ].map(([email, texto]) => h('button.btn.btn-secundario.btn-chico', { type: 'button', onclick: () => entrar(email, 'demo1234') }, texto)))) : null;
 
   return h('div.auth',

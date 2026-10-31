@@ -263,6 +263,55 @@ export const api = {
     const filas = ok(await sb.from('odontogramas').delete().eq('id', id).select('id'));
     if (!filas.length) throw new Error('Este registro ya no se puede borrar (pasaron más de 48 h).');
   },
+  // --- Lista de precios (la ve todo el personal; la editan contabilidad y admin) ---
+  async precios() {
+    return ok(await sb.from('precios').select('*').order('servicio'));
+  },
+  async guardarPrecio(p) {
+    const datos = {
+      servicio: (p.servicio || '').trim(), precio: p.precio === '' || p.precio == null ? null : Number(p.precio),
+      moneda: p.moneda || 'ARS', nota: (p.nota || '').trim() || null, activo: p.activo !== false,
+    };
+    const r = p.id
+      ? await sb.from('precios').update(datos).eq('id', p.id).select().single()
+      : await sb.from('precios').insert(datos).select().single();
+    if (r.error?.code === '23505') throw new Error('Ya hay un servicio con ese nombre.');
+    return ok(r);
+  },
+  async borrarPrecio(id) {
+    ok(await sb.from('precios').delete().eq('id', id));
+  },
+  /** Suma un porcentaje a todos los precios en pesos que se realizan. Devuelve cuántos cambió. */
+  async aumentarPrecios(porcentaje, redondeo = 0) {
+    return ok(await sb.rpc('aumentar_precios', { p_porcentaje: porcentaje, p_redondeo: redondeo }));
+  },
+
+  // --- Planes de tratamiento (el total lo calcula la base) ---
+  async planes(pacienteId) {
+    return ok(await sb.from('planes').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));
+  },
+  /** Crea (sin id) o actualiza un plan. */
+  async guardarPlan(plan) {
+    const datos = {
+      titulo: plan.titulo, estado: plan.estado, items: plan.items, descuento: Number(plan.descuento) || 0,
+      descuento_monto: Number(plan.descuento_monto) || 0,
+      forma_pago: plan.forma_pago || null, notas: plan.notas || null, validez: plan.validez || null,
+    };
+    if (plan.id) return ok(await sb.from('planes').update(datos).eq('id', plan.id).select().single());
+    return ok(await sb.from('planes').insert({ ...datos, paciente_id: plan.paciente_id }).select().single());
+  },
+  async borrarPlan(id) {
+    const filas = ok(await sb.from('planes').delete().eq('id', id).select('id'));
+    if (!filas.length) throw new Error('No se pudo borrar el plan.');
+  },
+  /** Prácticas usadas en planes anteriores, con su último precio (para sugerirlas al escribir). */
+  async practicasUsadas() {
+    const filas = ok(await sb.from('planes').select('items, creado_en').order('creado_en', { ascending: false }).limit(300));
+    const vistas = new Map();
+    for (const f of filas) for (const i of f.items || []) if (i.practica && !vistas.has(i.practica)) vistas.set(i.practica, i.precio ?? null);
+    return [...vistas].map(([practica, precio]) => ({ practica, precio })).sort((a, b) => a.practica.localeCompare(b.practica));
+  },
+
   // --- Fotos (archivos en Cloudflare R2, a través del Worker: worker/index.js) ---
   async fotosDePaciente(pacienteId) {
     const [secciones, fotos] = await Promise.all([

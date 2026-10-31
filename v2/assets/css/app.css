@@ -464,7 +464,6 @@ button.foto-mini:focus-visible { outline: none; box-shadow: var(--foco); }
 .visor-flecha:hover, .visor-cerrar:hover { background: rgb(255 255 255 / 0.24); }
 .visor-flecha svg, .visor-cerrar svg { width: 24px; height: 24px; }
 .visor-flecha { top: 50%; transform: translateY(-50%); }
-.visor-flecha[hidden] { display: none; }
 .visor-anterior { left: 16px; }
 .visor-siguiente { right: 16px; }
 .visor-cerrar { top: 12px; right: 12px; }
@@ -511,4 +510,92 @@ a.tarjeta-panel:hover { border-color: var(--lavanda); box-shadow: 0 6px 18px -12
 }
 .etiqueta-rol { padding: 1px 8px; background: var(--lavanda-tenue); color: var(--lavanda-osc); }
 .registro-mas { display: flex; justify-content: center; margin-top: 12px; }
-.registro-mas [hidden] { display: none; }
+/* Usuarios y Horarios adentro del panel: su título pasa a ser un subtítulo */
+.panel-control > .pestanas { margin-top: 4px; }
+.panel-subvista > div > .encabezado h1 { font-size: var(--t-l); }
+
+/* ---------- Planes de tratamiento ---------- */
+.lista-planes { list-style: none; margin: 8px 0 0; padding: 0; }
+.tarjeta-plan { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; padding: 14px 0; border-top: 1px solid var(--linea); }
+.tarjeta-plan-principal strong { margin-right: 8px; }
+.tarjeta-plan-principal p { margin: 4px 0 0; }
+.tarjeta-plan-total { font-size: var(--t-m); text-align: right; }
+.tarjeta-plan-acciones { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+@media (min-width: 900px) {
+  .tarjeta-plan { grid-template-columns: 1fr auto auto; }
+  .tarjeta-plan-acciones { grid-column: auto; }
+}
+.etiqueta-plan-borrador { background: var(--esmalte); color: var(--tinta-2); }
+.etiqueta-plan-propuesto { background: var(--oro-claro); color: #6b5308; }
+.etiqueta-plan-aceptado, .etiqueta-plan-en_curso { background: var(--lavanda-tenue); color: var(--lavanda-osc); }
+.etiqueta-plan-terminado { background: var(--ok-claro); color: var(--ok); }
+.etiqueta-plan-descartado { background: var(--error-claro); color: var(--error); }
+
+.campos-plan { align-items: start; }
+.campos-plan .campo small { display: block; margin-top: 4px; }
+@media (min-width: 900px) { .campos-plan { grid-template-columns: 2fr 1fr 1fr; } }
+.items-plan { display: grid; gap: 10px; margin: 10px 0 4px; }
+.item-plan {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; align-items: end;
+  padding: 12px; border: 1px solid var(--linea); border-radius: 12px; background: var(--esmalte);
+}
+.item-plan > .campo-item:nth-child(2) { grid-column: 1 / -1; order: -1; }
+.item-plan .btn-icono { justify-self: end; }
+.campo-item { display: grid; gap: 4px; min-width: 0; }
+.campo-item > span { font-size: var(--t-xs); color: var(--tinta-2); font-weight: 600; }
+.campo-item input { width: 100%; min-width: 0; }
+.item-subtotal-celda { align-self: center; }
+.campo-item > .item-subtotal { font-size: var(--t-s); font-weight: 700; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.item-plan-titulos { display: none; }
+@media (min-width: 900px) {
+  .items-plan { gap: 0; }
+  .item-plan { grid-template-columns: 1.1fr 2fr 1fr 64px 1.1fr 72px 1fr 40px; padding: 6px 0; border: 0; border-bottom: 1px solid var(--linea); border-radius: 0; background: none; align-items: center; }
+  .item-plan > .campo-item:nth-child(2) { grid-column: auto; order: 0; }
+  .item-plan .campo-item > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .item-plan-titulos { display: grid; font-size: var(--t-xs); color: var(--tinta-2); font-weight: 600; padding-bottom: 4px; }
+  .item-subtotal-celda, .item-plan-titulos span:nth-child(7) { text-align: right; }
+}
+.pie-items-plan { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; margin-top: 14px; }
+.campo-descuento { width: auto; margin-bottom: 0; }
+.totales-plan { display: grid; grid-template-columns: auto auto; gap: 4px 18px; justify-items: end; margin-left: auto; font-variant-numeric: tabular-nums; }
+.totales-plan > :nth-child(odd) { justify-self: start; color: var(--tinta-2); }
+.total-plan { font-size: var(--t-l); color: var(--tinta); }
+.marco-impresion { position: fixed; width: 0; height: 0; border: 0; visibility: hidden; }
+
+/* ---------- Lista de precios ---------- */
+.barra-precios { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.buscador-precios { flex: 1; min-width: 220px; font-size: var(--t-m); }
+.cuenta-precios { margin: 8px 0 6px; }
+.interruptor-texto { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-s); color: var(--tinta-2); cursor: pointer; }
+.interruptor-texto input { width: 18px; height: 18px; accent-color: var(--lavanda-osc); }
+.tabla-precios { display: grid; }
+.fila-precio {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; align-items: baseline; text-align: left;
+  padding: 10px 4px; border: 0; border-bottom: 1px solid var(--linea); background: none; font: inherit; color: inherit; width: 100%;
+}
+button.fila-precio { cursor: pointer; border-radius: 0; }
+button.fila-precio:hover { background: var(--lavanda-tenue); }
+button.fila-precio:focus-visible { outline: none; box-shadow: var(--foco); }
+.precio-servicio { font-weight: 600; }
+.precio-servicio mark { background: var(--oro-claro); color: inherit; border-radius: 3px; padding: 0 1px; }
+.precio-monto { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; white-space: nowrap; }
+.precio-nota { grid-column: 1 / -1; font-size: var(--t-xs); color: var(--tinta-2); }
+.precio-nota:empty { display: none; }
+.precio-nota small { color: var(--tinta-3); }
+.precio-inactivo .precio-servicio, .precio-inactivo .precio-monto { color: var(--tinta-3); font-weight: 500; }
+.fila-precio-titulos { display: none; }
+@media (min-width: 900px) {
+  .fila-precio { grid-template-columns: 1.6fr 160px 1.2fr; align-items: center; }
+  .precio-nota { grid-column: auto; }
+  .precio-nota:empty { display: block; }
+  .fila-precio-titulos { display: grid; font-size: var(--t-xs); color: var(--tinta-2); font-weight: 600; padding-top: 4px; }
+  .fila-precio-titulos span:nth-child(2) { text-align: right; }
+}
+.fila-precio-editar { grid-template-columns: 1fr 120px; }
+.vista-aumento p { margin: 0 0 8px; font-size: var(--t-s); }
+.ejemplos-aumento { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--t-s); }
+.ejemplos-aumento li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; background: var(--esmalte); border-radius: 8px; }
+.ejemplos-aumento li span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.descuento-general { display: flex; gap: 6px; }
+.descuento-general input { width: 110px; }
+.descuento-general select { width: 64px; }

@@ -50,13 +50,16 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 ## Panel de control (admin)
 
 - [x] **Registro de acciones**: la base anota sola quién hizo qué y cuándo (turnos, fichas, odontograma, historia, fotos, usuarios, agenda, copias de seguridad). Guarda qué cambió, no el contenido clínico. Nadie lo puede modificar ni borrar desde la app; queda aunque se elimine el paciente y entra en la copia semanal.
-- [x] Ventana **Panel** (solo admin): resumen (turnos de la semana, pedidos, pacientes, fotos y espacio usado, última copia de seguridad, personal y cuentas sin vincular) y el registro con filtros por fecha, persona, tipo de acción y paciente. Desde la ficha, el ícono de historial abre la actividad de ese paciente.
+- [x] Ventana **Panel** (solo admin), con pestañas *Resumen y registro*, *Usuarios* y *Horarios* (el admin ya no los tiene en la barra lateral; recepción conserva *Horarios*): resumen (turnos de la semana, pedidos, pacientes, fotos y espacio usado, última copia de seguridad, personal y cuentas sin vincular) y el registro con filtros por fecha, persona, tipo de acción y paciente. Desde la ficha, el ícono de historial abre la actividad de ese paciente.
 
 ## Etapa 2b: documentos clínicos
 
-- [ ] **Planes de tratamiento**: etapas, prácticas, piezas, honorarios y forma de pago; estado (propuesto, aceptado, en curso); impresión o PDF con el logo.
-- [ ] **Consentimientos**: plantillas por práctica completadas con los datos del paciente; impresión; copia firmada escaneada en la ficha (R2). Firma en pantalla opcional (firma electrónica, consultar su valor con el Colegio o un abogado).
-- [ ] **Recetas**: se emiten en una plataforma registrada en el ReNaPDiS (obligatorio desde 2025). En el sistema: acceso a esa plataforma y registro en la historia clínica de qué se recetó, con el PDF adjunto.
+- [x] **Planes de tratamiento** (pestaña *Planes* de la ficha, recepción, odontología y admin): prácticas elegidas de la lista de precios (o escritas a mano) con etapa, piezas, cantidad y precio; descuento por práctica (%) y descuento general (% o monto fijo); forma de pago, notas y validez; estados borrador → propuesto → aceptado → en curso → terminado (o descartado). La base calcula el total y no deja borrar un plan ya propuesto. Impresión o PDF con el formato del consultorio (logo, matrícula MN 40339, datos del paciente, prácticas por etapa y firma de conformidad).
+- [x] **Lista de precios** (menú *Precios*): 64 servicios cargados de la planilla de noviembre 2025 (los que no se realizan quedan ocultos). Buscador que filtra mientras se escribe. Recepción y odontología la ven; contabilidad y admin la editan, aplican aumentos generales con redondeo, exportan a Excel e imprimen. Todo queda en el registro.
+- [x] Rol **Contabilidad**: solo ve *Precios* (y *Pagos*, etapa A2). No ve agenda, fichas ni historia clínica.
+- [ ] **Pagos (A2)**: monto facturado, interruptor "¿Paga justo?" y monto pagado; comentario y comprobante opcional (imagen o PDF, ≤ 1 MB). Saldo por paciente; "(con deuda)" / "(pago adelantado)" en la lista de pacientes con el monto en una ventanita (recepción, odontología y admin). Pestaña *Pagos* en la ficha. En contabilidad, lista completa con filtros por fechas, mes, año y paciente, totales al pie y exportación a Excel. Cargan y corrigen recepción y admin; solo admin borra; contabilidad mira.
+- [ ] **Documentos (B)**: plantillas *Contrato de ortodoncia* (tal cual, solo errores de tipeo; datos del paciente, responsable si es menor, cantidad de controles, MN 40339) y *Cuidados post-instalación de brackets*. Pestaña *Documentos* en la ficha: generar, imprimir, marcar firmado y adjuntar la copia firmada. Plantillas editables desde el Panel. Más adelante: revisión legal del contrato.
+- ~~Recetas digitales~~: descartado por ahora.
 - [ ] A consultar: la Ley 27.706 (historia clínica electrónica) pide firma digital en los registros.
 
 ## Etapa 4: app Android para el odontólogo

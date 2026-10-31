@@ -26,6 +26,8 @@ alter table odontogramas disable trigger user;
 alter table evoluciones disable trigger user;
 alter table foto_secciones disable trigger user;
 alter table fotos disable trigger user;
+alter table planes disable trigger user;
+alter table precios disable trigger user;
 
 -- Perfiles: solo de cuentas que existen en este proyecto (recupera nombre y rol)
 insert into perfiles
@@ -96,6 +98,23 @@ from respaldo, jsonb_populate_recordset(null::fotos, coalesce(t -> 'fotos', '[]'
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+insert into planes
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end))).*
+from respaldo, jsonb_populate_recordset(null::planes, coalesce(t -> 'planes', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
+-- Lista de precios: la de la copia reemplaza a la actual (copias viejas no la traen)
+do $$ begin
+  if jsonb_array_length(coalesce((select t -> 'precios' from respaldo), '[]')) > 0 then
+    delete from precios;
+    insert into precios
+    select x.* from respaldo, jsonb_populate_recordset(null::precios, t -> 'precios') x
+    on conflict do nothing;
+  end if;
+end $$;
+
 -- Registro de acciones (copias anteriores a octubre de 2026 no lo traen)
 insert into registro overriding system value
 select x.* from respaldo, jsonb_populate_recordset(null::registro, coalesce(t -> 'registro', '[]')) x
@@ -107,6 +126,8 @@ alter table odontogramas enable trigger user;
 alter table evoluciones enable trigger user;
 alter table foto_secciones enable trigger user;
 alter table fotos enable trigger user;
+alter table planes enable trigger user;
+alter table precios enable trigger user;
 
 set local smiles.sin_registro = 'off';
 select anotar('sistema.restauracion', null, jsonb_build_object('copia_del', (select creado from respaldo)));
@@ -116,6 +137,7 @@ select 'pacientes' as tabla, count(*) from pacientes
 union all select 'turnos', count(*) from turnos
 union all select 'odontogramas', count(*) from odontogramas
 union all select 'evoluciones', count(*) from evoluciones
-union all select 'fotos', count(*) from fotos;
+union all select 'fotos', count(*) from fotos
+union all select 'planes', count(*) from planes;
 
 commit;

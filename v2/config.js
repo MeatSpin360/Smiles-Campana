@@ -9,7 +9,8 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_tgF3pypzypXmKnQ0wdY5Cg_xRw8UqGu
 export const CONSULTORIO = {
   nombre: 'Smiles Campana',
   profesional: "Dra. Florencia Patricia D'Ambrosio",
-  especialidad: 'Ortodoncista, jefa de clínica',
+  especialidad: 'Odontóloga, diplomada en ortodoncia',
+  matricula: 'MN 40339', // se imprime en los planes y documentos
   direccion: 'Jean Jaures 568, Campana, Buenos Aires',
   telefono: '3487-728866',
   whatsapp: '5493487728866',

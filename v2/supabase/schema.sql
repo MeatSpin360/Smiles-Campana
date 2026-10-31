@@ -8,6 +8,9 @@
 do $$ begin
   create type rol as enum ('paciente', 'recepcion', 'odontologia', 'admin');
 exception when duplicate_object then null; end $$;
+-- Contabilidad: lista de precios y pagos. No ve agenda, fichas ni historia clínica.
+-- (Se compara como texto en las reglas para que el valor nuevo se pueda usar en la misma ejecución.)
+alter type rol add value if not exists 'contabilidad';
 
 do $$ begin
   -- pendiente: pedido online por el paciente, falta que el consultorio lo confirme
@@ -192,6 +195,119 @@ create index if not exists fotos_seccion on fotos (seccion_id);
 create index if not exists foto_secciones_creado_por on foto_secciones (creado_por);
 create index if not exists fotos_creado_por on fotos (creado_por);
 
+-- Lista de precios. La ve todo el personal; la editan contabilidad y admin.
+-- precio vacío y activo = false: "no se realiza".
+create table if not exists precios (
+  id                      uuid primary key default gen_random_uuid(),
+  servicio                text not null check (length(trim(servicio)) > 0),
+  precio                  numeric(12,2) check (precio >= 0),
+  moneda                  text not null default 'ARS' check (moneda in ('ARS', 'USD')),
+  nota                    text,
+  activo                  boolean not null default true,
+  orden                   int not null default 0,
+  creado_en               timestamptz not null default now(),
+  actualizado_en          timestamptz,
+  actualizado_por_nombre  text
+);
+create unique index if not exists precios_servicio on precios (lower(servicio));
+-- Lista inicial (noviembre de 2025), solo si la tabla está vacía
+insert into precios (servicio, precio, moneda, nota, activo, orden)
+select * from (values
+  ('Aparatos removibles', 400000, 'ARS', null, true, 0),
+  ('Aparatos removibles inferior', 200000, 'ARS', null, true, 1),
+  ('Apertura de urgencia', null, 'ARS', null, false, 2),
+  ('Blanqueamiento ambulatorio', 50000, 'ARS', 'Por maxilar', true, 3),
+  ('Blanqueamiento interno', null, 'ARS', null, false, 4),
+  ('Blanqueamiento láser', 150000, 'ARS', 'Ambas arcadas', true, 5),
+  ('Blanqueamiento láser, 2.ª sesión', 80000, 'ARS', null, true, 6),
+  ('Botón', 5000, 'ARS', null, true, 7),
+  ('Bracket metálico', 8000, 'ARS', null, true, 8),
+  ('Bracket de porcelana', 10000, 'ARS', null, true, 9),
+  ('Bucodental: evaluación FF. AA. o escolar', 20000, 'ARS', null, true, 10),
+  ('Cajita porta brackets', 8000, 'ARS', null, true, 11),
+  ('Caries compleja', 80000, 'ARS', null, true, 12),
+  ('Caries compuesta', 70000, 'ARS', null, true, 13),
+  ('Caries con surco inicial', 60000, 'ARS', null, true, 14),
+  ('Carillas de resina', 100000, 'ARS', null, true, 15),
+  ('Cepillo (x 2 unidades)', 6000, 'ARS', null, true, 16),
+  ('Cepillo (unidad)', 3500, 'ARS', null, true, 17),
+  ('Cepillo de ortodoncia', 5000, 'ARS', null, true, 18),
+  ('Compostura simple: rebasado acrílico', 60000, 'ARS', null, true, 19),
+  ('Consulta', 30000, 'ARS', null, true, 20),
+  ('Consulta de ortodoncia', 30000, 'ARS', null, true, 21),
+  ('Consulta de guardia', 50000, 'ARS', null, true, 22),
+  ('Contención fija', 100000, 'ARS', null, true, 23),
+  ('Contención final', 70000, 'ARS', 'Por maxilar', true, 24),
+  ('Control de aparato removible', 35000, 'ARS', null, true, 25),
+  ('Control de contención', 50000, 'ARS', null, true, 26),
+  ('Control de ortodoncia invisible', 70000, 'ARS', null, true, 27),
+  ('Control metálico', 56000, 'ARS', null, true, 28),
+  ('Control de porcelana', 60000, 'ARS', null, true, 29),
+  ('Control de tratamiento periodontal', 50000, 'ARS', null, true, 30),
+  ('Corona provisoria', 50000, 'ARS', null, true, 31),
+  ('Desgaste estético', 35000, 'ARS', null, true, 32),
+  ('Extracción de resto mucoso', 60000, 'ARS', null, true, 33),
+  ('Extracción', 90000, 'ARS', null, true, 34),
+  ('Ferulización periodontal', 90000, 'ARS', null, true, 35),
+  ('Flúor', 20000, 'ARS', null, true, 36),
+  ('Gomas intermaxilares (x 100 unidades)', 8000, 'ARS', null, true, 37),
+  ('Implante', 700, 'USD', null, true, 38),
+  ('Incrustación de resina', 180000, 'ARS', null, true, 39),
+  ('Instalación de brackets metálicos', 200000, 'ARS', null, true, 40),
+  ('Instalación de brackets de porcelana', 250000, 'ARS', null, true, 41),
+  ('Cepillos interdentales', 3000, 'ARS', null, true, 42),
+  ('Kit de ortodoncia', 7000, 'ARS', null, true, 43),
+  ('Levante de mordida', 10000, 'ARS', null, true, 44),
+  ('Limpieza con brochita', 5000, 'ARS', null, true, 45),
+  ('Limpieza de sarro', 75000, 'ARS', 'Ambos maxilares', true, 46),
+  ('Ortodoncia invisible', 1800000, 'ARS', null, true, 47),
+  ('Piercing dental / gema', 40000, 'ARS', null, true, 48),
+  ('Pieza dentaria retenida mucosa', null, 'ARS', null, false, 49),
+  ('Placa de bruxismo', 100000, 'ARS', null, true, 50),
+  ('Placa de levante', 80000, 'ARS', null, true, 51),
+  ('Prótesis de acrílico completa', 600000, 'ARS', 'Ambos maxilares', true, 52),
+  ('Prótesis de acrílico parcial', 450000, 'ARS', 'Ambos maxilares', true, 53),
+  ('Arañita flex (3 piezas)', 200000, 'ARS', null, true, 54),
+  ('Prótesis flex parcial', 200000, 'ARS', 'Por maxilar. Ambos maxilares: $390.000', true, 55),
+  ('Raspaje: retiro de cemento de aparatología fija', 50000, 'ARS', 'Por maxilar', true, 56),
+  ('Reparación de puntos de contención fija', 30000, 'ARS', null, true, 57),
+  ('Sellador de puntos y fisuras', 35000, 'ARS', null, true, 58),
+  ('Tratamiento de conducto multirradicular', null, 'ARS', null, false, 59),
+  ('Tratamiento de conducto unirradicular', null, 'ARS', null, false, 60),
+  ('Tratamiento periodontal', 55000, 'ARS', 'Por sesión y por sector', true, 61),
+  ('Tubo', 10000, 'ARS', null, true, 62),
+  ('Urgencia de ortodoncia', null, 'ARS', null, false, 63)
+) v(servicio, precio, moneda, nota, activo, orden)
+where not exists (select 1 from precios);
+
+-- Planes de tratamiento: prácticas (agrupadas por etapa) con piezas, cantidad y precio.
+-- El total lo calcula la base. Un plan que ya se propuso no se borra: se marca "descartado".
+create table if not exists planes (
+  id                      uuid primary key default gen_random_uuid(),
+  paciente_id             uuid not null references pacientes on delete cascade,
+  titulo                  text not null check (length(trim(titulo)) > 0),
+  estado                  text not null default 'borrador'
+                          check (estado in ('borrador', 'propuesto', 'aceptado', 'en_curso', 'terminado', 'descartado')),
+  items                   jsonb not null default '[]' check (jsonb_typeof(items) = 'array'),
+                          -- [{ "etapa": "...", "practica": "...", "piezas": "16, 21", "cantidad": 1, "precio": 50000, "descuento": 10 }]
+                          -- descuento de cada práctica: porcentaje (opcional)
+  descuento               numeric(5,2) not null default 0 check (descuento between 0 and 100),  -- porcentaje sobre el total
+  descuento_monto         numeric(12,2) not null default 0 check (descuento_monto >= 0),     -- o un monto fijo en pesos
+  forma_pago              text,
+  notas                   text,
+  validez                 date,  -- hasta cuándo se mantiene el presupuesto
+  total                   numeric(12,2) not null default 0,
+  creado_por              uuid references perfiles(id),
+  creado_por_nombre       text,
+  creado_en               timestamptz not null default now(),
+  actualizado_en          timestamptz,
+  actualizado_por_nombre  text,
+  aceptado_en             timestamptz
+);
+alter table planes add column if not exists descuento_monto numeric(12,2) not null default 0 check (descuento_monto >= 0);
+create index if not exists planes_paciente on planes (paciente_id, creado_en desc);
+create index if not exists planes_creado_por on planes (creado_por);
+
 -- Índices para las columnas de autoría (sugeridos por el analizador de Supabase)
 create index if not exists antecedentes_actualizado_por on antecedentes (actualizado_por);
 create index if not exists odontogramas_creado_por on odontogramas (creado_por);
@@ -211,6 +327,12 @@ $$;
 create or replace function es_clinico() returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce(mi_rol() in ('odontologia', 'admin'), false)
+$$;
+
+-- Puede editar precios y ver toda la contabilidad: contabilidad y admin
+create or replace function es_contable() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(mi_rol()::text in ('contabilidad', 'admin'), false)
 $$;
 
 create or replace function mi_paciente_id() returns uuid
@@ -300,6 +422,8 @@ alter table odontogramas     enable row level security;
 alter table evoluciones      enable row level security;
 alter table foto_secciones   enable row level security;
 alter table fotos            enable row level security;
+alter table planes           enable row level security;
+alter table precios          enable row level security;
 
 -- Borra políticas previas para poder re-ejecutar el script
 do $$ declare r record; begin
@@ -378,6 +502,16 @@ create policy "clinico gestiona secciones de fotos" on foto_secciones for all to
   using ((select es_clinico())) with check ((select es_clinico()));
 create policy "clinico gestiona fotos" on fotos for all to authenticated
   using ((select es_clinico())) with check ((select es_clinico()));
+
+-- planes de tratamiento: recepción, odontología y admin
+create policy "personal gestiona planes" on planes for all to authenticated
+  using ((select es_personal())) with check ((select es_personal()));
+
+-- precios: los ve todo el personal (y contabilidad); los editan contabilidad y admin
+create policy "personal ve precios" on precios for select to authenticated
+  using ((select es_personal()) or (select es_contable()));
+create policy "contabilidad edita precios" on precios for all to authenticated
+  using ((select es_contable())) with check ((select es_contable()));
 
 -- evoluciones: solo odontología/admin
 create policy "clinico ve evoluciones" on evoluciones for select to authenticated
@@ -609,6 +743,86 @@ revoke execute on function validar_foto_seccion() from public, anon, authenticat
 drop trigger if exists validar_foto_seccion on foto_secciones;
 create trigger validar_foto_seccion before update on foto_secciones for each row execute function validar_foto_seccion();
 
+drop trigger if exists autor_plan on planes;
+create trigger autor_plan before insert on planes for each row execute function completar_autor();
+
+-- Planes: la base calcula el total, guarda quién lo modificó y cuándo se aceptó, y no deja borrar un plan
+-- que ya se le propuso al paciente (se marca "descartado" y queda en el historial).
+create or replace function preparar_plan() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_subtotal numeric;
+begin
+  if tg_op = 'DELETE' then
+    -- Al eliminar el paciente se borra todo lo suyo
+    if old.estado <> 'borrador' and exists (select 1 from pacientes where id = old.paciente_id) then
+      raise exception 'Un plan que ya se propuso no se borra: marcalo como descartado.';
+    end if;
+    return old;
+  end if;
+  -- Cada práctica: cantidad × precio, menos su descuento; después el descuento general (% y/o monto)
+  select coalesce(sum(coalesce((i ->> 'cantidad')::numeric, 1) * coalesce((i ->> 'precio')::numeric, 0)
+                      * (1 - least(greatest(coalesce((i ->> 'descuento')::numeric, 0), 0), 100) / 100)), 0)
+    into v_subtotal from jsonb_array_elements(new.items) i;
+  new.total := greatest(round(v_subtotal * (1 - new.descuento / 100) - new.descuento_monto, 2), 0);
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.paciente_id := old.paciente_id;
+    new.creado_por := old.creado_por;
+    new.creado_por_nombre := old.creado_por_nombre;
+    new.creado_en := old.creado_en;
+    new.actualizado_en := now();
+    new.actualizado_por_nombre := mi_nombre();
+    new.aceptado_en := old.aceptado_en;
+  end if;
+  if new.estado in ('aceptado', 'en_curso', 'terminado') and new.aceptado_en is null then
+    new.aceptado_en := now();
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_plan() from public, anon, authenticated;
+drop trigger if exists preparar_plan on planes;
+create trigger preparar_plan before insert or update or delete on planes for each row execute function preparar_plan();
+
+-- Precios: quién y cuándo se modificó cada uno
+create or replace function preparar_precio() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.servicio := trim(new.servicio);
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.creado_en := old.creado_en;
+    new.actualizado_en := now();
+    new.actualizado_por_nombre := mi_nombre();
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_precio() from public, anon, authenticated;
+drop trigger if exists preparar_precio on precios;
+create trigger preparar_precio before insert or update on precios for each row execute function preparar_precio();
+
+-- Aumento general: suma un porcentaje a todos los precios en pesos que se realizan, redondeando al múltiplo
+-- indicado (0 = sin redondeo). Se anota una sola vez en el registro.
+create or replace function aumentar_precios(p_porcentaje numeric, p_redondeo int default 0) returns int
+language plpgsql security definer set search_path = public as $$
+declare
+  v_cantidad int;
+begin
+  if not es_contable() then raise exception 'Solo contabilidad o un admin pueden cambiar precios.'; end if;
+  if p_porcentaje is null or p_porcentaje <= -100 or p_porcentaje > 500 then raise exception 'Revisá el porcentaje.'; end if;
+  perform set_config('smiles.sin_registro', 'on', true);
+  update precios set precio = case when coalesce(p_redondeo, 0) > 0
+      then round(precio * (1 + p_porcentaje / 100) / p_redondeo) * p_redondeo
+      else round(precio * (1 + p_porcentaje / 100), 2) end
+  where activo and moneda = 'ARS' and precio is not null;
+  get diagnostics v_cantidad = row_count;
+  perform set_config('smiles.sin_registro', 'off', true);
+  perform anotar('precios.aumento', null, jsonb_build_object('porcentaje', p_porcentaje, 'redondeo', p_redondeo, 'cantidad', v_cantidad));
+  return v_cantidad;
+end $$;
+revoke execute on function aumentar_precios(numeric, int) from public, anon;
+grant execute on function aumentar_precios(numeric, int) to authenticated;
+
 -- Corregir o borrar un odontograma: solo la última versión del paciente. Al corregir, solo cambian el
 -- dibujo y la nota; lo anterior se agrega a "correcciones" con fecha y autor.
 create or replace function corregir_odontograma() returns trigger
@@ -670,8 +884,8 @@ revoke execute on function al_registrarse(), al_confirmar_email(), completar_aut
   preparar_turno(), bloqueado(timestamptz, timestamptz)
   from public, anon, authenticated;
 -- Las que usan las reglas de permisos: solo usuarios con sesión.
-revoke execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() from public, anon;
-grant execute on function mi_rol(), es_personal(), es_clinico(), mi_paciente_id() to authenticated;
+revoke execute on function mi_rol(), es_personal(), es_clinico(), es_contable(), mi_paciente_id() from public, anon;
+grant execute on function mi_rol(), es_personal(), es_clinico(), es_contable(), mi_paciente_id() to authenticated;
 
 -- ---------- Avisos en vivo (Realtime) ----------
 -- Las pantallas del personal se actualizan solas cuando cambia un turno.
@@ -795,6 +1009,8 @@ begin
       -- De las fotos se copia la lista y las secciones; los archivos quedan guardados en Cloudflare R2
       'foto_secciones',  (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from foto_secciones x),
       'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x),
+      'planes',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from planes x),
+      'precios',         (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.servicio), '[]') from precios x),
       'registro',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from registro x)));
   perform anotar('sistema.copia', null, jsonb_build_object('pacientes', jsonb_array_length(v_respaldo -> 'tablas' -> 'pacientes'),
     'turnos', jsonb_array_length(v_respaldo -> 'tablas' -> 'turnos'), 'fotos', jsonb_array_length(v_respaldo -> 'tablas' -> 'fotos')));
@@ -970,6 +1186,37 @@ begin
       perform anotar('usuario.cuenta_borrada', null, jsonb_build_object('cuenta', old.email, 'rol', old.rol));
     end if;
 
+  when 'planes' then
+    if tg_op = 'INSERT' then
+      perform anotar('plan.creado', v_pac, jsonb_build_object('titulo', new.titulo, 'total', new.total, 'estado', new.estado));
+    elsif tg_op = 'UPDATE' then
+      if new.estado is distinct from old.estado then
+        perform anotar('plan.estado', v_pac, jsonb_build_object('titulo', new.titulo, 'de', old.estado, 'a', new.estado));
+      end if;
+      if (new.items, new.descuento, new.descuento_monto, new.titulo, new.forma_pago, new.notas, new.validez)
+         is distinct from (old.items, old.descuento, old.descuento_monto, old.titulo, old.forma_pago, old.notas, old.validez) then
+        perform anotar('plan.editado', v_pac, jsonb_build_object('titulo', new.titulo, 'total', new.total, 'total_antes', old.total));
+      end if;
+    else
+      perform anotar('plan.borrado', v_pac, jsonb_build_object('titulo', old.titulo));
+    end if;
+
+  when 'precios' then
+    if tg_op = 'INSERT' then
+      perform anotar('precio.creado', null, jsonb_build_object('servicio', new.servicio, 'precio', new.precio, 'moneda', new.moneda));
+    elsif tg_op = 'UPDATE' then
+      if (new.precio, new.moneda) is distinct from (old.precio, old.moneda) then
+        perform anotar('precio.cambiado', null, jsonb_build_object('servicio', new.servicio, 'de', old.precio, 'a', new.precio,
+          'moneda', new.moneda, 'moneda_antes', old.moneda));
+      end if;
+      if (new.servicio, new.nota, new.activo) is distinct from (old.servicio, old.nota, old.activo) then
+        perform anotar('precio.editado', null, jsonb_build_object('servicio', new.servicio, 'servicio_antes', old.servicio,
+          'activo', new.activo, 'activo_antes', old.activo));
+      end if;
+    else
+      perform anotar('precio.borrado', null, jsonb_build_object('servicio', old.servicio, 'precio', old.precio));
+    end if;
+
   when 'agenda_config' then
     select array_agg(k order by k) into v_campos
     from jsonb_each(to_jsonb(new)) n(k, v) where v is distinct from to_jsonb(old) -> k;
@@ -992,7 +1239,7 @@ do $$
 declare t text;
 begin
   foreach t in array array['turnos', 'pacientes', 'antecedentes', 'odontogramas', 'evoluciones', 'foto_secciones',
-                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos'] loop
+                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios'] loop
     execute format('drop trigger if exists registrar on %I', t);
     execute format('create trigger registrar after insert or update or delete on %I for each row execute function registrar_cambio()', t);
   end loop;

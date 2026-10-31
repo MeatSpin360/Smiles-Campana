@@ -6,6 +6,7 @@ const ROLES = [
   { id: 'paciente', texto: 'Paciente', desc: 'Solo su espacio personal' },
   { id: 'recepcion', texto: 'Recepción', desc: 'Agenda, pacientes y horarios. No ve la historia clínica' },
   { id: 'odontologia', texto: 'Odontología', desc: 'Agenda, pacientes, odontograma e historia clínica' },
+  { id: 'contabilidad', texto: 'Contabilidad', desc: 'Lista de precios y pagos. No ve la agenda, las fichas ni la historia clínica' },
   { id: 'admin', texto: 'Administración', desc: 'Todo, incluida esta sección' },
 ];
 

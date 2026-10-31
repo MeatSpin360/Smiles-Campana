@@ -9,6 +9,7 @@ const ROLES = {
   recepcion: 'Recepción',
   odontologia: 'Odontología',
   admin: 'Administración',
+  contabilidad: 'Contabilidad',
 };
 
 // Rutas: patrón, roles permitidos (null = sin sesión), módulo y vista
@@ -24,6 +25,9 @@ const RUTAS = [
   { p: '/mis-datos', roles: ['paciente'], vista: () => import('./portal/datos.js').then((m) => m.misDatos) },
 
   { p: '/', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/inicio.js').then((m) => m.inicio) },
+  // Contabilidad no tiene agenda: entra directo a Precios
+  { p: '/', roles: ['contabilidad'], vista: async () => (ctx) => { ctx.navegar('/precios', { reemplazar: true }); return document.createTextNode(''); } },
+  { p: '/precios', roles: ['recepcion', 'odontologia', 'admin', 'contabilidad'], vista: () => import('./staff/precios.js').then((m) => m.precios) },
   { p: '/agenda', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/agenda.js').then((m) => m.agenda) },
   { p: '/pacientes', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/pacientes.js').then((m) => m.pacientes) },
   { p: '/pacientes/:id', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/ficha.js').then((m) => m.ficha) },
@@ -31,6 +35,7 @@ const RUTAS = [
   { p: '/horarios', roles: ['recepcion', 'admin'], vista: () => import('./staff/horarios.js').then((m) => m.horarios) },
   { p: '/usuarios', roles: ['admin'], vista: () => import('./staff/usuarios.js').then((m) => m.usuarios) },
   { p: '/panel', roles: ['admin'], vista: () => import('./staff/panel.js').then((m) => m.panel) },
+  { p: '/panel/:seccion', roles: ['admin'], vista: () => import('./staff/panel.js').then((m) => m.panel) },
 ];
 
 const MENU = {
@@ -40,11 +45,12 @@ const MENU = {
     { ruta: '/mis-datos', texto: 'Mis datos', icono: 'persona' },
   ],
   personal: [
-    { ruta: '/', texto: 'Hoy', icono: 'casa' },
-    { ruta: '/agenda', texto: 'Agenda', icono: 'calendario' },
-    { ruta: '/pacientes', texto: 'Pacientes', icono: 'personas' },
-    { ruta: '/horarios', texto: 'Horarios', icono: 'reloj', roles: ['recepcion', 'admin'] },
-    { ruta: '/usuarios', texto: 'Usuarios', icono: 'llave', roles: ['admin'] },
+    { ruta: '/', texto: 'Hoy', icono: 'casa', roles: ['recepcion', 'odontologia', 'admin'] },
+    { ruta: '/agenda', texto: 'Agenda', icono: 'calendario', roles: ['recepcion', 'odontologia', 'admin'] },
+    { ruta: '/pacientes', texto: 'Pacientes', icono: 'personas', roles: ['recepcion', 'odontologia', 'admin'] },
+    { ruta: '/precios', texto: 'Precios', icono: 'precio' },
+    { ruta: '/horarios', texto: 'Horarios', icono: 'reloj', roles: ['recepcion'] },
+    // El admin tiene Horarios y Usuarios dentro del Panel
     { ruta: '/panel', texto: 'Panel', icono: 'panel', roles: ['admin'] },
   ],
 };
@@ -155,7 +161,7 @@ function escucharCambios() {
   dejarDeEscuchar?.();
   dejarDeEscuchar = null;
   const rol = sesion?.perfil?.rol;
-  if (!rol || rol === 'paciente' || !api.escucharTurnos) return;
+  if (!rol || rol === 'paciente' || rol === 'contabilidad' || !api.escucharTurnos) return;
   dejarDeEscuchar = api.escucharTurnos(({ nuevoPedido }) => {
     if (nuevoPedido) aviso('Llegó un pedido de turno nuevo.');
     clearTimeout(refrescoPendiente);

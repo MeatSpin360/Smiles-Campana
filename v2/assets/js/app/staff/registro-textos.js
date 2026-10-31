@@ -8,12 +8,14 @@ export const TIPOS = [
   { id: 'odontograma', texto: 'Odontograma', prefijos: ['odontograma'] },
   { id: 'historia', texto: 'Historia clínica', prefijos: ['antecedentes', 'evolucion'] },
   { id: 'fotos', texto: 'Fotos', prefijos: ['foto', 'fotos'] },
+  { id: 'planes', texto: 'Planes de tratamiento', prefijos: ['plan'] },
+  { id: 'precios', texto: 'Lista de precios', prefijos: ['precio', 'precios'] },
   { id: 'usuarios', texto: 'Usuarios y cuentas', prefijos: ['usuario'] },
   { id: 'agenda', texto: 'Agenda y horarios', prefijos: ['agenda'] },
   { id: 'sistema', texto: 'Sistema (copias de seguridad)', prefijos: ['sistema'] },
 ];
 
-export const ROLES = { paciente: 'Paciente', recepcion: 'Recepción', odontologia: 'Odontología', admin: 'Admin' };
+export const ROLES = { paciente: 'Paciente', recepcion: 'Recepción', odontologia: 'Odontología', admin: 'Admin', contabilidad: 'Contabilidad' };
 
 const CAMPOS = {
   dni: 'DNI', nombre: 'nombre', apellido: 'apellido', fecha_nac: 'fecha de nacimiento', telefono: 'celular',
@@ -21,6 +23,14 @@ const CAMPOS = {
   duracion: 'duración de los turnos', intervalo: 'intervalo', margen_sobreturno: 'margen de sobreturnos',
   dias_visibles: 'días visibles', horas_cancelacion: 'horas para cancelar',
 };
+export const ESTADOS_PLAN = {
+  borrador: 'Borrador', propuesto: 'Propuesto', aceptado: 'Aceptado', en_curso: 'En curso', terminado: 'Terminado', descartado: 'Descartado',
+};
+const fmtPesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+export const pesos = (n) => fmtPesos.format(Number(n) || 0);
+const fmtDolares = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+/** Monto en pesos o dólares; vacío = "no se realiza" / sin precio */
+export const monto = (n, moneda = 'ARS') => (n == null || n === '' ? 'sin precio' : moneda === 'USD' ? fmtDolares.format(Number(n)) : pesos(n));
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 const cuando = (iso) => (iso ? `${fechaCorta(iso)} ${hora(iso)} h` : '');
@@ -66,6 +76,17 @@ export function describir({ accion, detalle: d = {} }) {
     case 'foto.subida': return { texto: 'Subió una foto', extra: entre(d.seccion), plural: (n) => `Subió ${n} fotos` };
     case 'foto.movida': return { texto: 'Movió una foto', extra: `${entre(d.de)} → ${entre(d.a)}`, plural: (n) => `Movió ${n} fotos` };
     case 'foto.borrada': return { texto: 'Borró una foto', extra: entre(d.seccion), plural: (n) => `Borró ${n} fotos` };
+
+    case 'plan.creado': return { texto: 'Creó un plan de tratamiento', extra: `"${d.titulo}" · ${pesos(d.total)}` };
+    case 'plan.editado': return { texto: 'Modificó un plan de tratamiento', extra: `"${d.titulo}"${d.total !== d.total_antes ? ` · ${pesos(d.total_antes)} → ${pesos(d.total)}` : ''}` };
+    case 'plan.estado': return { texto: 'Cambió el estado de un plan', extra: `"${d.titulo}": ${ESTADOS_PLAN[d.de] || d.de} → ${ESTADOS_PLAN[d.a] || d.a}` };
+    case 'plan.borrado': return { texto: 'Borró un plan (borrador)', extra: `"${d.titulo}"` };
+
+    case 'precio.creado': return { texto: 'Agregó un servicio a la lista de precios', extra: `${d.servicio} · ${monto(d.precio, d.moneda)}` };
+    case 'precio.cambiado': return { texto: 'Cambió un precio', extra: `${d.servicio}: ${monto(d.de, d.moneda_antes || d.moneda)} → ${monto(d.a, d.moneda)}` };
+    case 'precio.editado': return { texto: d.activo === d.activo_antes ? 'Editó un servicio de la lista de precios' : d.activo ? 'Volvió a habilitar un servicio' : 'Marcó un servicio como "no se realiza"', extra: d.servicio_antes && d.servicio_antes !== d.servicio ? `${d.servicio_antes} → ${d.servicio}` : d.servicio };
+    case 'precio.borrado': return { texto: 'Quitó un servicio de la lista de precios', extra: d.servicio };
+    case 'precios.aumento': return { texto: 'Aplicó un aumento general de precios', extra: `${d.porcentaje > 0 ? '+' : ''}${d.porcentaje} % a ${d.cantidad} servicios${d.redondeo ? `, redondeado a ${pesos(d.redondeo)}` : ''}` };
 
     case 'usuario.registrado': return { texto: 'Se creó una cuenta', extra: d.cuenta || '' };
     case 'usuario.rol': return { texto: 'Cambió el rol de una cuenta', extra: `${d.cuenta}: ${ROLES[d.de] || d.de} → ${ROLES[d.a] || d.a}` };

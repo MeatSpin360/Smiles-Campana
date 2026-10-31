@@ -8,12 +8,14 @@ import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerC
 import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
 import { vistaFotos } from './fotos.js';
+import { vistaPlanes } from './planes.js';
 
 const PESTANAS = [
   { id: 'datos', texto: 'Datos' },
   { id: 'turnos', texto: 'Turnos' },
   { id: 'odontograma', texto: 'Odontograma', clinica: true },
   { id: 'historia', texto: 'Historia clínica', clinica: true },
+  { id: 'planes', texto: 'Planes' },
   { id: 'fotos', texto: 'Fotos', clinica: true },
 ];
 
@@ -41,7 +43,7 @@ export async function ficha(ctx) {
       href: `#/pacientes/${id}/${t.id}`, 'aria-current': t.id === pestana ? 'page' : null,
     }, t.texto))));
 
-  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, fotos: vistaFotos };
+  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, planes: vistaPlanes, fotos: vistaFotos };
   vistas[pestana](ctx, p).then((n) => vaciar(contenido, n)).catch((e) => vaciar(contenido, h('p.error-campo', mensajeError(e))));
 
   return h('div.ficha', cabecera, contenido);

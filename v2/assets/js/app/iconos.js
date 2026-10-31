@@ -18,6 +18,7 @@ export const ICONOS = {
   arriba: i('<path d="m6 15 6-6 6 6"/>'),
   abajo: i('<path d="m6 9 6 6 6-6"/>'),
   cerrar: i('<path d="M6 6l12 12M18 6 6 18"/>'),
+  precio: i('<path d="M3.5 12.6V4.5a1 1 0 0 1 1-1h8.1a1 1 0 0 1 .7.3l7.4 7.4a1.5 1.5 0 0 1 0 2.1l-7.2 7.2a1.5 1.5 0 0 1-2.1 0l-7.6-7.6a1 1 0 0 1-.3-.3z"/><circle cx="8.3" cy="8.3" r="1.6"/>'),
   panel: i('<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>'),
   buscar: i('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>'),
   izquierda: i('<path d="m15 5-7 7 7 7"/>'),

@@ -1,6 +1,9 @@
 /* =========================================================
    Smiles Campana: tokens y componentes compartidos
    ========================================================= */
+/* Lo marcado como oculto queda oculto aunque su clase le dé otro display (botones, flechas…) */
+[hidden] { display: none !important; }
+
 :root {
   color-scheme: light;
 

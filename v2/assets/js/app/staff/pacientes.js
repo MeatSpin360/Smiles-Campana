@@ -3,9 +3,14 @@ import { aviso, conCarga, hoja } from '../../lib/ui.js';
 import { encabezado, nombreCompleto } from '../comunes.js';
 import { altaPaciente, lineaPaciente, buscadorPaciente } from './comun.js';
 import { ICONOS } from '../iconos.js';
+import { cartelSaldo, VEN_SALDO } from './pagos.js';
 
 export async function pacientes(ctx) {
-  const sinVincular = await ctx.api.cuentasSinVincular();
+  const [sinVincular, saldos] = await Promise.all([
+    ctx.api.cuentasSinVincular(),
+    VEN_SALDO.includes(ctx.rol) ? ctx.api.saldosPacientes().catch(() => []) : [],
+  ]);
+  const saldoDe = new Map(saldos.map((x) => [x.paciente_id, x.saldo]));
   const lista = h('ul.lista-pacientes');
   const input = h('input', { type: 'search', placeholder: 'Buscar por apellido, nombre, DNI o teléfono', 'aria-label': 'Buscar paciente', autocomplete: 'off' });
   const cuenta = h('p.texto-suave.cuenta-resultados');
@@ -14,10 +19,12 @@ export async function pacientes(ctx) {
   const buscar = async () => {
     const r = await ctx.api.buscarPacientes(input.value);
     cuenta.textContent = input.value ? `${r.length} ${r.length === 1 ? 'resultado' : 'resultados'}` : '';
-    vaciar(lista, r.length ? r.map((p) => h('li', h('a.item-paciente', { href: `#/pacientes/${p.id}` },
+    // Toda la fila lleva a la ficha; el cartel de saldo es un botón aparte (no puede ir dentro del enlace)
+    vaciar(lista, r.length ? r.map((p) => h('li.item-paciente', { onclick: (e) => { if (!e.target.closest('a, button')) ctx.navegar(`/pacientes/${p.id}`); } },
       h('span.avatar', { 'aria-hidden': 'true' }, (p.apellido || '?')[0]),
-      h('div', h('strong', nombreCompleto(p)), h('span', lineaPaciente(p))),
-      p.usuario_id ? h('span.etiqueta.etiqueta-cuenta', { title: 'Tiene cuenta en Mi espacio' }, 'Con cuenta') : null)))
+      h('div', h('div.nombre-paciente', h('a', { href: `#/pacientes/${p.id}` }, h('strong', nombreCompleto(p))), cartelSaldo(saldoDe.get(p.id) || 0)),
+        h('span', lineaPaciente(p))),
+      p.usuario_id ? h('span.etiqueta.etiqueta-cuenta', { title: 'Tiene cuenta en Mi espacio' }, 'Con cuenta') : null))
       : h('li.vacio', input.value ? 'No hay pacientes con esa búsqueda.' : 'Todavía no hay pacientes cargados.'));
   };
   input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(buscar, 180); });

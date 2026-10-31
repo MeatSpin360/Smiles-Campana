@@ -10,6 +10,7 @@ export const TIPOS = [
   { id: 'fotos', texto: 'Fotos', prefijos: ['foto', 'fotos'] },
   { id: 'planes', texto: 'Planes de tratamiento', prefijos: ['plan'] },
   { id: 'precios', texto: 'Lista de precios', prefijos: ['precio', 'precios'] },
+  { id: 'pagos', texto: 'Pagos', prefijos: ['pago'] },
   { id: 'usuarios', texto: 'Usuarios y cuentas', prefijos: ['usuario'] },
   { id: 'agenda', texto: 'Agenda y horarios', prefijos: ['agenda'] },
   { id: 'sistema', texto: 'Sistema (copias de seguridad)', prefijos: ['sistema'] },
@@ -87,6 +88,16 @@ export function describir({ accion, detalle: d = {} }) {
     case 'precio.editado': return { texto: d.activo === d.activo_antes ? 'Editó un servicio de la lista de precios' : d.activo ? 'Volvió a habilitar un servicio' : 'Marcó un servicio como "no se realiza"', extra: d.servicio_antes && d.servicio_antes !== d.servicio ? `${d.servicio_antes} → ${d.servicio}` : d.servicio };
     case 'precio.borrado': return { texto: 'Quitó un servicio de la lista de precios', extra: d.servicio };
     case 'precios.aumento': return { texto: 'Aplicó un aumento general de precios', extra: `${d.porcentaje > 0 ? '+' : ''}${d.porcentaje} % a ${d.cantidad} servicios${d.redondeo ? `, redondeado a ${pesos(d.redondeo)}` : ''}` };
+
+    case 'pago.cargado': return { texto: 'Cargó un pago', extra: `${fechaCorta(d.fecha)} · facturado ${pesos(d.facturado)}, pagó ${pesos(d.pagado)}` };
+    case 'pago.corregido': return { texto: 'Corrigió un pago', extra: [
+      d.fecha !== d.fecha_antes ? `Fecha: ${fechaCorta(d.fecha_antes)} → ${fechaCorta(d.fecha)}` : `Del ${fechaCorta(d.fecha)}`,
+      Number(d.facturado) !== Number(d.facturado_antes) ? `facturado: ${pesos(d.facturado_antes)} → ${pesos(d.facturado)}` : '',
+      Number(d.pagado) !== Number(d.pagado_antes) ? `pagado: ${pesos(d.pagado_antes)} → ${pesos(d.pagado)}` : '',
+      d.comentario ? 'comentario' : ''].filter(Boolean).join(' · ') };
+    case 'pago.comprobante': return { texto: 'Adjuntó un comprobante', extra: `Pago del ${fechaCorta(d.fecha)}${d.archivo ? ` · ${d.archivo}` : ''}` };
+    case 'pago.comprobante_quitado': return { texto: 'Quitó un comprobante', extra: `Pago del ${fechaCorta(d.fecha)}` };
+    case 'pago.borrado': return { texto: 'Borró un pago', extra: `${fechaCorta(d.fecha)} · facturado ${pesos(d.facturado)}, pagó ${pesos(d.pagado)}` };
 
     case 'usuario.registrado': return { texto: 'Se creó una cuenta', extra: d.cuenta || '' };
     case 'usuario.rol': return { texto: 'Cambió el rol de una cuenta', extra: `${d.cuenta}: ${ROLES[d.de] || d.de} → ${ROLES[d.a] || d.a}` };

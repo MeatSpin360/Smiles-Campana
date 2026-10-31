@@ -2,7 +2,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../config.js';
 import { isoEn, partes, sumarDias } from '../lib/dates.js';
-import { prepararFoto } from '../lib/imagenes.js';
+import { prepararFoto, prepararComprobante } from '../lib/imagenes.js';
 
 // Los enlaces de los emails (confirmar cuenta, recuperar clave) vuelven con la sesión en la URL.
 // Se detecta antes de crear el cliente, que limpia la URL al leerla.
@@ -56,7 +56,7 @@ async function alWorker(ruta, init = {}) {
   const r = await fetch(ruta, { ...init, headers: { ...(init.headers || {}), Authorization: `Bearer ${s.access_token}` } });
   if (!r.ok) {
     const datos = await r.json().catch(() => null);
-    throw new Error(datos?.error || 'No se pudo completar la operación con las fotos.');
+    throw new Error(datos?.error || 'No se pudo completar la operación. Probá de nuevo.');
   }
   return r;
 }
@@ -310,6 +310,52 @@ export const api = {
     const vistas = new Map();
     for (const f of filas) for (const i of f.items || []) if (i.practica && !vistas.has(i.practica)) vistas.set(i.practica, i.precio ?? null);
     return [...vistas].map(([practica, precio]) => ({ practica, precio })).sort((a, b) => a.practica.localeCompare(b.practica));
+  },
+
+  // --- Pagos (comprobantes en Cloudflare R2, a través del Worker) ---
+  async pagos(pacienteId) {
+    return ok(await sb.from('pagos').select('*').eq('paciente_id', pacienteId).order('fecha', { ascending: false }).order('creado_en', { ascending: false }));
+  },
+  /** Crea (sin id) o corrige un pago. Si paga justo, la base copia el facturado en lo pagado. */
+  async guardarPago(p) {
+    const datos = {
+      fecha: p.fecha, facturado: Number(p.facturado) || 0, paga_justo: !!p.paga_justo,
+      pagado: p.paga_justo ? Number(p.facturado) || 0 : Number(p.pagado) || 0, comentario: (p.comentario || '').trim() || null,
+    };
+    const r = p.id
+      ? await sb.from('pagos').update(datos).eq('id', p.id).select().single()
+      : await sb.from('pagos').insert({ ...datos, paciente_id: p.paciente_id }).select().single();
+    if (r.error?.message?.includes('pago_con_monto')) throw new Error('Completá el monto facturado o lo que pagó.');
+    return ok(r);
+  },
+  /** Solo admin: borra el pago con su comprobante. */
+  async borrarPago(id) {
+    await alWorker(`/api/pagos/${id}`, { method: 'DELETE' });
+  },
+  /** Achica el comprobante si hace falta (hasta 1 MB) y lo adjunta al pago (reemplaza el anterior). */
+  async subirComprobante(pagoId, archivo) {
+    const f = await prepararComprobante(archivo);
+    return (await alWorker(`/api/pagos/${pagoId}/comprobante`, {
+      method: 'PUT', body: f, headers: { 'Content-Type': f.type, 'X-Nombre': encodeURIComponent(f.name || 'comprobante') },
+    })).json();
+  },
+  async quitarComprobante(pagoId) {
+    await alWorker(`/api/pagos/${pagoId}/comprobante`, { method: 'DELETE' });
+  },
+  /** Dirección local (blob:) para abrir el comprobante. */
+  async urlComprobante(pagoId) {
+    const b = await (await alWorker(`/api/pagos/${pagoId}/comprobante`)).blob();
+    return URL.createObjectURL(b);
+  },
+  /** Saldo (facturado - pagado) de los pacientes que deben o tienen a favor; con id, el de ese paciente. */
+  async saldosPacientes(pacienteId = null) {
+    return (ok(await sb.rpc('saldos_pacientes', pacienteId ? { p_paciente: pacienteId } : {})) || [])
+      .map((x) => ({ ...x, facturado: Number(x.facturado), pagado: Number(x.pagado), saldo: Number(x.saldo) }));
+  },
+  /** Todos los pagos entre dos fechas (vacías: sin límite), con nombre y DNI del paciente. */
+  async pagosLista({ desde = null, hasta = null } = {}) {
+    return (ok(await sb.rpc('pagos_lista', { p_desde: desde || null, p_hasta: hasta || null })) || [])
+      .map((x) => ({ ...x, facturado: Number(x.facturado), pagado: Number(x.pagado) }));
   },
 
   // --- Fotos (archivos en Cloudflare R2, a través del Worker: worker/index.js) ---

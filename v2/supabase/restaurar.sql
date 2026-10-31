@@ -28,6 +28,7 @@ alter table foto_secciones disable trigger user;
 alter table fotos disable trigger user;
 alter table planes disable trigger user;
 alter table precios disable trigger user;
+alter table pagos disable trigger user;
 
 -- Perfiles: solo de cuentas que existen en este proyecto (recupera nombre y rol)
 insert into perfiles
@@ -105,6 +106,14 @@ from respaldo, jsonb_populate_recordset(null::planes, coalesce(t -> 'planes', '[
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+-- Pagos (copias anteriores a noviembre de 2026 no los traen). Los comprobantes siguen en Cloudflare R2.
+insert into pagos
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end))).*
+from respaldo, jsonb_populate_recordset(null::pagos, coalesce(t -> 'pagos', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
 -- Lista de precios: la de la copia reemplaza a la actual (copias viejas no la traen)
 do $$ begin
   if jsonb_array_length(coalesce((select t -> 'precios' from respaldo), '[]')) > 0 then
@@ -128,6 +137,7 @@ alter table foto_secciones enable trigger user;
 alter table fotos enable trigger user;
 alter table planes enable trigger user;
 alter table precios enable trigger user;
+alter table pagos enable trigger user;
 
 set local smiles.sin_registro = 'off';
 select anotar('sistema.restauracion', null, jsonb_build_object('copia_del', (select creado from respaldo)));

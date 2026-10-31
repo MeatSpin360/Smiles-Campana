@@ -9,6 +9,7 @@ import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js
 import { ICONOS } from '../iconos.js';
 import { vistaFotos } from './fotos.js';
 import { vistaPlanes } from './planes.js';
+import { vistaPagos, cartelSaldo, VEN_SALDO } from './pagos.js';
 
 const PESTANAS = [
   { id: 'datos', texto: 'Datos' },
@@ -16,14 +17,19 @@ const PESTANAS = [
   { id: 'odontograma', texto: 'Odontograma', clinica: true },
   { id: 'historia', texto: 'Historia clínica', clinica: true },
   { id: 'planes', texto: 'Planes' },
+  { id: 'pagos', texto: 'Pagos', roles: ['recepcion', 'admin'] },
   { id: 'fotos', texto: 'Fotos', clinica: true },
 ];
 
 export async function ficha(ctx) {
   const { id } = ctx.params;
-  const p = await ctx.api.paciente(id);
+  const [p, saldos] = await Promise.all([
+    ctx.api.paciente(id),
+    VEN_SALDO.includes(ctx.rol) ? ctx.api.saldosPacientes(id).catch(() => []) : [],
+  ]);
+  const saldo = saldos[0]?.saldo || 0;
   const clinico = puedeVerClinica(ctx.rol);
-  const visibles = PESTANAS.filter((t) => !t.clinica || clinico);
+  const visibles = PESTANAS.filter((t) => (!t.clinica || clinico) && (!t.roles || t.roles.includes(ctx.rol)));
   const pestana = visibles.some((t) => t.id === ctx.params.pestana) ? ctx.params.pestana : (clinico ? 'odontograma' : 'datos');
 
   const contenido = h('div.ficha-contenido', cargando());
@@ -33,7 +39,7 @@ export async function ficha(ctx) {
     h('a.volver', { href: '#/pacientes' }, h('span.icono-btn', { html: ICONOS.izquierda }), 'Pacientes'),
     h('div.ficha-titulo',
       h('span.avatar.avatar-grande', { 'aria-hidden': 'true' }, (p.apellido || '?')[0]),
-      h('div', h('h1', `${p.nombre} ${p.apellido}`), h('p.texto-suave', lineaPaciente(p))),
+      h('div', h('h1', `${p.nombre} ${p.apellido}`, ' ', cartelSaldo(saldo)), h('p.texto-suave', lineaPaciente(p))),
       h('div.ficha-contacto',
         enlaceWhatsapp(p.telefono) ? h('a.btn-icono', { href: enlaceWhatsapp(p.telefono), target: '_blank', rel: 'noopener', 'aria-label': 'WhatsApp', title: 'WhatsApp', html: ICONOS.whatsapp }) : null,
         enlaceCorreo(p.email) ? h('a.btn-icono', { href: enlaceCorreo(p.email), target: '_blank', rel: 'noopener', 'aria-label': 'Escribir un email', title: p.email, html: ICONOS.correo }) : null,
@@ -43,7 +49,7 @@ export async function ficha(ctx) {
       href: `#/pacientes/${id}/${t.id}`, 'aria-current': t.id === pestana ? 'page' : null,
     }, t.texto))));
 
-  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, planes: vistaPlanes, fotos: vistaFotos };
+  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, planes: vistaPlanes, pagos: vistaPagos, fotos: vistaFotos };
   vistas[pestana](ctx, p).then((n) => vaciar(contenido, n)).catch((e) => vaciar(contenido, h('p.error-campo', mensajeError(e))));
 
   return h('div.ficha', cabecera, contenido);

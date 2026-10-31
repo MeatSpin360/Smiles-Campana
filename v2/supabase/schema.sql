@@ -308,6 +308,32 @@ alter table planes add column if not exists descuento_monto numeric(12,2) not nu
 create index if not exists planes_paciente on planes (paciente_id, creado_en desc);
 create index if not exists planes_creado_por on planes (creado_por);
 
+-- Pagos: lo que se le factura al paciente y lo que paga. Saldo = facturado - pagado (positivo: debe;
+-- negativo: a favor). Si "paga justo", la base copia el facturado en lo pagado.
+-- Comprobante opcional (imagen o PDF de hasta 1 MB) en Cloudflare R2: comprobantes/<paciente_id>/<pago_id>.
+-- Lo sube, entrega y borra el Worker, con los mismos permisos que la fila.
+create table if not exists pagos (
+  id                      uuid primary key default gen_random_uuid(),
+  paciente_id             uuid not null references pacientes on delete cascade,
+  fecha                   date not null default (now() at time zone 'America/Argentina/Buenos_Aires')::date,
+  facturado               numeric(12,2) not null default 0 check (facturado >= 0),
+  paga_justo              boolean not null default true,
+  pagado                  numeric(12,2) not null default 0 check (pagado >= 0),
+  comentario              text,
+  comprobante_tipo        text check (comprobante_tipo in ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')),
+  comprobante_nombre      text,
+  comprobante_bytes       int check (comprobante_bytes between 1 and 1048576),
+  creado_por              uuid references perfiles(id),
+  creado_por_nombre       text,
+  creado_en               timestamptz not null default now(),
+  actualizado_en          timestamptz,
+  actualizado_por_nombre  text,
+  constraint pago_con_monto check (facturado > 0 or pagado > 0)
+);
+create index if not exists pagos_paciente on pagos (paciente_id, fecha desc);
+create index if not exists pagos_fecha on pagos (fecha);
+create index if not exists pagos_creado_por on pagos (creado_por);
+
 -- Índices para las columnas de autoría (sugeridos por el analizador de Supabase)
 create index if not exists antecedentes_actualizado_por on antecedentes (actualizado_por);
 create index if not exists odontogramas_creado_por on odontogramas (creado_por);
@@ -424,6 +450,7 @@ alter table foto_secciones   enable row level security;
 alter table fotos            enable row level security;
 alter table planes           enable row level security;
 alter table precios          enable row level security;
+alter table pagos            enable row level security;
 
 -- Borra políticas previas para poder re-ejecutar el script
 do $$ declare r record; begin
@@ -512,6 +539,17 @@ create policy "personal ve precios" on precios for select to authenticated
   using ((select es_personal()) or (select es_contable()));
 create policy "contabilidad edita precios" on precios for all to authenticated
   using ((select es_contable())) with check ((select es_contable()));
+
+-- pagos: los cargan y corrigen recepción y admin; solo admin borra; contabilidad los ve.
+-- Odontología no ve los pagos: solo el saldo (función saldos_pacientes).
+create policy "caja y contabilidad ven pagos" on pagos for select to authenticated
+  using ((select mi_rol())::text in ('recepcion', 'admin', 'contabilidad'));
+create policy "recepcion carga pagos" on pagos for insert to authenticated
+  with check ((select mi_rol())::text in ('recepcion', 'admin'));
+create policy "recepcion corrige pagos" on pagos for update to authenticated
+  using ((select mi_rol())::text in ('recepcion', 'admin')) with check ((select mi_rol())::text in ('recepcion', 'admin'));
+create policy "admin borra pagos" on pagos for delete to authenticated
+  using ((select mi_rol()) = 'admin');
 
 -- evoluciones: solo odontología/admin
 create policy "clinico ve evoluciones" on evoluciones for select to authenticated
@@ -823,6 +861,66 @@ end $$;
 revoke execute on function aumentar_precios(numeric, int) from public, anon;
 grant execute on function aumentar_precios(numeric, int) to authenticated;
 
+drop trigger if exists autor_pago on pagos;
+create trigger autor_pago before insert on pagos for each row execute function completar_autor();
+
+-- Pagos: "paga justo" copia el facturado; al corregir se guarda quién y cuándo, y el resto queda como estaba
+create or replace function preparar_pago() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.paga_justo then new.pagado := new.facturado; end if;
+  new.comentario := nullif(trim(new.comentario), '');
+  if new.comprobante_tipo is null then
+    new.comprobante_nombre := null;
+    new.comprobante_bytes := null;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.paciente_id := old.paciente_id;
+    new.creado_por := old.creado_por;
+    new.creado_por_nombre := old.creado_por_nombre;
+    new.creado_en := old.creado_en;
+    new.actualizado_en := now();
+    new.actualizado_por_nombre := mi_nombre();
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_pago() from public, anon, authenticated;
+drop trigger if exists preparar_pago on pagos;
+create trigger preparar_pago before insert or update on pagos for each row execute function preparar_pago();
+
+-- Saldo de cada paciente que debe o tiene a favor (para el cartel de la lista de pacientes).
+-- Lo ven recepción, odontología y admin; odontología no ve el detalle de los pagos.
+create or replace function saldos_pacientes(p_paciente uuid default null)
+returns table (paciente_id uuid, facturado numeric, pagado numeric, saldo numeric)
+language sql stable security definer set search_path = public as $$
+  select g.paciente_id, sum(g.facturado), sum(g.pagado), sum(g.facturado) - sum(g.pagado)
+  from pagos g
+  where (select es_personal()) and (p_paciente is null or g.paciente_id = p_paciente)
+  group by g.paciente_id
+  having p_paciente is not null or sum(g.facturado) <> sum(g.pagado)
+$$;
+revoke execute on function saldos_pacientes(uuid) from public, anon;
+grant execute on function saldos_pacientes(uuid) to authenticated;
+
+-- Lista de pagos para contabilidad (y recepción/admin), con nombre y DNI del paciente
+-- sin darle a contabilidad acceso a las fichas. Fechas vacías: sin límite.
+create or replace function pagos_lista(p_desde date default null, p_hasta date default null)
+returns table (id uuid, paciente_id uuid, paciente text, dni text, fecha date, facturado numeric, paga_justo boolean,
+               pagado numeric, comentario text, comprobante_tipo text, comprobante_nombre text,
+               creado_por_nombre text, creado_en timestamptz, actualizado_en timestamptz, actualizado_por_nombre text)
+language sql stable security definer set search_path = public as $$
+  select g.id, g.paciente_id, p.apellido || ', ' || p.nombre, p.dni, g.fecha, g.facturado, g.paga_justo, g.pagado,
+         g.comentario, g.comprobante_tipo, g.comprobante_nombre, g.creado_por_nombre, g.creado_en,
+         g.actualizado_en, g.actualizado_por_nombre
+  from pagos g join pacientes p on p.id = g.paciente_id
+  where (select mi_rol())::text in ('recepcion', 'admin', 'contabilidad')
+    and (p_desde is null or g.fecha >= p_desde) and (p_hasta is null or g.fecha <= p_hasta)
+  order by g.fecha desc, g.creado_en desc
+$$;
+revoke execute on function pagos_lista(date, date) from public, anon;
+grant execute on function pagos_lista(date, date) to authenticated;
+
 -- Corregir o borrar un odontograma: solo la última versión del paciente. Al corregir, solo cambian el
 -- dibujo y la nota; lo anterior se agrega a "correcciones" con fecha y autor.
 create or replace function corregir_odontograma() returns trigger
@@ -1011,6 +1109,7 @@ begin
       'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x),
       'planes',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from planes x),
       'precios',         (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.servicio), '[]') from precios x),
+      'pagos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from pagos x),
       'registro',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from registro x)));
   perform anotar('sistema.copia', null, jsonb_build_object('pacientes', jsonb_array_length(v_respaldo -> 'tablas' -> 'pacientes'),
     'turnos', jsonb_array_length(v_respaldo -> 'tablas' -> 'turnos'), 'fotos', jsonb_array_length(v_respaldo -> 'tablas' -> 'fotos')));
@@ -1217,6 +1316,25 @@ begin
       perform anotar('precio.borrado', null, jsonb_build_object('servicio', old.servicio, 'precio', old.precio));
     end if;
 
+  when 'pagos' then
+    if tg_op = 'INSERT' then
+      perform anotar('pago.cargado', v_pac, jsonb_build_object('fecha', new.fecha, 'facturado', new.facturado, 'pagado', new.pagado,
+        'comprobante', new.comprobante_tipo is not null));
+    elsif tg_op = 'UPDATE' then
+      if (new.fecha, new.facturado, new.pagado, new.comentario) is distinct from (old.fecha, old.facturado, old.pagado, old.comentario) then
+        perform anotar('pago.corregido', v_pac, jsonb_build_object('fecha', new.fecha, 'fecha_antes', old.fecha,
+          'facturado', new.facturado, 'facturado_antes', old.facturado, 'pagado', new.pagado, 'pagado_antes', old.pagado,
+          'comentario', new.comentario is distinct from old.comentario));
+      end if;
+      if (new.comprobante_tipo, new.comprobante_bytes, new.comprobante_nombre)
+         is distinct from (old.comprobante_tipo, old.comprobante_bytes, old.comprobante_nombre) then
+        perform anotar(case when new.comprobante_tipo is null then 'pago.comprobante_quitado' else 'pago.comprobante' end,
+          v_pac, jsonb_build_object('fecha', new.fecha, 'archivo', coalesce(new.comprobante_nombre, old.comprobante_nombre)));
+      end if;
+    else
+      perform anotar('pago.borrado', v_pac, jsonb_build_object('fecha', old.fecha, 'facturado', old.facturado, 'pagado', old.pagado));
+    end if;
+
   when 'agenda_config' then
     select array_agg(k order by k) into v_campos
     from jsonb_each(to_jsonb(new)) n(k, v) where v is distinct from to_jsonb(old) -> k;
@@ -1239,7 +1357,7 @@ do $$
 declare t text;
 begin
   foreach t in array array['turnos', 'pacientes', 'antecedentes', 'odontogramas', 'evoluciones', 'foto_secciones',
-                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios'] loop
+                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios', 'pagos'] loop
     execute format('drop trigger if exists registrar on %I', t);
     execute format('create trigger registrar after insert or update or delete on %I for each row execute function registrar_cambio()', t);
   end loop;

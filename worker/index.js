@@ -1,8 +1,10 @@
-// Worker del sitio: sirve los archivos de v2 y atiende /api/... para las fotos clínicas.
+// Worker del sitio: sirve los archivos de v2 y atiende /api/... para las fotos clínicas y los comprobantes de pago.
 //
 // Las fotos están en un depósito privado de Cloudflare R2 (FOTOS):
 //   pacientes/<paciente_id>/<foto_id>.jpg        foto (hasta 2000 px)
 //   pacientes/<paciente_id>/<foto_id>-mini.jpg   miniatura (400 px)
+// Y los comprobantes de pago, en una carpeta aparte del mismo depósito:
+//   comprobantes/<paciente_id>/<pago_id>         imagen o PDF de hasta 1 MB
 //
 // El Worker no decide permisos: le pregunta a la base (Supabase) con la sesión de quien hace el pedido.
 // Si la base no le deja ver, crear o borrar la fila de la foto, el Worker tampoco toca el archivo.
@@ -12,12 +14,19 @@
 //   GET    /api/fotos/<id>               ver la foto (?mini para la miniatura)
 //   DELETE /api/fotos/<id>               borrar
 //   DELETE /api/pacientes/<id>/fotos     borrar los archivos de un paciente ya eliminado (solo admin)
+//   PUT    /api/pagos/<id>/comprobante   adjuntar o reemplazar (cuerpo: el archivo; encabezado X-Nombre)
+//   GET    /api/pagos/<id>/comprobante   ver
+//   DELETE /api/pagos/<id>/comprobante   quitar
+//   DELETE /api/pagos/<id>                borrar el pago con su comprobante (solo admin)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_FOTO = 4 * 1024 * 1024;
 const MAX_MINI = 400 * 1024;
+const MAX_COMPROBANTE = 1024 * 1024;
+const TIPOS_COMPROBANTE = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const clave = (pacienteId, fotoId, mini = false) => `pacientes/${pacienteId}/${fotoId}${mini ? '-mini' : ''}.jpg`;
+const claveComprobante = (pacienteId, pagoId) => `comprobantes/${pacienteId}/${pagoId}`;
 
 export default {
   async fetch(req, env) {
@@ -27,7 +36,7 @@ export default {
       return await api(req, env, url);
     } catch (e) {
       console.error(e);
-      return error(500, 'Hubo un problema con las fotos. Probá de nuevo.');
+      return error(500, 'Hubo un problema. Probá de nuevo.');
     }
   },
 };
@@ -45,6 +54,14 @@ async function api(req, env, url) {
   }
   if (partes[1] === 'pacientes' && partes[3] === 'fotos' && partes.length === 4 && UUID.test(partes[2]) && req.method === 'DELETE') {
     return borrarDePaciente(env, db, partes[2]);
+  }
+  if (partes[1] === 'pagos' && UUID.test(partes[2] || '')) {
+    if (partes.length === 4 && partes[3] === 'comprobante') {
+      if (req.method === 'PUT') return adjuntarComprobante(req, env, db, partes[2]);
+      if (req.method === 'GET') return verComprobante(env, db, partes[2]);
+      if (req.method === 'DELETE') return quitarComprobante(env, db, partes[2]);
+    }
+    if (partes.length === 3 && req.method === 'DELETE') return borrarPago(env, db, partes[2]);
   }
   return error(404, 'No encontrado.');
 }
@@ -117,15 +134,90 @@ async function borrarDePaciente(env, db, pacienteId) {
   if (!sigue.ok) return error(403, 'No tenés permiso.');
   if (sigue.datos.length) return error(409, 'El paciente todavía existe.');
   let borradas = 0;
-  let cursor;
-  do {
-    const lista = await env.FOTOS.list({ prefix: `pacientes/${pacienteId}/`, cursor });
-    const claves = lista.objects.map((o) => o.key);
-    if (claves.length) await env.FOTOS.delete(claves);
-    borradas += claves.length;
-    cursor = lista.truncated ? lista.cursor : undefined;
-  } while (cursor);
+  for (const carpeta of ['pacientes', 'comprobantes']) {
+    let cursor;
+    do {
+      const lista = await env.FOTOS.list({ prefix: `${carpeta}/${pacienteId}/`, cursor });
+      const claves = lista.objects.map((o) => o.key);
+      if (claves.length) await env.FOTOS.delete(claves);
+      borradas += claves.length;
+      cursor = lista.truncated ? lista.cursor : undefined;
+    } while (cursor);
+  }
   return responder(200, { borradas });
+}
+
+// ---------- Comprobantes de pago ----------
+// Ver: quien puede ver el pago (recepción, admin, contabilidad). Adjuntar y quitar: quien puede corregirlo
+// (recepción, admin). La base lo decide: el Worker primero cambia la fila y solo si puede toca el archivo.
+
+async function adjuntarComprobante(req, env, db, id) {
+  const tipo = (req.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+  if (!TIPOS_COMPROBANTE.includes(tipo)) return error(400, 'El comprobante tiene que ser una imagen (JPG, PNG o WEBP) o un PDF.');
+  const largo = Number(req.headers.get('Content-Length') || 0);
+  if (largo > MAX_COMPROBANTE) return error(413, 'El comprobante supera 1 MB.');
+  const datos = await req.arrayBuffer();
+  if (!datos.byteLength) return error(400, 'El archivo está vacío.');
+  if (datos.byteLength > MAX_COMPROBANTE) return error(413, 'El comprobante supera 1 MB.');
+  let nombre = '';
+  try { nombre = decodeURIComponent(req.headers.get('X-Nombre') || ''); } catch { nombre = ''; }
+  nombre = nombre.replace(/[\u0000-\u001f\\/]/g, '').slice(0, 120) || 'comprobante';
+
+  const antes = await db(`pagos?id=eq.${id}&select=paciente_id,comprobante_tipo,comprobante_nombre,comprobante_bytes`, { method: 'GET' });
+  if (!antes.ok) return error(antes.status === 401 ? 401 : 403, 'No tenés permiso para ver este pago.');
+  if (!antes.datos.length) return error(404, 'No encontramos ese pago.');
+  const r = await db(`pagos?id=eq.${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ comprobante_tipo: tipo, comprobante_nombre: nombre, comprobante_bytes: datos.byteLength }),
+  });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || 'No tenés permiso para adjuntar comprobantes.');
+  if (!r.datos.length) return error(403, 'No tenés permiso para adjuntar comprobantes.');
+  const pago = r.datos[0];
+  try {
+    await env.FOTOS.put(claveComprobante(pago.paciente_id, id), datos, { httpMetadata: { contentType: tipo } });
+  } catch (e) {
+    // Sin archivo, la fila vuelve a como estaba
+    console.error(e);
+    const { comprobante_tipo, comprobante_nombre, comprobante_bytes } = antes.datos[0];
+    await db(`pagos?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ comprobante_tipo, comprobante_nombre, comprobante_bytes }) });
+    return error(502, 'No se pudo guardar el comprobante. Probá de nuevo.');
+  }
+  return responder(200, pago);
+}
+
+async function verComprobante(env, db, id) {
+  const r = await db(`pagos?id=eq.${id}&select=paciente_id,comprobante_tipo,comprobante_nombre`, { method: 'GET' });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, 'No tenés permiso para ver este comprobante.');
+  if (!r.datos.length || !r.datos[0].comprobante_tipo) return error(404, 'Ese pago no tiene comprobante.');
+  const { paciente_id: pacienteId, comprobante_tipo: tipo, comprobante_nombre: nombre } = r.datos[0];
+  const obj = await env.FOTOS.get(claveComprobante(pacienteId, id));
+  if (!obj) return error(404, 'No encontramos el archivo del comprobante.');
+  return new Response(obj.body, {
+    headers: {
+      'Content-Type': tipo,
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(nombre || 'comprobante')}`,
+      // Se puede reemplazar: el navegador lo guarda solo para esta persona y pregunta si cambió
+      'Cache-Control': 'private, no-cache',
+      ETag: obj.httpEtag,
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+async function quitarComprobante(env, db, id) {
+  const r = await db(`pagos?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ comprobante_tipo: null }) });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || 'No tenés permiso para quitar comprobantes.');
+  if (!r.datos.length) return error(404, 'No encontramos ese pago o no tenés permiso para cambiarlo.');
+  await env.FOTOS.delete(claveComprobante(r.datos[0].paciente_id, id));
+  return responder(200, r.datos[0]);
+}
+
+async function borrarPago(env, db, id) {
+  const r = await db(`pagos?id=eq.${id}`, { method: 'DELETE' });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, 'No tenés permiso para borrar pagos.');
+  if (!r.datos.length) return error(404, 'No encontramos ese pago o no tenés permiso para borrarlo.');
+  await env.FOTOS.delete(claveComprobante(r.datos[0].paciente_id, id));
+  return responder(200, { borrado: id });
 }
 
 /** Consulta a la base (PostgREST) como la persona que hizo el pedido: aplican sus permisos. */

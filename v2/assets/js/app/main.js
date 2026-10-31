@@ -17,7 +17,7 @@ const RUTAS = [
   { p: '/ingresar', publica: true, vista: () => import('./auth.js').then((m) => m.ingresar) },
   { p: '/registro', publica: true, vista: () => import('./auth.js').then((m) => m.registro) },
   { p: '/recuperar', publica: true, vista: () => import('./auth.js').then((m) => m.recuperar) },
-  { p: '/nueva-clave', vista: () => import('./auth.js').then((m) => m.nuevaClave), roles: ['paciente', 'recepcion', 'odontologia', 'admin'] },
+  { p: '/nueva-clave', vista: () => import('./auth.js').then((m) => m.nuevaClave), roles: ['paciente', 'recepcion', 'odontologia', 'admin', 'contabilidad'] },
 
   { p: '/', roles: ['paciente'], vista: () => import('./portal/turnos.js').then((m) => m.misTurnos) },
   { p: '/pedir-turno', roles: ['paciente'], vista: () => import('./portal/turnos.js').then((m) => m.pedirTurno) },
@@ -25,8 +25,9 @@ const RUTAS = [
   { p: '/mis-datos', roles: ['paciente'], vista: () => import('./portal/datos.js').then((m) => m.misDatos) },
 
   { p: '/', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/inicio.js').then((m) => m.inicio) },
-  // Contabilidad no tiene agenda: entra directo a Precios
-  { p: '/', roles: ['contabilidad'], vista: async () => (ctx) => { ctx.navegar('/precios', { reemplazar: true }); return document.createTextNode(''); } },
+  // Contabilidad no tiene agenda: entra directo a Pagos
+  { p: '/', roles: ['contabilidad'], vista: async () => (ctx) => { ctx.navegar('/pagos', { reemplazar: true }); return document.createTextNode(''); } },
+  { p: '/pagos', roles: ['contabilidad', 'admin'], vista: () => import('./staff/pagos.js').then((m) => m.pagosContabilidad) },
   { p: '/precios', roles: ['recepcion', 'odontologia', 'admin', 'contabilidad'], vista: () => import('./staff/precios.js').then((m) => m.precios) },
   { p: '/agenda', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/agenda.js').then((m) => m.agenda) },
   { p: '/pacientes', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/pacientes.js').then((m) => m.pacientes) },
@@ -48,6 +49,7 @@ const MENU = {
     { ruta: '/', texto: 'Hoy', icono: 'casa', roles: ['recepcion', 'odontologia', 'admin'] },
     { ruta: '/agenda', texto: 'Agenda', icono: 'calendario', roles: ['recepcion', 'odontologia', 'admin'] },
     { ruta: '/pacientes', texto: 'Pacientes', icono: 'personas', roles: ['recepcion', 'odontologia', 'admin'] },
+    { ruta: '/pagos', texto: 'Pagos', icono: 'pago', roles: ['contabilidad', 'admin'] },
     { ruta: '/precios', texto: 'Precios', icono: 'precio' },
     { ruta: '/horarios', texto: 'Horarios', icono: 'reloj', roles: ['recepcion'] },
     // El admin tiene Horarios y Usuarios dentro del Panel

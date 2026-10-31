@@ -2,7 +2,7 @@
 // Replica las reglas de permisos de la base real para que el comportamiento sea el mismo.
 import { AGENDA_INICIAL, horariosLibres as calcularLibres, huecosSobreturno, intervalos, filasExtendidas, DURACION_SOBRETURNO } from '../lib/agenda.js';
 import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
-import { prepararFoto } from '../lib/imagenes.js';
+import { prepararFoto, prepararComprobante } from '../lib/imagenes.js';
 
 const PRECIOS_INICIALES = [{"servicio": "Aparatos removibles", "precio": 400000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Aparatos removibles inferior", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Apertura de urgencia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento ambulatorio", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Blanqueamiento interno", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento láser", "precio": 150000, "moneda": "ARS", "nota": "Ambas arcadas", "activo": true}, {"servicio": "Blanqueamiento láser, 2.ª sesión", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Botón", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket metálico", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket de porcelana", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bucodental: evaluación FF. AA. o escolar", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cajita porta brackets", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compleja", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compuesta", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries con surco inicial", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Carillas de resina", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (x 2 unidades)", "precio": 6000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (unidad)", "precio": 3500, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo de ortodoncia", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Compostura simple: rebasado acrílico", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de ortodoncia", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de guardia", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención fija", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención final", "precio": 70000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Control de aparato removible", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de contención", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de ortodoncia invisible", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control metálico", "precio": 56000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de porcelana", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de tratamiento periodontal", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Corona provisoria", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Desgaste estético", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción de resto mucoso", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Ferulización periodontal", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Flúor", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Gomas intermaxilares (x 100 unidades)", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Implante", "precio": 700, "moneda": "USD", "nota": null, "activo": true}, {"servicio": "Incrustación de resina", "precio": 180000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets metálicos", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets de porcelana", "precio": 250000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillos interdentales", "precio": 3000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Kit de ortodoncia", "precio": 7000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Levante de mordida", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza con brochita", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza de sarro", "precio": 75000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Ortodoncia invisible", "precio": 1800000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Piercing dental / gema", "precio": 40000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Pieza dentaria retenida mucosa", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Placa de bruxismo", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Placa de levante", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis de acrílico completa", "precio": 600000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Prótesis de acrílico parcial", "precio": 450000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Arañita flex (3 piezas)", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis flex parcial", "precio": 200000, "moneda": "ARS", "nota": "Por maxilar. Ambos maxilares: $390.000", "activo": true}, {"servicio": "Raspaje: retiro de cemento de aparatología fija", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Reparación de puntos de contención fija", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Sellador de puntos y fisuras", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Tratamiento de conducto multirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento de conducto unirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento periodontal", "precio": 55000, "moneda": "ARS", "nota": "Por sesión y por sector", "activo": true}, {"servicio": "Tubo", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Urgencia de ortodoncia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}];
 const CLAVE = 'smiles-demo-v2';
@@ -10,6 +10,7 @@ const CLAVE_SESION = 'smiles-demo-sesion';
 const PERSONAL = ['recepcion', 'odontologia', 'admin'];
 const CLINICO = ['odontologia', 'admin'];
 const CONTABLE = ['contabilidad', 'admin'];
+const CAJA = ['recepcion', 'admin'];  // cargan y corrigen pagos
 const activo = (t) => !['cancelado', 'rechazado'].includes(t.estado);
 
 const id = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
@@ -98,6 +99,17 @@ function cargar() {
   db.precios ??= PRECIOS_INICIALES.map((x, i) => ({ id: id(), ...x, orden: i, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null }));
   if (!db.usuarios.some((u) => u.rol === 'contabilidad')) db.usuarios.push({ id: id(), clave: 'demo1234', email: 'contabilidad@demo.com', rol: 'contabilidad', nombre: 'Carla', apellido: 'Contable' });
   db.foto_secciones ??= [];
+  if (!db.pagos) {
+    // Ejemplos: Ana debe una parte de la última consulta y Juan dejó una seña
+    const [ana, juan] = db.pacientes;
+    const ej = (pac, dias, facturado, pagado, comentario) => ({
+      id: id(), paciente_id: pac.id, fecha: sumarDias(hoy(), dias), facturado, paga_justo: facturado === pagado, pagado, comentario,
+      comprobante_tipo: null, comprobante_nombre: null, comprobante_bytes: null,
+      creado_por: null, creado_por_nombre: 'Romina Acosta', creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null,
+    });
+    db.pagos = [ana && ej(ana, -40, 30000, 30000, 'Primera consulta'), ana && ej(ana, -12, 140000, 100000, 'Obturaciones 16 y 21. Resto en el próximo turno'),
+      juan && ej(juan, -3, 0, 50000, 'Seña para brackets')].filter(Boolean);
+  }
   db.bloqueos = db.bloqueos.map((b) => ({ id: b.id || id(), hora_desde: null, hora_hasta: null, repetir: false, hasta_fecha: null, ...b }));
   return db;
 }
@@ -346,6 +358,8 @@ export const api = {
     d.fotos = d.fotos.filter((x) => x.paciente_id !== pid);
     d.foto_secciones = d.foto_secciones.filter((x) => x.paciente_id !== pid);
     d.planes = d.planes.filter((x) => x.paciente_id !== pid);
+    for (const g of d.pagos.filter((x) => x.paciente_id === pid)) archivos.borrar(`comprobante:${g.id}`).catch(() => {});
+    d.pagos = d.pagos.filter((x) => x.paciente_id !== pid);
     const cuenta = d.usuarios.find((u) => u.id === p.usuario_id);
     if (cuenta?.rol === 'paciente') d.usuarios = d.usuarios.filter((u) => u !== cuenta);
     d.pacientes = d.pacientes.filter((x) => x !== p);
@@ -786,6 +800,111 @@ Object.assign(api, {
       for (const i of f.items || []) if (i.practica && !vistas.has(i.practica)) vistas.set(i.practica, i.precio ?? null);
     }
     return espera([...vistas].map(([practica, precio]) => ({ practica, precio })).sort((a, b) => a.practica.localeCompare(b.practica)));
+  },
+});
+const copiaPago = (g) => ({ ...g });
+Object.assign(api, {
+  async pagos(pid) {
+    requiere(...CAJA, 'contabilidad');
+    return espera(cargar().pagos.filter((x) => x.paciente_id === pid)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado_en.localeCompare(a.creado_en)).map(copiaPago));
+  },
+  async guardarPago(p) {
+    const u = requiere(...CAJA);
+    const d = cargar();
+    const facturado = Number(p.facturado) || 0;
+    const pagado = p.paga_justo ? facturado : Number(p.pagado) || 0;
+    if (facturado < 0 || pagado < 0) throw new Error('Los montos no pueden ser negativos.');
+    if (!facturado && !pagado) throw new Error('Completá el monto facturado o lo que pagó.');
+    const campos = { fecha: p.fecha || hoy(), facturado, paga_justo: !!p.paga_justo, pagado, comentario: (p.comentario || '').trim() || null };
+    let x = p.id && d.pagos.find((y) => y.id === p.id);
+    if (x) Object.assign(x, campos, { actualizado_en: ahora(), actualizado_por_nombre: nombreUsuario(u) });
+    else {
+      x = { id: id(), paciente_id: p.paciente_id, ...campos, comprobante_tipo: null, comprobante_nombre: null, comprobante_bytes: null,
+        creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null };
+      d.pagos.push(x);
+    }
+    guardar();
+    return espera(copiaPago(x));
+  },
+  async borrarPago(gid) {
+    requiere('admin');
+    const d = cargar();
+    if (!d.pagos.some((x) => x.id === gid)) throw new Error('No encontramos ese pago.');
+    d.pagos = d.pagos.filter((x) => x.id !== gid);
+    guardar();
+    await archivos.borrar(`comprobante:${gid}`);
+    return espera();
+  },
+  async subirComprobante(gid, archivo) {
+    requiere(...CAJA);
+    const f = await prepararComprobante(archivo);
+    const x = cargar().pagos.find((y) => y.id === gid);
+    if (!x) throw new Error('No encontramos ese pago.');
+    await archivos.guardar(`comprobante:${gid}`, f);
+    Object.assign(x, { comprobante_tipo: f.type, comprobante_nombre: f.name || 'comprobante', comprobante_bytes: f.size });
+    guardar();
+    return espera(copiaPago(x));
+  },
+  async quitarComprobante(gid) {
+    requiere(...CAJA);
+    const x = cargar().pagos.find((y) => y.id === gid);
+    if (!x) throw new Error('No encontramos ese pago.');
+    Object.assign(x, { comprobante_tipo: null, comprobante_nombre: null, comprobante_bytes: null });
+    guardar();
+    await archivos.borrar(`comprobante:${gid}`);
+    return espera(copiaPago(x));
+  },
+  async urlComprobante(gid) {
+    requiere(...CAJA, 'contabilidad');
+    const b = await archivos.leer(`comprobante:${gid}`);
+    if (!b) throw new Error('No encontramos el archivo del comprobante.');
+    return URL.createObjectURL(b);
+  },
+  async saldosPacientes(pid = null) {
+    requiere(...PERSONAL);
+    const porPaciente = new Map();
+    for (const g of cargar().pagos) {
+      if (pid && g.paciente_id !== pid) continue;
+      const s = porPaciente.get(g.paciente_id) || { paciente_id: g.paciente_id, facturado: 0, pagado: 0 };
+      s.facturado += g.facturado;
+      s.pagado += g.pagado;
+      porPaciente.set(g.paciente_id, s);
+    }
+    return espera([...porPaciente.values()].map((s) => ({ ...s, saldo: Math.round((s.facturado - s.pagado) * 100) / 100 }))
+      .filter((s) => pid || s.saldo !== 0));
+  },
+  async pagosLista({ desde = null, hasta = null } = {}) {
+    requiere(...CAJA, 'contabilidad');
+    const d = cargar();
+    return espera(d.pagos.filter((g) => (!desde || g.fecha >= desde) && (!hasta || g.fecha <= hasta))
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado_en.localeCompare(a.creado_en))
+      .map((g) => {
+        const p = d.pacientes.find((x) => x.id === g.paciente_id);
+        return { ...g, paciente: p ? `${p.apellido}, ${p.nombre}` : '', dni: p?.dni || '' };
+      }));
+  },
+});
+const pagoPorId = (gid) => ({ ...cargar().pagos.find((x) => x.id === gid) });
+Object.assign(ANOTACIONES, {
+  guardarPago: {
+    pre: ([p]) => (p.id ? pagoPorId(p.id) : null),
+    post: ([p], r, antes) => {
+      if (!antes) return anotar('pago.cargado', r.paciente_id, { fecha: r.fecha, facturado: r.facturado, pagado: r.pagado, comprobante: false });
+      if (antes.fecha !== r.fecha || antes.facturado !== r.facturado || antes.pagado !== r.pagado || (antes.comentario || null) !== (r.comentario || null)) {
+        anotar('pago.corregido', r.paciente_id, { fecha: r.fecha, fecha_antes: antes.fecha, facturado: r.facturado, facturado_antes: antes.facturado,
+          pagado: r.pagado, pagado_antes: antes.pagado, comentario: (antes.comentario || null) !== (r.comentario || null) });
+      }
+    },
+  },
+  subirComprobante: { post: (a, r) => anotar('pago.comprobante', r.paciente_id, { fecha: r.fecha, archivo: r.comprobante_nombre }) },
+  quitarComprobante: {
+    pre: ([gid]) => pagoPorId(gid),
+    post: (a, r, g) => { if (g.comprobante_tipo) anotar('pago.comprobante_quitado', g.paciente_id, { fecha: g.fecha, archivo: g.comprobante_nombre }); },
+  },
+  borrarPago: {
+    pre: ([gid]) => pagoPorId(gid),
+    post: (a, r, g) => anotar('pago.borrado', g.paciente_id, { fecha: g.fecha, facturado: g.facturado, pagado: g.pagado }),
   },
 });
 Object.assign(ANOTACIONES, {

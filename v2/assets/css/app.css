@@ -599,3 +599,88 @@ button.fila-precio:focus-visible { outline: none; box-shadow: var(--foco); }
 .descuento-general { display: flex; gap: 6px; }
 .descuento-general input { width: 110px; }
 .descuento-general select { width: 64px; }
+
+/* ---------- Pagos ---------- */
+.item-paciente { cursor: pointer; }
+.item-paciente a { color: inherit; text-decoration: none; }
+.item-paciente a:hover strong { text-decoration: underline; text-underline-offset: 2px; }
+.nombre-paciente { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.cartel-saldo { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; font: inherit; font-size: var(--t-xs); font-weight: 700; cursor: pointer; border-radius: 6px; }
+.cartel-saldo:hover { text-decoration: underline; text-underline-offset: 2px; }
+.cartel-saldo:focus-visible { outline: none; box-shadow: var(--foco); }
+.cartel-deuda { color: var(--error); }
+.cartel-favor { color: var(--ok); }
+h1 .cartel-saldo { font-size: var(--t-s); vertical-align: middle; }
+.globo-saldo { position: absolute; z-index: 60; display: grid; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--papel); box-shadow: var(--sombra-flotante); border: 1px solid var(--linea); text-align: center; animation: aparecer .12s ease-out; }
+.globo-saldo span { font-size: var(--t-xs); color: var(--tinta-2); }
+.globo-saldo strong { font-size: var(--t-l); font-variant-numeric: tabular-nums; }
+.globo-deuda strong { color: var(--error); }
+.globo-favor strong { color: var(--ok); }
+@keyframes aparecer { from { opacity: 0; transform: translateY(-4px); } }
+
+.campo-pesos { font-variant-numeric: tabular-nums; }
+.paga-justo { border: 0; padding: 0; margin: 0 0 16px; }
+.paga-justo legend { padding: 0; margin-bottom: 6px; font-size: var(--t-s); font-weight: 600; }
+.segmentado { display: inline-flex; border: 1px solid var(--linea-fuerte); border-radius: var(--r-pastilla); padding: 3px; gap: 2px; background: var(--papel); }
+.segmentado label { position: relative; cursor: pointer; }
+.segmentado input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.segmentado span { display: inline-block; min-width: 64px; padding: 6px 16px; border-radius: var(--r-pastilla); text-align: center; font-weight: 600; color: var(--tinta-2); }
+.segmentado input:checked + span { background: var(--lavanda-osc); color: #fff; }
+.segmentado input:focus-visible + span { box-shadow: var(--foco); }
+.diferencia-pago { margin: -6px 0 14px; font-weight: 600; min-height: 0; }
+.diferencia-pago:empty { display: none; }
+.diferencia-pago.debe { color: var(--error); }
+.diferencia-pago.a-favor { color: var(--ok); }
+.zona-comprobante { display: grid; gap: 8px; justify-items: start; }
+.comprobante-elegido { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-campo); background: var(--esmalte); max-width: 100%; }
+.comprobante-elegido > span:not(.icono-btn) { min-width: 0; overflow-wrap: anywhere; font-size: var(--t-s); }
+.comprobante-elegido small { color: var(--tinta-2); }
+.btn-peligro-texto { color: var(--error); margin-right: auto; }
+
+.resumen-pagos { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.cifras-pagos { display: flex; flex-wrap: wrap; gap: 12px 32px; }
+.cifras-pagos div { display: grid; gap: 2px; }
+.cifras-pagos span { font-size: var(--t-xs); color: var(--tinta-2); }
+.cifras-pagos strong { font-size: var(--t-l); font-variant-numeric: tabular-nums; }
+.cifra-saldo.debe strong { color: var(--error); }
+.cifra-saldo.a-favor strong { color: var(--ok); }
+.lista-pagos { list-style: none; margin: 0; padding: 0; }
+.fila-pago { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.fila-pago:last-child { border-bottom: 0; }
+.pago-fecha { display: grid; gap: 2px; min-width: 0; }
+.pago-comentario { overflow-wrap: anywhere; }
+.pago-montos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-variant-numeric: tabular-nums; }
+.pago-montos > span:not(.etiqueta) { display: grid; }
+.pago-montos small { font-size: var(--t-xs); color: var(--tinta-2); }
+.pago-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiqueta-debe { background: var(--error-claro); color: var(--error); }
+.etiqueta-favor { background: var(--ok-claro); color: var(--ok); }
+@media (min-width: 900px) {
+  .fila-pago { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) auto; align-items: center; gap: 16px; }
+  .pago-acciones { justify-content: flex-end; }
+}
+
+.filtros-pagos { display: grid; gap: 0 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
+.filtros-pagos .campo { margin-bottom: 12px; min-width: 0; }
+.filtros-pagos .fila-campos { grid-column: span 2; grid-template-columns: 1fr 1fr; }
+.filtros-pagos .campo-paciente { grid-column: 1 / -1; }
+@media (min-width: 900px) { .filtros-pagos { grid-template-columns: 170px 1fr 1.6fr; } .filtros-pagos .fila-campos { grid-column: auto; } .filtros-pagos .campo-paciente { grid-column: auto; } }
+.tabla-pagos { display: grid; margin-top: 4px; }
+.fila-pago-cont { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--linea); font-variant-numeric: tabular-nums; }
+.fila-pago-cont .pc-paciente { display: grid; grid-column: 1 / -1; order: -1; }
+.fila-pago-cont .pc-paciente small, .fila-pago-cont .num small { font-size: var(--t-xs); color: var(--tinta-2); font-weight: 400; }
+.fila-pago-cont .pc-comentario { grid-column: 1 / -1; color: var(--tinta-2); font-size: var(--t-s); overflow-wrap: anywhere; }
+.fila-pago-cont .pc-comentario:empty, .fila-pago-cont .pc-acciones:empty { display: none; }
+.fila-pago-cont .debe { color: var(--error); }
+.fila-pago-cont .a-favor { color: var(--ok); }
+.fila-pago-titulos { display: none; }
+.fila-pago-total { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--linea-fuerte); }
+.fila-pago-total > span:empty { display: none; }
+@media (min-width: 900px) {
+  .fila-pago-cont { grid-template-columns: 96px minmax(0, 1.4fr) 120px 120px 120px minmax(0, 1.4fr) 84px; align-items: center; }
+  .fila-pago-cont .pc-paciente, .fila-pago-cont .pc-comentario { grid-column: auto; order: 0; }
+  .fila-pago-cont .num { text-align: right; }
+  .fila-pago-cont .num small { display: none; }
+  .fila-pago-cont .pc-comentario:empty, .fila-pago-cont .pc-acciones:empty, .fila-pago-total > span:empty { display: block; }
+  .fila-pago-titulos { display: grid; font-size: var(--t-xs); color: var(--tinta-2); font-weight: 600; padding-top: 4px; }
+}

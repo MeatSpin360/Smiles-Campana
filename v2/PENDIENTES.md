@@ -57,10 +57,21 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] **Planes de tratamiento** (pestaña *Planes* de la ficha, recepción, odontología y admin): prácticas elegidas de la lista de precios (o escritas a mano) con etapa, piezas, cantidad y precio; descuento por práctica (%) y descuento general (% o monto fijo); forma de pago, notas y validez; estados borrador → propuesto → aceptado → en curso → terminado (o descartado). La base calcula el total y no deja borrar un plan ya propuesto. Impresión o PDF con el formato del consultorio (logo, matrícula MN 40339, datos del paciente, prácticas por etapa y firma de conformidad).
 - [x] **Lista de precios** (menú *Precios*): 64 servicios cargados de la planilla de noviembre 2025 (los que no se realizan quedan ocultos). Buscador que filtra mientras se escribe. Recepción y odontología la ven; contabilidad y admin la editan, aplican aumentos generales con redondeo, exportan a Excel e imprimen. Todo queda en el registro.
 - [x] Rol **Contabilidad**: solo ve *Precios* (y *Pagos*, etapa A2). No ve agenda, fichas ni historia clínica.
-- [ ] **Pagos (A2)**: monto facturado, interruptor "¿Paga justo?" y monto pagado; comentario y comprobante opcional (imagen o PDF, ≤ 1 MB). Saldo por paciente; "(con deuda)" / "(pago adelantado)" en la lista de pacientes con el monto en una ventanita (recepción, odontología y admin). Pestaña *Pagos* en la ficha. En contabilidad, lista completa con filtros por fechas, mes, año y paciente, totales al pie y exportación a Excel. Cargan y corrigen recepción y admin; solo admin borra; contabilidad mira.
+- [x] **Pagos** (pestaña *Pagos* de la ficha y menú *Pagos* de contabilidad):
+  - Recepción y admin cargan: fecha, monto facturado (con formato $ mientras se escribe), "¿Paga justo?" y, si no, lo que paga; comentario y comprobante opcional (imagen o PDF; las imágenes de más de 1 MB se achican, los PDF de más de 1 MB se rechazan). Archivos en R2 (`comprobantes/<paciente>/<pago>`), a través del Worker.
+  - Saldo = facturado − pagado. En la lista de pacientes y en la ficha: "(con deuda)" en rojo o "(pago adelantado)" en verde; al tocarlo, solo el monto (recepción, odontología y admin).
+  - Corregir: recepción y admin, siempre (queda en el registro de cuánto a cuánto). Borrar: solo admin. Odontología no ve los pagos, solo el cartel.
+  - Contabilidad y admin: lista completa con filtros por mes, año, entre fechas o todos, y por paciente; totales al pie; Excel e impresión de lo filtrado.
 - [ ] **Documentos (B)**: plantillas *Contrato de ortodoncia* (tal cual, solo errores de tipeo; datos del paciente, responsable si es menor, cantidad de controles, MN 40339) y *Cuidados post-instalación de brackets*. Pestaña *Documentos* en la ficha: generar, imprimir, marcar firmado y adjuntar la copia firmada. Plantillas editables desde el Panel. Más adelante: revisión legal del contrato.
 - ~~Recetas digitales~~: descartado por ahora.
 - [ ] A consultar: la Ley 27.706 (historia clínica electrónica) pide firma digital en los registros.
+
+## Ventana de mantenimiento (después de A2 y B)
+
+- [ ] Página con el logo: "La página se encuentra momentáneamente fuera de servicio. Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad. Equipo de Smiles Campana." Responde 503 (Google no la guarda).
+- [ ] **Interruptor en el Panel** (admin). Activado: smilescampana.com.ar y www muestran la ventana a todos, incluida la pantalla de ingreso. El personal entra por **smiles-campana.emiliobrescasin.workers.dev**, que sigue funcionando (un paciente que ingrese ahí ve igual la ventana). El Worker consulta el interruptor y guarda la respuesta 30 s.
+- [ ] **Automática, por visitante** (nunca global): si la app no carga o no llega a la base después de 2 intentos de 10 s, y hay conexión a internet, muestra la ventana con "Reintentar" y vuelve sola al recuperarse. Sin internet muestra "Sin conexión". Si el Worker falla al servir una página, muestra la ventana en lugar de un error.
+- [ ] Cambiar el pendiente de seguridad a: redirigir workers.dev al dominio **salvo durante el mantenimiento**.
 
 ## Etapa 4: app Android para el odontólogo
 

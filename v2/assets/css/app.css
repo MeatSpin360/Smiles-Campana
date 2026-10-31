@@ -684,3 +684,50 @@ h1 .cartel-saldo { font-size: var(--t-s); vertical-align: middle; }
   .fila-pago-cont .pc-comentario:empty, .fila-pago-cont .pc-acciones:empty, .fila-pago-total > span:empty { display: block; }
   .fila-pago-titulos { display: grid; font-size: var(--t-xs); color: var(--tinta-2); font-weight: 600; padding-top: 4px; }
 }
+
+/* ---------- Documentos ---------- */
+.grupo-responsable { border: 1px solid var(--linea); border-radius: var(--r-campo); padding: 12px 14px 0; margin: 0 0 16px; }
+.grupo-responsable legend { padding: 0 6px; font-size: var(--t-s); font-weight: 600; }
+.grupo-responsable > p { margin: 0 0 10px; }
+.cabecera-seccion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.cabecera-seccion h2 { margin: 0; }
+.lista-documentos { list-style: none; margin: 8px 0 0; padding: 0; }
+.fila-documento { display: grid; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--linea); }
+.fila-documento:last-child { border-bottom: 0; }
+.documento-datos { display: grid; gap: 4px; justify-items: start; }
+.documento-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiqueta-firmado { background: var(--ok-claro); color: var(--ok); }
+@media (min-width: 900px) {
+  .fila-documento { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .documento-acciones { justify-content: flex-end; max-width: 560px; }
+}
+.generar-documento { display: grid; gap: 16px; }
+.generar-vista { display: grid; gap: 6px; min-width: 0; }
+.vista-documento { background: #fff; border: 1px solid var(--linea); border-radius: 8px; padding: 18px 22px; max-height: 60vh; overflow: auto; box-shadow: 0 1px 0 var(--linea); }
+.guardar-en-ficha { margin: -4px 0 8px; }
+@media (min-width: 900px) {
+  .generar-documento { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: start; }
+  .vista-documento { max-height: 64vh; font-size: 9.5pt; }
+}
+.lista-plantillas { list-style: none; margin: 0; padding: 0; }
+.fila-plantilla { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; width: 100%; text-align: left; padding: 14px 8px; border: 0; border-bottom: 1px solid var(--linea); background: none; font: inherit; color: var(--tinta); cursor: pointer; border-radius: 0; }
+.fila-plantilla:hover { background: var(--lavanda-tenue); }
+.fila-plantilla:focus-visible { outline: none; box-shadow: var(--foco); }
+.fila-plantilla strong { flex: 1 1 260px; }
+.editor-plantilla { display: grid; gap: 20px; }
+.editor-plantilla-texto, .editor-plantilla-vista { min-width: 0; }
+.editor-plantilla-vista { display: grid; gap: 6px; align-content: start; }
+.cabecera-vista { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.texto-plantilla { min-height: 360px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 14px; line-height: 1.55; }
+.botones-campos { display: flex; flex-wrap: wrap; gap: 6px; }
+.agregar-campo { display: flex; gap: 6px; }
+.agregar-campo input { min-width: 0; }
+.ayuda-formato { margin: -6px 0 14px; font-size: var(--t-s); color: var(--tinta-2); }
+.ayuda-formato summary { cursor: pointer; color: var(--lavanda-osc); font-weight: 600; }
+.ayuda-formato ul { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.ayuda-formato code { background: var(--esmalte); border-radius: 4px; padding: 0 4px; }
+@media (min-width: 1100px) {
+  .editor-plantilla { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .editor-plantilla-vista { position: sticky; top: 16px; }
+  .editor-plantilla-vista .vista-documento { max-height: calc(100vh - 80px); }
+}

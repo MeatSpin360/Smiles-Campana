@@ -44,6 +44,7 @@ async function reducir(imagen, lado, calidad) {
 
 // ---------- Comprobantes de pago ----------
 export const MAX_COMPROBANTE = 1024 * 1024;
+export const MAX_DOCUMENTO = 3 * 1024 * 1024; // copias firmadas: un PDF de varias hojas
 const TIPOS_DIRECTOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 /**
@@ -51,11 +52,11 @@ const TIPOS_DIRECTOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pd
  * sea JPG/PNG/WEBP, se achica y pasa a JPG; si ya pesa menos de 1 MB se sube tal cual. Un PDF no se
  * puede achicar en el navegador: si pasa de 1 MB hay que pedir uno más liviano.
  */
-export async function prepararComprobante(archivo) {
+export async function prepararComprobante(archivo, { maxPdf = MAX_COMPROBANTE } = {}) {
   const nombre = archivo?.name || 'comprobante';
   const esPdf = archivo?.type === 'application/pdf' || /\.pdf$/i.test(nombre);
   if (esPdf) {
-    if (archivo.size > MAX_COMPROBANTE) throw new Error(`"${nombre}" pesa ${mb(archivo.size)}. El PDF tiene que pesar menos de 1 MB: escanealo en menor calidad o sacale una foto.`);
+    if (archivo.size > maxPdf) throw new Error(`"${nombre}" pesa ${mb(archivo.size)}. El PDF tiene que pesar menos de ${mb(maxPdf)}: escanealo en menor calidad o sacale una foto.`);
     return archivo.type === 'application/pdf' ? archivo : new File([archivo], nombre, { type: 'application/pdf' });
   }
   if (!archivo?.type?.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/i.test(nombre)) {

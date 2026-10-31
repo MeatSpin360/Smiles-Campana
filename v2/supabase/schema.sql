@@ -40,8 +40,12 @@ create table if not exists pacientes (
   direccion   text,
   notas       text,                 -- notas administrativas (no clínicas)
   usuario_id  uuid unique references perfiles(id) on delete set null,
-  creado_en   timestamptz not null default now()
+  creado_en   timestamptz not null default now(),
+  responsable_nombre  text,         -- si es menor de edad: madre, padre o tutor (para los documentos)
+  responsable_dni     text
 );
+alter table pacientes add column if not exists responsable_nombre text;
+alter table pacientes add column if not exists responsable_dni text;
 
 -- Antecedentes médicos: tabla aparte para que recepción no los vea.
 create table if not exists antecedentes (
@@ -334,6 +338,88 @@ create index if not exists pagos_paciente on pagos (paciente_id, fecha desc);
 create index if not exists pagos_fecha on pagos (fecha);
 create index if not exists pagos_creado_por on pagos (creado_por);
 
+-- Plantillas de documentos (contrato, indicaciones...). Las edita el admin desde el Panel.
+-- Formato del texto: "# " título, "1. " cláusula numerada, "- " viñeta, **negrita**, ____ línea para completar a mano.
+-- Campos {{...}}: paciente, dni, domicilio, responsable, responsable_dni, fecha, profesional, matricula, consultorio;
+-- cualquier otro (por ejemplo {{controles_mensuales}}) se pide al generar el documento.
+create table if not exists plantillas (
+  id                      uuid primary key default gen_random_uuid(),
+  nombre                  text not null check (length(trim(nombre)) > 0),
+  contenido               text not null default '',
+  activa                  boolean not null default true,
+  orden                   int not null default 0,
+  creado_en               timestamptz not null default now(),
+  actualizado_en          timestamptz,
+  actualizado_por_nombre  text
+);
+-- Textos iniciales (de los documentos del consultorio), solo si la tabla está vacía
+insert into plantillas (nombre, contenido, orden)
+select * from (values
+  ('Contrato de ortodoncia', '# CONTRATO DE ORTODONCIA
+
+Entre Dra. D’Ambrosio Florencia {{matricula}}, con domicilio en Jean Jaures 568, Campana, en su calidad de prestadora, y por la otra {{paciente}}, acreditando identidad con el DNI {{dni}} y domicilio en {{domicilio}}, quien en adelante será denominado “el paciente”, en caso de ser menor de edad, representado por {{responsable}} con DNI {{responsable_dni}} en calidad de padre, madre/tutor, se celebra el presente, conforme las siguientes cláusulas y condiciones:
+
+1. El presente tiene por objeto regular el compromiso asumido por las partes bajo los cuales el paciente recibirá el tratamiento de ortodoncia proporcionado por el prestador.
+1. El tratamiento tendrá una duración aproximada de {{controles_mensuales}} controles mensuales, dependiendo, en principio, de la evaluación de la salud bucal del paciente; para el caso que esto suceda, el prestador no tendrá responsabilidad del retardo del tratamiento, brindando el paciente su consentimiento. Por otro lado, también dependerá de que el paciente concurra regularmente a los controles mensuales y lleve a cabo el tratamiento indicado por el profesional.
+1. El paciente se compromete a asistir a los controles mensuales establecidos por el profesional, sin excepción, quedando en pleno conocimiento de que son fundamentales para asegurar el éxito del tratamiento, como también para garantizar el adecuado ajuste del aparato de ortodoncia. Se deja expresamente aclarado que la periodicidad de los controles se puede ver modificada por parte del profesional por razones clínicas (avisando con anticipación).
+1. El paciente, quien fue informado de manera cierta sobre el pago mensual correspondiente al tratamiento, se obliga comprometiéndose a realizar en cada control el pago de dicho servicio, dejando constancia de que es de su pleno conocimiento y aceptación que dicho valor se incrementará conforme actualización por parte del prestador, incremento que será tomado conforme incidencia de la economía en nuestro país, cada tres meses.
+1. Para el caso de que el paciente incumpla con esta obligación y el prestador no reciba el pago de 3 controles consecutivos, el mismo tendrá el derecho de suspender el servicio.
+1. En caso de que el paciente no asista a una cita de control mensual sin dar aviso y/o sin reprogramar su turno, el mismo devengará un interés del 30 % mensual acumulado, en forma de cargo adicional.
+1. El paciente se responsabiliza de cumplir con las citas; el incumplimiento por ausencia recarga toda la responsabilidad, ya que está en conocimiento de que dicha ausencia afectaría el progreso de su tratamiento.
+1. El paciente asume el compromiso de tratar al personal con prudencia, cordialidad y respeto en general; con el mismo respeto será atendido.
+1. El prestador se compromete a realizar el tratamiento con la debida diligencia conforme a los estándares profesionales reconocidos; sin embargo, el paciente entiende y acepta que los resultados del tratamiento pueden variar y que no se garantiza un resultado perfecto, dado que depende de diversos factores, como el estado de salud bucal y general del paciente y el cumplimiento del paciente con los controles e indicaciones brindados por el profesional.
+1. El paciente puede terminar el contrato en cualquier momento del tratamiento, para lo cual debe estar al día con los pagos y preavisar al prestador. Si el paciente decide retirar la aparatología antes de obtener el alta, debe abonar la rescisión y los raspajes para su retiro.
+1. Al firmar este acuerdo, el paciente o su tutor han sido cabalmente informados, reconocen haber leído los términos y condiciones y manifiestan su conformidad, aceptación y compromiso relacionados a su tratamiento de ortodoncia.
+1. Autorizo el uso de mi imagen y voz en fotos y videos para ser difundidos en redes sociales, folletos y gráfica, al solo efecto profesional, relacionado a promociones y campañas, sin limitación de tiempo, a excepción de ser solicitado.
+1. A todo efecto las partes asumen la ley aplicable; en caso de discrepancias o controversias derivadas del presente, las partes se comprometen a intentar resolverlas de manera amistosa, a través de mediación; si no fuera posible, se someten a la jurisdicción de los tribunales competentes.
+1. El paciente se compromete a cumplir con su plan de tratamiento, explicado con anticipación, y comprende que los tejidos biológicos pueden sufrir consecuencias graves (pérdida de piezas dentarias, reabsorción ósea, movilidad, parálisis facial, muerte, etc.) en caso de no respetarlo.
+
+Firma ______________________________
+Aclaración ______________________________
+DNI ______________________________
+Lugar y fecha ______________________________
+', 0),
+  ('Cuidados post-instalación de brackets', '# CUIDADOS POST-INSTALACIÓN DE BRACKETS
+
+Paciente: **{{paciente}}** · {{fecha}}
+
+1. NO COMER DURANTE AL MENOS 1 HORA. SE PUEDEN INGERIR LÍQUIDOS.
+1. SI SIENTE MOLESTIA/DOLOR PUEDE TOMAR PARACETAMOL, NO MÁS DE 3 DÍAS. SI EL DOLOR PERSISTE, CONSULTAR.
+1. SI RASPA, PINCHA O GENERA LLAGAS, UTILIZAR CERA DE ORTODONCIA: COLOCAR UN TROCITO SOBRE EL METAL.
+1. NO CONSUMIR ALIMENTOS QUE GENEREN EFECTO “PALANCA”, POR EJEMPLO:
+  - ALIMENTOS DUROS: TOSTADAS, GALLETITAS, SÁNDWICH, MANÍ, FRUTAS SECAS.
+  - ALIMENTOS BLANDOS: PAN, GOMITAS, CARAMELOS MASTICABLES, CHICLE.
+1. NO ALIMENTARSE CON LAS MANOS: SIEMPRE UTILIZAR CUCHILLO Y TENEDOR, CORTAR EN TROZOS PEQUEÑOS.
+1. HIGIENIZARSE LUEGO DE CADA COMIDA, CON CEPILLO, PASTA E INTERDENTALES.
+1. SI SE DESPRENDE UN BRACKET, INFORMAR CUANTO ANTES AL PROFESIONAL.
+', 1)
+) v(nombre, contenido, orden)
+where not exists (select 1 from plantillas);
+
+-- Documentos generados para un paciente. El texto queda guardado tal como se imprimió (si después se cambia
+-- la plantilla, lo entregado no cambia). La copia firmada (imagen o PDF de hasta 3 MB) va a Cloudflare R2:
+-- documentos/<paciente_id>/<documento_id>, a través del Worker.
+create table if not exists documentos (
+  id                      uuid primary key default gen_random_uuid(),
+  paciente_id             uuid not null references pacientes on delete cascade,
+  plantilla_id            uuid references plantillas on delete set null,
+  titulo                  text not null check (length(trim(titulo)) > 0),
+  contenido               text not null,
+  datos                   jsonb not null default '{}',  -- valores con que se completó
+  firmado                 boolean not null default false,
+  firmado_en              timestamptz,
+  firmado_por_nombre      text,
+  archivo_tipo            text check (archivo_tipo in ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')),
+  archivo_nombre          text,
+  archivo_bytes           int check (archivo_bytes between 1 and 3145728),
+  creado_por              uuid references perfiles(id),
+  creado_por_nombre       text,
+  creado_en               timestamptz not null default now()
+);
+create index if not exists documentos_paciente on documentos (paciente_id, creado_en desc);
+create index if not exists documentos_plantilla on documentos (plantilla_id);
+create index if not exists documentos_creado_por on documentos (creado_por);
+
 -- Índices para las columnas de autoría (sugeridos por el analizador de Supabase)
 create index if not exists antecedentes_actualizado_por on antecedentes (actualizado_por);
 create index if not exists odontogramas_creado_por on odontogramas (creado_por);
@@ -451,6 +537,8 @@ alter table fotos            enable row level security;
 alter table planes           enable row level security;
 alter table precios          enable row level security;
 alter table pagos            enable row level security;
+alter table plantillas       enable row level security;
+alter table documentos       enable row level security;
 
 -- Borra políticas previas para poder re-ejecutar el script
 do $$ declare r record; begin
@@ -550,6 +638,16 @@ create policy "recepcion corrige pagos" on pagos for update to authenticated
   using ((select mi_rol())::text in ('recepcion', 'admin')) with check ((select mi_rol())::text in ('recepcion', 'admin'));
 create policy "admin borra pagos" on pagos for delete to authenticated
   using ((select mi_rol()) = 'admin');
+
+-- plantillas: las usa todo el personal; las edita el admin
+create policy "personal ve plantillas" on plantillas for select to authenticated
+  using ((select es_personal()));
+create policy "admin edita plantillas" on plantillas for all to authenticated
+  using ((select mi_rol()) = 'admin') with check ((select mi_rol()) = 'admin');
+
+-- documentos: recepción, odontología y admin (un documento firmado solo lo borra el admin: preparar_documento)
+create policy "personal gestiona documentos" on documentos for all to authenticated
+  using ((select es_personal())) with check ((select es_personal()));
 
 -- evoluciones: solo odontología/admin
 create policy "clinico ve evoluciones" on evoluciones for select to authenticated
@@ -921,6 +1019,69 @@ $$;
 revoke execute on function pagos_lista(date, date) from public, anon;
 grant execute on function pagos_lista(date, date) to authenticated;
 
+drop trigger if exists autor_documento on documentos;
+create trigger autor_documento before insert on documentos for each row execute function completar_autor();
+
+-- Documentos: el texto no cambia después de generado; al marcar firmado se guarda quién y cuándo.
+-- Uno firmado solo lo borra un admin (salvo al eliminar el paciente, que borra todo lo suyo).
+create or replace function preparar_documento() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.firmado and coalesce(mi_rol()::text, '') <> 'admin' and exists (select 1 from pacientes where id = old.paciente_id) then
+      raise exception 'Un documento firmado solo lo puede borrar un admin.';
+    end if;
+    return old;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.paciente_id := old.paciente_id;
+    new.plantilla_id := old.plantilla_id;
+    new.titulo := old.titulo;
+    new.contenido := old.contenido;
+    new.datos := old.datos;
+    new.creado_por := old.creado_por;
+    new.creado_por_nombre := old.creado_por_nombre;
+    new.creado_en := old.creado_en;
+    if new.firmado and not old.firmado then
+      new.firmado_en := now();
+      new.firmado_por_nombre := mi_nombre();
+    elsif new.firmado then
+      new.firmado_en := old.firmado_en;
+      new.firmado_por_nombre := old.firmado_por_nombre;
+    end if;
+  end if;
+  if not new.firmado then
+    new.firmado_en := null;
+    new.firmado_por_nombre := null;
+  end if;
+  if new.archivo_tipo is null then
+    new.archivo_nombre := null;
+    new.archivo_bytes := null;
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_documento() from public, anon, authenticated;
+drop trigger if exists preparar_documento on documentos;
+create trigger preparar_documento before insert or update or delete on documentos for each row execute function preparar_documento();
+
+-- Plantillas: quién y cuándo se modificó cada una
+create or replace function preparar_plantilla() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.nombre := trim(new.nombre);
+  if tg_op = 'UPDATE' then
+    new.id := old.id;
+    new.creado_en := old.creado_en;
+    new.actualizado_en := now();
+    new.actualizado_por_nombre := mi_nombre();
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_plantilla() from public, anon, authenticated;
+drop trigger if exists preparar_plantilla on plantillas;
+create trigger preparar_plantilla before insert or update on plantillas for each row execute function preparar_plantilla();
+
 -- Corregir o borrar un odontograma: solo la última versión del paciente. Al corregir, solo cambian el
 -- dibujo y la nota; lo anterior se agrega a "correcciones" con fecha y autor.
 create or replace function corregir_odontograma() returns trigger
@@ -1110,6 +1271,8 @@ begin
       'planes',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from planes x),
       'precios',         (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.servicio), '[]') from precios x),
       'pagos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from pagos x),
+      'plantillas',      (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.creado_en), '[]') from plantillas x),
+      'documentos',      (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from documentos x),
       'registro',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]') from registro x)));
   perform anotar('sistema.copia', null, jsonb_build_object('pacientes', jsonb_array_length(v_respaldo -> 'tablas' -> 'pacientes'),
     'turnos', jsonb_array_length(v_respaldo -> 'tablas' -> 'turnos'), 'fotos', jsonb_array_length(v_respaldo -> 'tablas' -> 'fotos')));
@@ -1335,6 +1498,33 @@ begin
       perform anotar('pago.borrado', v_pac, jsonb_build_object('fecha', old.fecha, 'facturado', old.facturado, 'pagado', old.pagado));
     end if;
 
+  when 'plantillas' then
+    if tg_op = 'INSERT' then
+      perform anotar('plantilla.creada', null, jsonb_build_object('nombre', new.nombre));
+    elsif tg_op = 'UPDATE' then
+      if (new.nombre, new.contenido, new.activa) is distinct from (old.nombre, old.contenido, old.activa) then
+        perform anotar('plantilla.editada', null, jsonb_build_object('nombre', new.nombre, 'nombre_antes', old.nombre,
+          'texto', new.contenido is distinct from old.contenido, 'activa', new.activa, 'activa_antes', old.activa));
+      end if;
+    else
+      perform anotar('plantilla.borrada', null, jsonb_build_object('nombre', old.nombre));
+    end if;
+
+  when 'documentos' then
+    if tg_op = 'INSERT' then
+      perform anotar('documento.creado', v_pac, jsonb_build_object('titulo', new.titulo));
+    elsif tg_op = 'UPDATE' then
+      if new.firmado is distinct from old.firmado then
+        perform anotar(case when new.firmado then 'documento.firmado' else 'documento.sin_firma' end, v_pac, jsonb_build_object('titulo', new.titulo));
+      end if;
+      if (new.archivo_tipo, new.archivo_bytes, new.archivo_nombre) is distinct from (old.archivo_tipo, old.archivo_bytes, old.archivo_nombre) then
+        perform anotar(case when new.archivo_tipo is null then 'documento.archivo_quitado' else 'documento.archivo' end, v_pac,
+          jsonb_build_object('titulo', new.titulo, 'archivo', coalesce(new.archivo_nombre, old.archivo_nombre)));
+      end if;
+    else
+      perform anotar('documento.borrado', v_pac, jsonb_build_object('titulo', old.titulo, 'firmado', old.firmado));
+    end if;
+
   when 'agenda_config' then
     select array_agg(k order by k) into v_campos
     from jsonb_each(to_jsonb(new)) n(k, v) where v is distinct from to_jsonb(old) -> k;
@@ -1357,7 +1547,7 @@ do $$
 declare t text;
 begin
   foreach t in array array['turnos', 'pacientes', 'antecedentes', 'odontogramas', 'evoluciones', 'foto_secciones',
-                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios', 'pagos'] loop
+                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios', 'pagos', 'plantillas', 'documentos'] loop
     execute format('drop trigger if exists registrar on %I', t);
     execute format('create trigger registrar after insert or update or delete on %I for each row execute function registrar_cambio()', t);
   end loop;

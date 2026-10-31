@@ -55,14 +55,20 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 ## Etapa 2b: documentos clínicos
 
 - [x] **Planes de tratamiento** (pestaña *Planes* de la ficha, recepción, odontología y admin): prácticas elegidas de la lista de precios (o escritas a mano) con etapa, piezas, cantidad y precio; descuento por práctica (%) y descuento general (% o monto fijo); forma de pago, notas y validez; estados borrador → propuesto → aceptado → en curso → terminado (o descartado). La base calcula el total y no deja borrar un plan ya propuesto. Impresión o PDF con el formato del consultorio (logo, matrícula MN 40339, datos del paciente, prácticas por etapa y firma de conformidad).
-- [x] **Lista de precios** (menú *Precios*): 64 servicios cargados de la planilla de noviembre 2025 (los que no se realizan quedan ocultos). Buscador que filtra mientras se escribe. Recepción y odontología la ven; contabilidad y admin la editan, aplican aumentos generales con redondeo, exportan a Excel e imprimen. Todo queda en el registro.
+- [x] **Lista de precios** (menú *Caja* → *Precios*): 64 servicios cargados de la planilla de noviembre 2025 (los que no se realizan quedan ocultos). Buscador que filtra mientras se escribe. Recepción y odontología la ven; contabilidad y admin la editan, aplican aumentos generales con redondeo, exportan a Excel e imprimen. Todo queda en el registro.
 - [x] Rol **Contabilidad**: solo ve *Precios* (y *Pagos*, etapa A2). No ve agenda, fichas ni historia clínica.
-- [x] **Pagos** (pestaña *Pagos* de la ficha y menú *Pagos* de contabilidad):
+- [x] **Pagos** (pestaña *Pagos* de la ficha y menú *Caja* → *Pagos*):
   - Recepción y admin cargan: fecha, monto facturado (con formato $ mientras se escribe), "¿Paga justo?" y, si no, lo que paga; comentario y comprobante opcional (imagen o PDF; las imágenes de más de 1 MB se achican, los PDF de más de 1 MB se rechazan). Archivos en R2 (`comprobantes/<paciente>/<pago>`), a través del Worker.
   - Saldo = facturado − pagado. En la lista de pacientes y en la ficha: "(con deuda)" en rojo o "(pago adelantado)" en verde; al tocarlo, solo el monto (recepción, odontología y admin).
   - Corregir: recepción y admin, siempre (queda en el registro de cuánto a cuánto). Borrar: solo admin. Odontología no ve los pagos, solo el cartel.
-  - Contabilidad y admin: lista completa con filtros por mes, año, entre fechas o todos, y por paciente; totales al pie; Excel e impresión de lo filtrado.
-- [ ] **Documentos (B)**: plantillas *Contrato de ortodoncia* (tal cual, solo errores de tipeo; datos del paciente, responsable si es menor, cantidad de controles, MN 40339) y *Cuidados post-instalación de brackets*. Pestaña *Documentos* en la ficha: generar, imprimir, marcar firmado y adjuntar la copia firmada. Plantillas editables desde el Panel. Más adelante: revisión legal del contrato.
+  - Recepción, contabilidad y admin (Caja → Pagos): lista completa con filtros por mes, año, entre fechas o todos, y por paciente; totales al pie; Excel e impresión de lo filtrado.
+- [x] **Documentos** (pestaña *Documentos* de la ficha: recepción, odontología y admin):
+  - Plantillas *Contrato de ortodoncia* (texto original, solo errores de tipeo) y *Cuidados post-instalación de brackets*. Se completan con nombre, DNI, domicilio, responsable (si es menor), fecha y matrícula; lo que falte (por ejemplo, la cantidad de controles) se pide al generar. Lo vacío se imprime como línea para completar a mano.
+  - Vista previa, impresión o PDF con el encabezado del consultorio. El texto queda guardado tal como se imprimió.
+  - Marcar como firmado y adjuntar la copia firmada (foto o PDF de hasta 3 MB) en R2 (`documentos/<paciente>/<documento>`). Uno firmado solo lo borra el admin.
+  - Ficha del paciente: *Responsable, si es menor de edad* (nombre y DNI), que también se puede completar al generar el contrato.
+  - **Panel → Plantillas** (admin): editar los textos con vista previa, botones para insertar datos y datos propios de cada plantilla. Los documentos ya generados no cambian.
+  - Más adelante: revisión legal del contrato (cláusulas de interés y de imagen) y de la firma digital (Ley 27.706).
 - ~~Recetas digitales~~: descartado por ahora.
 - [ ] A consultar: la Ley 27.706 (historia clínica electrónica) pide firma digital en los registros.
 

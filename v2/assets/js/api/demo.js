@@ -2,9 +2,10 @@
 // Replica las reglas de permisos de la base real para que el comportamiento sea el mismo.
 import { AGENDA_INICIAL, horariosLibres as calcularLibres, huecosSobreturno, intervalos, filasExtendidas, DURACION_SOBRETURNO } from '../lib/agenda.js';
 import { hoy, sumarDias, isoEn, partes } from '../lib/dates.js';
-import { prepararFoto, prepararComprobante } from '../lib/imagenes.js';
+import { prepararFoto, prepararComprobante, MAX_DOCUMENTO } from '../lib/imagenes.js';
 
 const PRECIOS_INICIALES = [{"servicio": "Aparatos removibles", "precio": 400000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Aparatos removibles inferior", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Apertura de urgencia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento ambulatorio", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Blanqueamiento interno", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Blanqueamiento láser", "precio": 150000, "moneda": "ARS", "nota": "Ambas arcadas", "activo": true}, {"servicio": "Blanqueamiento láser, 2.ª sesión", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Botón", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket metálico", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bracket de porcelana", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Bucodental: evaluación FF. AA. o escolar", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cajita porta brackets", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compleja", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries compuesta", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Caries con surco inicial", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Carillas de resina", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (x 2 unidades)", "precio": 6000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo (unidad)", "precio": 3500, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillo de ortodoncia", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Compostura simple: rebasado acrílico", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de ortodoncia", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Consulta de guardia", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención fija", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Contención final", "precio": 70000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Control de aparato removible", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de contención", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de ortodoncia invisible", "precio": 70000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control metálico", "precio": 56000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de porcelana", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Control de tratamiento periodontal", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Corona provisoria", "precio": 50000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Desgaste estético", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción de resto mucoso", "precio": 60000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Extracción", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Ferulización periodontal", "precio": 90000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Flúor", "precio": 20000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Gomas intermaxilares (x 100 unidades)", "precio": 8000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Implante", "precio": 700, "moneda": "USD", "nota": null, "activo": true}, {"servicio": "Incrustación de resina", "precio": 180000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets metálicos", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Instalación de brackets de porcelana", "precio": 250000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Cepillos interdentales", "precio": 3000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Kit de ortodoncia", "precio": 7000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Levante de mordida", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza con brochita", "precio": 5000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Limpieza de sarro", "precio": 75000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Ortodoncia invisible", "precio": 1800000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Piercing dental / gema", "precio": 40000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Pieza dentaria retenida mucosa", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Placa de bruxismo", "precio": 100000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Placa de levante", "precio": 80000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis de acrílico completa", "precio": 600000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Prótesis de acrílico parcial", "precio": 450000, "moneda": "ARS", "nota": "Ambos maxilares", "activo": true}, {"servicio": "Arañita flex (3 piezas)", "precio": 200000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Prótesis flex parcial", "precio": 200000, "moneda": "ARS", "nota": "Por maxilar. Ambos maxilares: $390.000", "activo": true}, {"servicio": "Raspaje: retiro de cemento de aparatología fija", "precio": 50000, "moneda": "ARS", "nota": "Por maxilar", "activo": true}, {"servicio": "Reparación de puntos de contención fija", "precio": 30000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Sellador de puntos y fisuras", "precio": 35000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Tratamiento de conducto multirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento de conducto unirradicular", "precio": null, "moneda": "ARS", "nota": null, "activo": false}, {"servicio": "Tratamiento periodontal", "precio": 55000, "moneda": "ARS", "nota": "Por sesión y por sector", "activo": true}, {"servicio": "Tubo", "precio": 10000, "moneda": "ARS", "nota": null, "activo": true}, {"servicio": "Urgencia de ortodoncia", "precio": null, "moneda": "ARS", "nota": null, "activo": false}];
+const PLANTILLAS_INICIALES = [{"nombre": "Contrato de ortodoncia", "contenido": "# CONTRATO DE ORTODONCIA\n\nEntre Dra. D’Ambrosio Florencia {{matricula}}, con domicilio en Jean Jaures 568, Campana, en su calidad de prestadora, y por la otra {{paciente}}, acreditando identidad con el DNI {{dni}} y domicilio en {{domicilio}}, quien en adelante será denominado “el paciente”, en caso de ser menor de edad, representado por {{responsable}} con DNI {{responsable_dni}} en calidad de padre, madre/tutor, se celebra el presente, conforme las siguientes cláusulas y condiciones:\n\n1. El presente tiene por objeto regular el compromiso asumido por las partes bajo los cuales el paciente recibirá el tratamiento de ortodoncia proporcionado por el prestador.\n1. El tratamiento tendrá una duración aproximada de {{controles_mensuales}} controles mensuales, dependiendo, en principio, de la evaluación de la salud bucal del paciente; para el caso que esto suceda, el prestador no tendrá responsabilidad del retardo del tratamiento, brindando el paciente su consentimiento. Por otro lado, también dependerá de que el paciente concurra regularmente a los controles mensuales y lleve a cabo el tratamiento indicado por el profesional.\n1. El paciente se compromete a asistir a los controles mensuales establecidos por el profesional, sin excepción, quedando en pleno conocimiento de que son fundamentales para asegurar el éxito del tratamiento, como también para garantizar el adecuado ajuste del aparato de ortodoncia. Se deja expresamente aclarado que la periodicidad de los controles se puede ver modificada por parte del profesional por razones clínicas (avisando con anticipación).\n1. El paciente, quien fue informado de manera cierta sobre el pago mensual correspondiente al tratamiento, se obliga comprometiéndose a realizar en cada control el pago de dicho servicio, dejando constancia de que es de su pleno conocimiento y aceptación que dicho valor se incrementará conforme actualización por parte del prestador, incremento que será tomado conforme incidencia de la economía en nuestro país, cada tres meses.\n1. Para el caso de que el paciente incumpla con esta obligación y el prestador no reciba el pago de 3 controles consecutivos, el mismo tendrá el derecho de suspender el servicio.\n1. En caso de que el paciente no asista a una cita de control mensual sin dar aviso y/o sin reprogramar su turno, el mismo devengará un interés del 30 % mensual acumulado, en forma de cargo adicional.\n1. El paciente se responsabiliza de cumplir con las citas; el incumplimiento por ausencia recarga toda la responsabilidad, ya que está en conocimiento de que dicha ausencia afectaría el progreso de su tratamiento.\n1. El paciente asume el compromiso de tratar al personal con prudencia, cordialidad y respeto en general; con el mismo respeto será atendido.\n1. El prestador se compromete a realizar el tratamiento con la debida diligencia conforme a los estándares profesionales reconocidos; sin embargo, el paciente entiende y acepta que los resultados del tratamiento pueden variar y que no se garantiza un resultado perfecto, dado que depende de diversos factores, como el estado de salud bucal y general del paciente y el cumplimiento del paciente con los controles e indicaciones brindados por el profesional.\n1. El paciente puede terminar el contrato en cualquier momento del tratamiento, para lo cual debe estar al día con los pagos y preavisar al prestador. Si el paciente decide retirar la aparatología antes de obtener el alta, debe abonar la rescisión y los raspajes para su retiro.\n1. Al firmar este acuerdo, el paciente o su tutor han sido cabalmente informados, reconocen haber leído los términos y condiciones y manifiestan su conformidad, aceptación y compromiso relacionados a su tratamiento de ortodoncia.\n1. Autorizo el uso de mi imagen y voz en fotos y videos para ser difundidos en redes sociales, folletos y gráfica, al solo efecto profesional, relacionado a promociones y campañas, sin limitación de tiempo, a excepción de ser solicitado.\n1. A todo efecto las partes asumen la ley aplicable; en caso de discrepancias o controversias derivadas del presente, las partes se comprometen a intentar resolverlas de manera amistosa, a través de mediación; si no fuera posible, se someten a la jurisdicción de los tribunales competentes.\n1. El paciente se compromete a cumplir con su plan de tratamiento, explicado con anticipación, y comprende que los tejidos biológicos pueden sufrir consecuencias graves (pérdida de piezas dentarias, reabsorción ósea, movilidad, parálisis facial, muerte, etc.) en caso de no respetarlo.\n\nFirma ______________________________\nAclaración ______________________________\nDNI ______________________________\nLugar y fecha ______________________________\n"}, {"nombre": "Cuidados post-instalación de brackets", "contenido": "# CUIDADOS POST-INSTALACIÓN DE BRACKETS\n\nPaciente: **{{paciente}}** · {{fecha}}\n\n1. NO COMER DURANTE AL MENOS 1 HORA. SE PUEDEN INGERIR LÍQUIDOS.\n1. SI SIENTE MOLESTIA/DOLOR PUEDE TOMAR PARACETAMOL, NO MÁS DE 3 DÍAS. SI EL DOLOR PERSISTE, CONSULTAR.\n1. SI RASPA, PINCHA O GENERA LLAGAS, UTILIZAR CERA DE ORTODONCIA: COLOCAR UN TROCITO SOBRE EL METAL.\n1. NO CONSUMIR ALIMENTOS QUE GENEREN EFECTO “PALANCA”, POR EJEMPLO:\n  - ALIMENTOS DUROS: TOSTADAS, GALLETITAS, SÁNDWICH, MANÍ, FRUTAS SECAS.\n  - ALIMENTOS BLANDOS: PAN, GOMITAS, CARAMELOS MASTICABLES, CHICLE.\n1. NO ALIMENTARSE CON LAS MANOS: SIEMPRE UTILIZAR CUCHILLO Y TENEDOR, CORTAR EN TROZOS PEQUEÑOS.\n1. HIGIENIZARSE LUEGO DE CADA COMIDA, CON CEPILLO, PASTA E INTERDENTALES.\n1. SI SE DESPRENDE UN BRACKET, INFORMAR CUANTO ANTES AL PROFESIONAL.\n"}];
 const CLAVE = 'smiles-demo-v2';
 const CLAVE_SESION = 'smiles-demo-sesion';
 const PERSONAL = ['recepcion', 'odontologia', 'admin'];
@@ -99,6 +100,8 @@ function cargar() {
   db.precios ??= PRECIOS_INICIALES.map((x, i) => ({ id: id(), ...x, orden: i, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null }));
   if (!db.usuarios.some((u) => u.rol === 'contabilidad')) db.usuarios.push({ id: id(), clave: 'demo1234', email: 'contabilidad@demo.com', rol: 'contabilidad', nombre: 'Carla', apellido: 'Contable' });
   db.foto_secciones ??= [];
+  db.plantillas ??= PLANTILLAS_INICIALES.map((x, i) => ({ id: id(), ...x, activa: true, orden: i, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null }));
+  db.documentos ??= [];
   if (!db.pagos) {
     // Ejemplos: Ana debe una parte de la última consulta y Juan dejó una seña
     const [ana, juan] = db.pacientes;
@@ -360,6 +363,8 @@ export const api = {
     d.planes = d.planes.filter((x) => x.paciente_id !== pid);
     for (const g of d.pagos.filter((x) => x.paciente_id === pid)) archivos.borrar(`comprobante:${g.id}`).catch(() => {});
     d.pagos = d.pagos.filter((x) => x.paciente_id !== pid);
+    for (const x of d.documentos.filter((y) => y.paciente_id === pid)) archivos.borrar(`documento:${x.id}`).catch(() => {});
+    d.documentos = d.documentos.filter((x) => x.paciente_id !== pid);
     const cuenta = d.usuarios.find((u) => u.id === p.usuario_id);
     if (cuenta?.rol === 'paciente') d.usuarios = d.usuarios.filter((u) => u !== cuenta);
     d.pacientes = d.pacientes.filter((x) => x !== p);
@@ -884,6 +889,115 @@ Object.assign(api, {
         return { ...g, paciente: p ? `${p.apellido}, ${p.nombre}` : '', dni: p?.dni || '' };
       }));
   },
+});
+const copia = (x) => ({ ...x });
+Object.assign(api, {
+  async plantillas() {
+    requiere(...PERSONAL);
+    return espera(cargar().plantillas.map(copia).sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre)));
+  },
+  async guardarPlantilla(t) {
+    const u = requiere('admin');
+    const d = cargar();
+    const nombre = (t.nombre || '').trim();
+    if (!nombre) throw new Error('Escribí el nombre de la plantilla.');
+    const campos = { nombre, contenido: t.contenido || '', activa: t.activa !== false };
+    let x = t.id && d.plantillas.find((y) => y.id === t.id);
+    if (x) Object.assign(x, campos, { actualizado_en: ahora(), actualizado_por_nombre: nombreUsuario(u) });
+    else {
+      x = { id: id(), ...campos, orden: t.orden ?? 99, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null };
+      d.plantillas.push(x);
+    }
+    guardar();
+    return espera(copia(x));
+  },
+  async borrarPlantilla(tid) {
+    requiere('admin');
+    const d = cargar();
+    d.plantillas = d.plantillas.filter((x) => x.id !== tid);
+    for (const x of d.documentos) if (x.plantilla_id === tid) x.plantilla_id = null;
+    guardar();
+    return espera();
+  },
+  async documentos(pid) {
+    requiere(...PERSONAL);
+    return espera(cargar().documentos.filter((x) => x.paciente_id === pid).sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map(copia));
+  },
+  async crearDocumento(doc) {
+    const u = requiere(...PERSONAL);
+    if (!doc.titulo?.trim() || !doc.contenido) throw new Error('Faltan datos del documento.');
+    const x = { id: id(), paciente_id: doc.paciente_id, plantilla_id: doc.plantilla_id || null, titulo: doc.titulo, contenido: doc.contenido, datos: doc.datos || {},
+      firmado: false, firmado_en: null, firmado_por_nombre: null, archivo_tipo: null, archivo_nombre: null, archivo_bytes: null,
+      creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora() };
+    cargar().documentos.push(x);
+    guardar();
+    return espera(copia(x));
+  },
+  async marcarFirmado(did, firmado) {
+    const u = requiere(...PERSONAL);
+    const x = cargar().documentos.find((y) => y.id === did);
+    if (!x) throw new Error('No encontramos ese documento.');
+    if (firmado && !x.firmado) Object.assign(x, { firmado: true, firmado_en: ahora(), firmado_por_nombre: nombreUsuario(u) });
+    else if (!firmado) Object.assign(x, { firmado: false, firmado_en: null, firmado_por_nombre: null });
+    guardar();
+    return espera(copia(x));
+  },
+  async borrarDocumento(did) {
+    const u = requiere(...PERSONAL);
+    const d = cargar();
+    const x = d.documentos.find((y) => y.id === did);
+    if (!x) throw new Error('No encontramos ese documento.');
+    if (x.firmado && u.rol !== 'admin') throw new Error('Un documento firmado solo lo puede borrar un admin.');
+    d.documentos = d.documentos.filter((y) => y !== x);
+    guardar();
+    await archivos.borrar(`documento:${did}`);
+    return espera();
+  },
+  async subirCopiaFirmada(did, archivo) {
+    requiere(...PERSONAL);
+    const f = await prepararComprobante(archivo, { maxPdf: MAX_DOCUMENTO });
+    const x = cargar().documentos.find((y) => y.id === did);
+    if (!x) throw new Error('No encontramos ese documento.');
+    await archivos.guardar(`documento:${did}`, f);
+    Object.assign(x, { archivo_tipo: f.type, archivo_nombre: f.name || 'documento firmado', archivo_bytes: f.size });
+    guardar();
+    return x.firmado ? espera(copia(x)) : api.marcarFirmado(did, true);
+  },
+  async quitarCopiaFirmada(did) {
+    requiere(...PERSONAL);
+    const x = cargar().documentos.find((y) => y.id === did);
+    Object.assign(x, { archivo_tipo: null, archivo_nombre: null, archivo_bytes: null });
+    guardar();
+    await archivos.borrar(`documento:${did}`);
+    return espera(copia(x));
+  },
+  async urlCopiaFirmada(did) {
+    requiere(...PERSONAL);
+    const b = await archivos.leer(`documento:${did}`);
+    if (!b) throw new Error('No encontramos el archivo.');
+    return URL.createObjectURL(b);
+  },
+});
+const docPorId = (did) => ({ ...cargar().documentos.find((x) => x.id === did) });
+Object.assign(ANOTACIONES, {
+  guardarPlantilla: {
+    pre: ([t]) => (t.id ? { ...cargar().plantillas.find((x) => x.id === t.id) } : null),
+    post: ([t], r, antes) => {
+      if (!antes) return anotar('plantilla.creada', null, { nombre: r.nombre });
+      if (antes.nombre !== r.nombre || antes.contenido !== r.contenido || antes.activa !== r.activa) {
+        anotar('plantilla.editada', null, { nombre: r.nombre, nombre_antes: antes.nombre, texto: antes.contenido !== r.contenido, activa: r.activa, activa_antes: antes.activa });
+      }
+    },
+  },
+  borrarPlantilla: { pre: ([tid]) => ({ ...cargar().plantillas.find((x) => x.id === tid) }), post: (a, r, t) => anotar('plantilla.borrada', null, { nombre: t.nombre }) },
+  crearDocumento: { post: (a, r) => anotar('documento.creado', r.paciente_id, { titulo: r.titulo }) },
+  marcarFirmado: {
+    pre: ([did]) => docPorId(did),
+    post: ([did, firmado], r, x) => { if (!!firmado !== x.firmado) anotar(firmado ? 'documento.firmado' : 'documento.sin_firma', x.paciente_id, { titulo: x.titulo }); },
+  },
+  subirCopiaFirmada: { post: (a, r) => anotar('documento.archivo', r.paciente_id, { titulo: r.titulo, archivo: r.archivo_nombre }) },
+  quitarCopiaFirmada: { pre: ([did]) => docPorId(did), post: (a, r, x) => { if (x.archivo_tipo) anotar('documento.archivo_quitado', x.paciente_id, { titulo: x.titulo, archivo: x.archivo_nombre }); } },
+  borrarDocumento: { pre: ([did]) => docPorId(did), post: (a, r, x) => anotar('documento.borrado', x.paciente_id, { titulo: x.titulo, firmado: x.firmado }) },
 });
 const pagoPorId = (gid) => ({ ...cargar().pagos.find((x) => x.id === gid) });
 Object.assign(ANOTACIONES, {

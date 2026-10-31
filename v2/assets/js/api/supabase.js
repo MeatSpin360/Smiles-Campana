@@ -2,7 +2,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../../config.js';
 import { isoEn, partes, sumarDias } from '../lib/dates.js';
-import { prepararFoto, prepararComprobante } from '../lib/imagenes.js';
+import { prepararFoto, prepararComprobante, MAX_DOCUMENTO } from '../lib/imagenes.js';
 
 // Los enlaces de los emails (confirmar cuenta, recuperar clave) vuelven con la sesión en la URL.
 // Se detecta antes de crear el cliente, que limpia la URL al leerla.
@@ -356,6 +356,49 @@ export const api = {
   async pagosLista({ desde = null, hasta = null } = {}) {
     return (ok(await sb.rpc('pagos_lista', { p_desde: desde || null, p_hasta: hasta || null })) || [])
       .map((x) => ({ ...x, facturado: Number(x.facturado), pagado: Number(x.pagado) }));
+  },
+
+  // --- Plantillas y documentos (copias firmadas en Cloudflare R2, a través del Worker) ---
+  async plantillas() {
+    return ok(await sb.from('plantillas').select('*').order('orden').order('nombre'));
+  },
+  async guardarPlantilla(t) {
+    const datos = { nombre: (t.nombre || '').trim(), contenido: t.contenido || '', activa: t.activa !== false };
+    if (t.id) return ok(await sb.from('plantillas').update(datos).eq('id', t.id).select().single());
+    return ok(await sb.from('plantillas').insert({ ...datos, orden: t.orden ?? 99 }).select().single());
+  },
+  async borrarPlantilla(id) {
+    ok(await sb.from('plantillas').delete().eq('id', id));
+  },
+  async documentos(pacienteId) {
+    return ok(await sb.from('documentos').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));
+  },
+  /** Guarda el documento ya completado (el texto queda fijo). */
+  async crearDocumento(d) {
+    return ok(await sb.from('documentos').insert({
+      paciente_id: d.paciente_id, plantilla_id: d.plantilla_id || null, titulo: d.titulo, contenido: d.contenido, datos: d.datos || {},
+    }).select().single());
+  },
+  async marcarFirmado(id, firmado) {
+    return ok(await sb.from('documentos').update({ firmado: !!firmado }).eq('id', id).select().single());
+  },
+  async borrarDocumento(id) {
+    await alWorker(`/api/documentos/${id}`, { method: 'DELETE' });
+  },
+  /** Adjunta la copia firmada (imagen: se achica si pasa de 1 MB; PDF: hasta 3 MB). La marca firmado. */
+  async subirCopiaFirmada(id, archivo) {
+    const f = await prepararComprobante(archivo, { maxPdf: MAX_DOCUMENTO });
+    const r = await (await alWorker(`/api/documentos/${id}/archivo`, {
+      method: 'PUT', body: f, headers: { 'Content-Type': f.type, 'X-Nombre': encodeURIComponent(f.name || 'documento firmado') },
+    })).json();
+    return r.firmado ? r : this.marcarFirmado(id, true);
+  },
+  async quitarCopiaFirmada(id) {
+    await alWorker(`/api/documentos/${id}/archivo`, { method: 'DELETE' });
+  },
+  async urlCopiaFirmada(id) {
+    const b = await (await alWorker(`/api/documentos/${id}/archivo`)).blob();
+    return URL.createObjectURL(b);
   },
 
   // --- Fotos (archivos en Cloudflare R2, a través del Worker: worker/index.js) ---

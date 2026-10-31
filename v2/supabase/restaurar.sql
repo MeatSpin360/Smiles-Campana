@@ -29,6 +29,8 @@ alter table fotos disable trigger user;
 alter table planes disable trigger user;
 alter table precios disable trigger user;
 alter table pagos disable trigger user;
+alter table plantillas disable trigger user;
+alter table documentos disable trigger user;
 
 -- Perfiles: solo de cuentas que existen en este proyecto (recupera nombre y rol)
 insert into perfiles
@@ -114,6 +116,27 @@ from respaldo, jsonb_populate_recordset(null::pagos, coalesce(t -> 'pagos', '[]'
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+-- Plantillas y documentos (copias anteriores a noviembre de 2026 no los traen). Las copias firmadas siguen en R2.
+-- Si la copia trae plantillas, quedan esas (se quitan las iniciales de un proyecto nuevo que no se usaron)
+do $$ begin
+  if jsonb_array_length(coalesce((select t -> 'plantillas' from respaldo), '[]')) > 0 then
+    delete from plantillas p
+    where not exists (select 1 from documentos d where d.plantilla_id = p.id)
+      and p.id not in (select x.id from respaldo, jsonb_populate_recordset(null::plantillas, t -> 'plantillas') x);
+    insert into plantillas
+    select x.* from respaldo, jsonb_populate_recordset(null::plantillas, t -> 'plantillas') x
+    on conflict do nothing;
+  end if;
+end $$;
+
+insert into documentos
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end,
+          'plantilla_id', case when exists (select 1 from plantillas p where p.id = x.plantilla_id) then x.plantilla_id end))).*
+from respaldo, jsonb_populate_recordset(null::documentos, coalesce(t -> 'documentos', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
 -- Lista de precios: la de la copia reemplaza a la actual (copias viejas no la traen)
 do $$ begin
   if jsonb_array_length(coalesce((select t -> 'precios' from respaldo), '[]')) > 0 then
@@ -138,6 +161,8 @@ alter table fotos enable trigger user;
 alter table planes enable trigger user;
 alter table precios enable trigger user;
 alter table pagos enable trigger user;
+alter table plantillas enable trigger user;
+alter table documentos enable trigger user;
 
 set local smiles.sin_registro = 'off';
 select anotar('sistema.restauracion', null, jsonb_build_object('copia_del', (select creado from respaldo)));

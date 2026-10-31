@@ -10,6 +10,7 @@ import { ICONOS } from '../iconos.js';
 import { vistaFotos } from './fotos.js';
 import { vistaPlanes } from './planes.js';
 import { vistaPagos, cartelSaldo, VEN_SALDO } from './pagos.js';
+import { vistaDocumentos } from './documentos.js';
 
 const PESTANAS = [
   { id: 'datos', texto: 'Datos' },
@@ -17,6 +18,7 @@ const PESTANAS = [
   { id: 'odontograma', texto: 'Odontograma', clinica: true },
   { id: 'historia', texto: 'Historia clínica', clinica: true },
   { id: 'planes', texto: 'Planes' },
+  { id: 'documentos', texto: 'Documentos' },
   { id: 'pagos', texto: 'Pagos', roles: ['recepcion', 'admin'] },
   { id: 'fotos', texto: 'Fotos', clinica: true },
 ];
@@ -49,7 +51,7 @@ export async function ficha(ctx) {
       href: `#/pacientes/${id}/${t.id}`, 'aria-current': t.id === pestana ? 'page' : null,
     }, t.texto))));
 
-  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, planes: vistaPlanes, pagos: vistaPagos, fotos: vistaFotos };
+  const vistas = { datos: vistaDatos, turnos: vistaTurnos, odontograma: vistaOdontograma, historia: vistaHistoria, planes: vistaPlanes, pagos: vistaPagos, documentos: vistaDocumentos, fotos: vistaFotos };
   vistas[pestana](ctx, p).then((n) => vaciar(contenido, n)).catch((e) => vaciar(contenido, h('p.error-campo', mensajeError(e))));
 
   return h('div.ficha', cabecera, contenido);

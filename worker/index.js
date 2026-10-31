@@ -5,6 +5,7 @@
 //   pacientes/<paciente_id>/<foto_id>-mini.jpg   miniatura (400 px)
 // Y los comprobantes de pago, en una carpeta aparte del mismo depósito:
 //   comprobantes/<paciente_id>/<pago_id>         imagen o PDF de hasta 1 MB
+//   documentos/<paciente_id>/<documento_id>      copia firmada: imagen o PDF de hasta 3 MB
 //
 // El Worker no decide permisos: le pregunta a la base (Supabase) con la sesión de quien hace el pedido.
 // Si la base no le deja ver, crear o borrar la fila de la foto, el Worker tampoco toca el archivo.
@@ -18,15 +19,17 @@
 //   GET    /api/pagos/<id>/comprobante   ver
 //   DELETE /api/pagos/<id>/comprobante   quitar
 //   DELETE /api/pagos/<id>                borrar el pago con su comprobante (solo admin)
+//   PUT/GET/DELETE /api/documentos/<id>/archivo   copia firmada de un documento (hasta 3 MB)
+//   DELETE /api/documentos/<id>            borrar el documento con su copia firmada
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_FOTO = 4 * 1024 * 1024;
 const MAX_MINI = 400 * 1024;
 const MAX_COMPROBANTE = 1024 * 1024;
-const TIPOS_COMPROBANTE = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const MAX_DOCUMENTO = 3 * 1024 * 1024;
+const TIPOS_ADJUNTO = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const clave = (pacienteId, fotoId, mini = false) => `pacientes/${pacienteId}/${fotoId}${mini ? '-mini' : ''}.jpg`;
-const claveComprobante = (pacienteId, pagoId) => `comprobantes/${pacienteId}/${pagoId}`;
 
 export default {
   async fetch(req, env) {
@@ -55,13 +58,14 @@ async function api(req, env, url) {
   if (partes[1] === 'pacientes' && partes[3] === 'fotos' && partes.length === 4 && UUID.test(partes[2]) && req.method === 'DELETE') {
     return borrarDePaciente(env, db, partes[2]);
   }
-  if (partes[1] === 'pagos' && UUID.test(partes[2] || '')) {
-    if (partes.length === 4 && partes[3] === 'comprobante') {
-      if (req.method === 'PUT') return adjuntarComprobante(req, env, db, partes[2]);
-      if (req.method === 'GET') return verComprobante(env, db, partes[2]);
-      if (req.method === 'DELETE') return quitarComprobante(env, db, partes[2]);
+  const a = ADJUNTOS[partes[1]];
+  if (a && UUID.test(partes[2] || '')) {
+    if (partes.length === 4 && partes[3] === a.ruta) {
+      if (req.method === 'PUT') return adjuntar(req, env, db, partes[1], a, partes[2]);
+      if (req.method === 'GET') return verAdjunto(env, db, partes[1], a, partes[2]);
+      if (req.method === 'DELETE') return quitarAdjunto(env, db, partes[1], a, partes[2]);
     }
-    if (partes.length === 3 && req.method === 'DELETE') return borrarPago(env, db, partes[2]);
+    if (partes.length === 3 && req.method === 'DELETE') return borrarConAdjunto(env, db, partes[1], a, partes[2]);
   }
   return error(404, 'No encontrado.');
 }
@@ -134,7 +138,7 @@ async function borrarDePaciente(env, db, pacienteId) {
   if (!sigue.ok) return error(403, 'No tenés permiso.');
   if (sigue.datos.length) return error(409, 'El paciente todavía existe.');
   let borradas = 0;
-  for (const carpeta of ['pacientes', 'comprobantes']) {
+  for (const carpeta of ['pacientes', 'comprobantes', 'documentos']) {
     let cursor;
     do {
       const lista = await env.FOTOS.list({ prefix: `${carpeta}/${pacienteId}/`, cursor });
@@ -147,55 +151,66 @@ async function borrarDePaciente(env, db, pacienteId) {
   return responder(200, { borradas });
 }
 
-// ---------- Comprobantes de pago ----------
-// Ver: quien puede ver el pago (recepción, admin, contabilidad). Adjuntar y quitar: quien puede corregirlo
-// (recepción, admin). La base lo decide: el Worker primero cambia la fila y solo si puede toca el archivo.
+// ---------- Archivos adjuntos: comprobantes de pago y copias firmadas de documentos ----------
+// Ver: quien puede ver la fila. Adjuntar y quitar: quien puede modificarla. La base lo decide: el Worker
+// primero cambia la fila y solo si puede toca el archivo.
+const ADJUNTOS = {
+  pagos: {
+    ruta: 'comprobante', carpeta: 'comprobantes', max: MAX_COMPROBANTE, cosa: 'el comprobante', limite: '1 MB',
+    tipo: 'comprobante_tipo', nombre: 'comprobante_nombre', bytes: 'comprobante_bytes', fila: 'ese pago',
+  },
+  documentos: {
+    ruta: 'archivo', carpeta: 'documentos', max: MAX_DOCUMENTO, cosa: 'la copia firmada', limite: '3 MB',
+    tipo: 'archivo_tipo', nombre: 'archivo_nombre', bytes: 'archivo_bytes', fila: 'ese documento',
+  },
+};
+const claveAdjunto = (a, pacienteId, id) => `${a.carpeta}/${pacienteId}/${id}`;
 
-async function adjuntarComprobante(req, env, db, id) {
+async function adjuntar(req, env, db, tabla, a, id) {
   const tipo = (req.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
-  if (!TIPOS_COMPROBANTE.includes(tipo)) return error(400, 'El comprobante tiene que ser una imagen (JPG, PNG o WEBP) o un PDF.');
+  if (!TIPOS_ADJUNTO.includes(tipo)) return error(400, 'El archivo tiene que ser una imagen (JPG, PNG o WEBP) o un PDF.');
   const largo = Number(req.headers.get('Content-Length') || 0);
-  if (largo > MAX_COMPROBANTE) return error(413, 'El comprobante supera 1 MB.');
+  if (largo > a.max) return error(413, `El archivo supera ${a.limite}.`);
   const datos = await req.arrayBuffer();
   if (!datos.byteLength) return error(400, 'El archivo está vacío.');
-  if (datos.byteLength > MAX_COMPROBANTE) return error(413, 'El comprobante supera 1 MB.');
+  if (datos.byteLength > a.max) return error(413, `El archivo supera ${a.limite}.`);
   let nombre = '';
   try { nombre = decodeURIComponent(req.headers.get('X-Nombre') || ''); } catch { nombre = ''; }
-  nombre = nombre.replace(/[\u0000-\u001f\\/]/g, '').slice(0, 120) || 'comprobante';
+  nombre = nombre.replace(/[\u0000-\u001f\\/]/g, '').slice(0, 120) || 'archivo';
 
-  const antes = await db(`pagos?id=eq.${id}&select=paciente_id,comprobante_tipo,comprobante_nombre,comprobante_bytes`, { method: 'GET' });
-  if (!antes.ok) return error(antes.status === 401 ? 401 : 403, 'No tenés permiso para ver este pago.');
-  if (!antes.datos.length) return error(404, 'No encontramos ese pago.');
-  const r = await db(`pagos?id=eq.${id}`, {
+  const antes = await db(`${tabla}?id=eq.${id}&select=paciente_id,${a.tipo},${a.nombre},${a.bytes}`, { method: 'GET' });
+  if (!antes.ok) return error(antes.status === 401 ? 401 : 403, `No tenés permiso para ver ${a.fila}.`);
+  if (!antes.datos.length) return error(404, `No encontramos ${a.fila}.`);
+  const r = await db(`${tabla}?id=eq.${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ comprobante_tipo: tipo, comprobante_nombre: nombre, comprobante_bytes: datos.byteLength }),
+    body: JSON.stringify({ [a.tipo]: tipo, [a.nombre]: nombre, [a.bytes]: datos.byteLength }),
   });
-  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || 'No tenés permiso para adjuntar comprobantes.');
-  if (!r.datos.length) return error(403, 'No tenés permiso para adjuntar comprobantes.');
-  const pago = r.datos[0];
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || `No tenés permiso para adjuntar ${a.cosa}.`);
+  if (!r.datos.length) return error(403, `No tenés permiso para adjuntar ${a.cosa}.`);
+  const fila = r.datos[0];
   try {
-    await env.FOTOS.put(claveComprobante(pago.paciente_id, id), datos, { httpMetadata: { contentType: tipo } });
+    await env.FOTOS.put(claveAdjunto(a, fila.paciente_id, id), datos, { httpMetadata: { contentType: tipo } });
   } catch (e) {
     // Sin archivo, la fila vuelve a como estaba
     console.error(e);
-    const { comprobante_tipo, comprobante_nombre, comprobante_bytes } = antes.datos[0];
-    await db(`pagos?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ comprobante_tipo, comprobante_nombre, comprobante_bytes }) });
-    return error(502, 'No se pudo guardar el comprobante. Probá de nuevo.');
+    const v = antes.datos[0];
+    await db(`${tabla}?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ [a.tipo]: v[a.tipo], [a.nombre]: v[a.nombre], [a.bytes]: v[a.bytes] }) });
+    return error(502, `No se pudo guardar ${a.cosa}. Probá de nuevo.`);
   }
-  return responder(200, pago);
+  return responder(200, fila);
 }
 
-async function verComprobante(env, db, id) {
-  const r = await db(`pagos?id=eq.${id}&select=paciente_id,comprobante_tipo,comprobante_nombre`, { method: 'GET' });
-  if (!r.ok) return error(r.status === 401 ? 401 : 403, 'No tenés permiso para ver este comprobante.');
-  if (!r.datos.length || !r.datos[0].comprobante_tipo) return error(404, 'Ese pago no tiene comprobante.');
-  const { paciente_id: pacienteId, comprobante_tipo: tipo, comprobante_nombre: nombre } = r.datos[0];
-  const obj = await env.FOTOS.get(claveComprobante(pacienteId, id));
-  if (!obj) return error(404, 'No encontramos el archivo del comprobante.');
+async function verAdjunto(env, db, tabla, a, id) {
+  const r = await db(`${tabla}?id=eq.${id}&select=paciente_id,${a.tipo},${a.nombre}`, { method: 'GET' });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, `No tenés permiso para ver ${a.cosa}.`);
+  if (!r.datos.length || !r.datos[0][a.tipo]) return error(404, `${a.fila[0].toUpperCase()}${a.fila.slice(1)} no tiene archivo adjunto.`);
+  const fila = r.datos[0];
+  const obj = await env.FOTOS.get(claveAdjunto(a, fila.paciente_id, id));
+  if (!obj) return error(404, 'No encontramos el archivo.');
   return new Response(obj.body, {
     headers: {
-      'Content-Type': tipo,
-      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(nombre || 'comprobante')}`,
+      'Content-Type': fila[a.tipo],
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(fila[a.nombre] || 'archivo')}`,
       // Se puede reemplazar: el navegador lo guarda solo para esta persona y pregunta si cambió
       'Cache-Control': 'private, no-cache',
       ETag: obj.httpEtag,
@@ -204,19 +219,20 @@ async function verComprobante(env, db, id) {
   });
 }
 
-async function quitarComprobante(env, db, id) {
-  const r = await db(`pagos?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ comprobante_tipo: null }) });
-  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || 'No tenés permiso para quitar comprobantes.');
-  if (!r.datos.length) return error(404, 'No encontramos ese pago o no tenés permiso para cambiarlo.');
-  await env.FOTOS.delete(claveComprobante(r.datos[0].paciente_id, id));
+async function quitarAdjunto(env, db, tabla, a, id) {
+  const r = await db(`${tabla}?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ [a.tipo]: null }) });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || `No tenés permiso para quitar ${a.cosa}.`);
+  if (!r.datos.length) return error(404, `No encontramos ${a.fila} o no tenés permiso para cambiarlo.`);
+  await env.FOTOS.delete(claveAdjunto(a, r.datos[0].paciente_id, id));
   return responder(200, r.datos[0]);
 }
 
-async function borrarPago(env, db, id) {
-  const r = await db(`pagos?id=eq.${id}`, { method: 'DELETE' });
-  if (!r.ok) return error(r.status === 401 ? 401 : 403, 'No tenés permiso para borrar pagos.');
-  if (!r.datos.length) return error(404, 'No encontramos ese pago o no tenés permiso para borrarlo.');
-  await env.FOTOS.delete(claveComprobante(r.datos[0].paciente_id, id));
+/** Borra la fila (la base decide si se puede) y su archivo. */
+async function borrarConAdjunto(env, db, tabla, a, id) {
+  const r = await db(`${tabla}?id=eq.${id}`, { method: 'DELETE' });
+  if (!r.ok) return error(r.status === 401 ? 401 : 403, r.mensaje || 'No tenés permiso para borrarlo.');
+  if (!r.datos.length) return error(404, `No encontramos ${a.fila} o no tenés permiso para borrarlo.`);
+  await env.FOTOS.delete(claveAdjunto(a, r.datos[0].paciente_id, id));
   return responder(200, { borrado: id });
 }
 

@@ -36,13 +36,23 @@ export function formularioPaciente(p = {}) {
       h('label.campo', h('span', 'Celular'), h('input', { name: 'telefono', type: 'tel', value: p.telefono || '' })),
       h('label.campo', h('span', 'Email'), h('input', { name: 'email', type: 'email', value: p.email || '' }))),
     h('label.campo', h('span', 'Dirección'), h('input', { name: 'direccion', value: p.direccion || '' })),
-    h('label.campo', h('span', 'Notas administrativas'), h('textarea', { name: 'notas', rows: 3, placeholder: 'Por ejemplo: prefiere turnos a la tarde.' }, p.notas || '')));
+    h('label.campo', h('span', 'Notas administrativas'), h('textarea', { name: 'notas', rows: 3, placeholder: 'Por ejemplo: prefiere turnos a la tarde.' }, p.notas || '')),
+    h('fieldset.grupo-responsable',
+      h('legend', 'Responsable, si es menor de edad'),
+      h('p.texto-suave.nota-chica', 'Madre, padre o tutor. Se usa en los documentos (por ejemplo, el contrato de ortodoncia).'),
+      h('div.fila-campos',
+        h('label.campo', h('span', 'Nombre y apellido'), h('input', { name: 'responsable_nombre', value: p.responsable_nombre || '', autocomplete: 'off' })),
+        h('label.campo', h('span', 'DNI'), h('input', { name: 'responsable_dni', value: p.responsable_dni || '', inputmode: 'numeric', autocomplete: 'off' })))));
 }
 
 export function validarPaciente(d) {
   d.dni = (d.dni || '').replace(/\D/g, '');
   if (!d.nombre || !d.apellido) return 'Completá nombre y apellido.';
   if (!/^\d{6,9}$/.test(d.dni)) return 'Revisá el DNI: solo números, sin puntos.';
+  if ('responsable_dni' in d) {
+    d.responsable_dni = (d.responsable_dni || '').replace(/\D/g, '');
+    if (d.responsable_dni && !/^\d{6,9}$/.test(d.responsable_dni)) return 'Revisá el DNI del responsable: solo números, sin puntos.';
+  }
   return null;
 }
 

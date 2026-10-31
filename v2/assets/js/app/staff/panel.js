@@ -17,6 +17,7 @@ const SECCIONES = [
   { id: '', texto: 'Resumen y registro' },
   { id: 'usuarios', texto: 'Usuarios', vista: () => import('./usuarios.js').then((m) => m.usuarios) },
   { id: 'horarios', texto: 'Horarios', vista: () => import('./horarios.js').then((m) => m.horarios) },
+  { id: 'plantillas', texto: 'Plantillas', vista: () => import('./documentos.js').then((m) => m.plantillasPanel) },
 ];
 
 export async function panel(ctx) {
@@ -24,7 +25,7 @@ export async function panel(ctx) {
   const pestanas = h('nav.pestanas', { 'aria-label': 'Secciones del panel' }, SECCIONES.map((x) => h('a.pestana', {
     href: `#/panel${x.id ? `/${x.id}` : ''}`, 'aria-current': x === seccion ? 'page' : null,
   }, x.texto)));
-  const cabecera = encabezado('Panel de control', 'Resumen del consultorio, registro de acciones, usuarios y horarios.');
+  const cabecera = encabezado('Panel de control', 'Resumen del consultorio, registro de acciones, usuarios, horarios y plantillas de documentos.');
   if (seccion.vista) {
     // Las pantallas de Usuarios y Horarios, adentro del panel: al guardar vuelven a esta pestaña
     const vista = await seccion.vista();

@@ -11,6 +11,7 @@ export const TIPOS = [
   { id: 'planes', texto: 'Planes de tratamiento', prefijos: ['plan'] },
   { id: 'precios', texto: 'Lista de precios', prefijos: ['precio', 'precios'] },
   { id: 'pagos', texto: 'Pagos', prefijos: ['pago'] },
+  { id: 'documentos', texto: 'Documentos y plantillas', prefijos: ['documento', 'plantilla'] },
   { id: 'usuarios', texto: 'Usuarios y cuentas', prefijos: ['usuario'] },
   { id: 'agenda', texto: 'Agenda y horarios', prefijos: ['agenda'] },
   { id: 'sistema', texto: 'Sistema (copias de seguridad)', prefijos: ['sistema'] },
@@ -20,7 +21,7 @@ export const ROLES = { paciente: 'Paciente', recepcion: 'Recepción', odontologi
 
 const CAMPOS = {
   dni: 'DNI', nombre: 'nombre', apellido: 'apellido', fecha_nac: 'fecha de nacimiento', telefono: 'celular',
-  email: 'correo', direccion: 'dirección', notas: 'notas',
+  email: 'correo', direccion: 'dirección', notas: 'notas', responsable_nombre: 'responsable', responsable_dni: 'DNI del responsable',
   duracion: 'duración de los turnos', intervalo: 'intervalo', margen_sobreturno: 'margen de sobreturnos',
   dias_visibles: 'días visibles', horas_cancelacion: 'horas para cancelar',
 };
@@ -98,6 +99,17 @@ export function describir({ accion, detalle: d = {} }) {
     case 'pago.comprobante': return { texto: 'Adjuntó un comprobante', extra: `Pago del ${fechaCorta(d.fecha)}${d.archivo ? ` · ${d.archivo}` : ''}` };
     case 'pago.comprobante_quitado': return { texto: 'Quitó un comprobante', extra: `Pago del ${fechaCorta(d.fecha)}` };
     case 'pago.borrado': return { texto: 'Borró un pago', extra: `${fechaCorta(d.fecha)} · facturado ${pesos(d.facturado)}, pagó ${pesos(d.pagado)}` };
+
+    case 'documento.creado': return { texto: 'Generó un documento', extra: d.titulo };
+    case 'documento.firmado': return { texto: 'Marcó un documento como firmado', extra: d.titulo };
+    case 'documento.sin_firma': return { texto: 'Quitó la marca de firmado', extra: d.titulo };
+    case 'documento.archivo': return { texto: 'Adjuntó la copia firmada', extra: [d.titulo, d.archivo].filter(Boolean).join(' · ') };
+    case 'documento.archivo_quitado': return { texto: 'Quitó la copia firmada', extra: d.titulo };
+    case 'documento.borrado': return { texto: d.firmado ? 'Borró un documento firmado' : 'Borró un documento', extra: d.titulo };
+    case 'plantilla.creada': return { texto: 'Creó una plantilla', extra: d.nombre };
+    case 'plantilla.editada': return { texto: d.activa !== d.activa_antes ? (d.activa ? 'Volvió a habilitar una plantilla' : 'Desactivó una plantilla') : 'Editó una plantilla',
+      extra: d.nombre_antes && d.nombre_antes !== d.nombre ? `${d.nombre_antes} → ${d.nombre}` : d.nombre };
+    case 'plantilla.borrada': return { texto: 'Borró una plantilla', extra: d.nombre };
 
     case 'usuario.registrado': return { texto: 'Se creó una cuenta', extra: d.cuenta || '' };
     case 'usuario.rol': return { texto: 'Cambió el rol de una cuenta', extra: `${d.cuenta}: ${ROLES[d.de] || d.de} → ${ROLES[d.a] || d.a}` };

@@ -131,7 +131,7 @@ export function editorPago(ctx, { paciente, pago = null }) {
     // Comprobante: el actual (ver o quitar) y uno nuevo para adjuntar o reemplazar
     let archivo = null;
     let quitar = false;
-    const elegir = h('input', { type: 'file', accept: 'image/*,application/pdf,.pdf', hidden: true });
+    const elegir = h('input', { type: 'file', accept: 'image/*,.heic,.heif,application/pdf,.pdf', hidden: true });
     const zonaComprobante = h('div.zona-comprobante');
     const dibujarComprobante = () => {
       const actual = pago?.comprobante_tipo && !quitar && !archivo;

@@ -41,7 +41,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 - [x] Almacenamiento en **Cloudflare R2** (depósito `smiles-fotos`, 10 GB gratis, sin costo de descarga). Acceso solo a través del Worker (`worker/index.js`), que consulta a la base con la sesión de quien pide: odontología y admin; recepción y pacientes no. Tablas `foto_secciones` y `fotos`; la copia semanal incluye la lista y las secciones.
 - [x] Fotos reducidas en el navegador antes de subir (2000 px, unos 300 a 700 KB) y una miniatura de 400 px.
-- [ ] Más adelante: **convertir fotos HEIC** (formato de iPhone) en el navegador. Hoy, si una foto no se puede leer, la app pide exportarla como JPG.
+- [x] **Fotos HEIC/HEIF** (iPhone, algunos Samsung): Safari las lee directo; en Chrome/Edge se convierten en el navegador con `assets/vendor/heic-to.js` (heic-to 1.5.2, licencia LGPL, sin modificar), que se descarga solo la primera vez que hace falta. Vale para fotos clínicas, comprobantes y copias firmadas.
 - [x] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
   - modo ver: secciones con título (por ejemplo "Primera consulta 02/11/2026") y miniaturas; vista ampliada pasando de una foto a otra;
   - modo *Editar*: agregar sección (rectángulo con título y fotos), arrastrar fotos desde la PC o buscarlas, moverlas entre secciones, borrar fotos, renombrar o borrar secciones.
@@ -77,7 +77,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Página `mantenimiento.html` con el logo: "La página se encuentra momentáneamente fuera de servicio. Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad. Equipo de Smiles Campana." Responde 503 (Google no la guarda) y se recarga sola cada 2 minutos.
 - [x] **Interruptor en el Panel** (admin, *Resumen y registro*). Activado: smilescampana.com.ar y www muestran la página a todos, incluida la pantalla de ingreso. El personal entra por **smiles-campana.emiliobrescasin.workers.dev**, que sigue funcionando con una banda "Mantenimiento activo"; un paciente que ingrese ahí ve el aviso. El Worker consulta la tabla `sitio` y guarda la respuesta 30 s; si la base no responde, sigue con el último estado (una falla nunca lo activa sola). Queda en el registro quién la activó y desactivó. El Worker ahora pasa por todas las rutas (`run_worker_first: true`).
 - [x] **Automática, por visitante** (nunca global): al abrir Mi espacio, si la base no responde en 2 intentos de 10 s y hay internet, se muestra el aviso con "Reintentar"; sin internet, "No hay conexión" (se recarga sola al volver). Si el código de la app no carga, el aviso aparece enseguida (o a los 25 s como máximo). Si el Worker falla al servir una página, muestra el aviso en lugar de un error.
-- [ ] Más adelante (seguridad): redirigir workers.dev al dominio **salvo durante el mantenimiento**.
+- [x] workers.dev lleva al dominio (redirección temporal, con la misma ruta) **salvo durante el mantenimiento**, cuando es la entrada del personal. `/api` no se redirige. La sesión es por dirección: al pasar de una a otra hay que volver a ingresar.
 
 ## Etapa 4: app Android para el odontólogo
 

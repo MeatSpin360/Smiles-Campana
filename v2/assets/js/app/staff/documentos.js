@@ -156,7 +156,7 @@ export async function vistaDocumentos(ctx, p) {
   }, icono('mas'), 'Nuevo documento');
 
   const fila = (d) => {
-    const elegir = h('input', { type: 'file', accept: 'image/*,application/pdf,.pdf', hidden: true });
+    const elegir = h('input', { type: 'file', accept: 'image/*,.heic,.heif,application/pdf,.pdf', hidden: true });
     const accion = (texto, fn, clase = 'btn-secundario', icon = null) => {
       const b = h(`button.btn.btn-chico.${clase}`, { type: 'button' }, icon ? icono(icon) : null, texto);
       b.onclick = () => fn(b);

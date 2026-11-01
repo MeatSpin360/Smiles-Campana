@@ -1,5 +1,6 @@
 // Worker del sitio: sirve los archivos de v2 y atiende /api/... para las fotos clínicas y los comprobantes de pago.
 // También muestra la página de mantenimiento en smilescampana.com.ar cuando el admin la activa (ver más abajo).
+// Fuera del mantenimiento, workers.dev lleva al dominio.
 //
 // Las fotos están en un depósito privado de Cloudflare R2 (FOTOS):
 //   pacientes/<paciente_id>/<foto_id>.jpg        foto (hasta 2000 px)
@@ -40,6 +41,14 @@ export default {
     if (DOMINIOS.has(url.hostname) && !LIBRES.test(url.pathname) && (await enMantenimiento(env))) {
       return esApi ? error(503, 'El sitio está en mantenimiento. Probá en un rato.') : paginaMantenimiento(env, url);
     }
+    // workers.dev es la entrada del personal durante el mantenimiento. El resto del tiempo lleva al dominio
+    // (así hay una sola dirección pública). /api no se redirige, para no cortar algo a mitad de camino.
+    if (url.hostname.endsWith('.workers.dev') && !esApi && !(await enMantenimiento(env))) {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: `https://${DOMINIO_PRINCIPAL}${url.pathname}${url.search}`, 'Cache-Control': 'no-store' },
+      });
+    }
     if (!esApi) {
       // Si falla la entrega de una página, se muestra el aviso en lugar de un error
       try {
@@ -64,7 +73,8 @@ export default {
 // El admin la activa desde el Panel de control (tabla "sitio" en la base). El Worker consulta el estado cada
 // 30 segundos como mucho. Si la base no responde, sigue con el último estado conocido: una falla de la base
 // nunca activa el aviso por sí sola (empieza en "no").
-const DOMINIOS = new Set(['smilescampana.com.ar', 'www.smilescampana.com.ar']);
+const DOMINIO_PRINCIPAL = 'smilescampana.com.ar';
+const DOMINIOS = new Set([DOMINIO_PRINCIPAL, `www.${DOMINIO_PRINCIPAL}`]);
 const LIBRES = /^\/(assets\/img\/|mantenimiento(\.html)?$|favicon\.ico$|robots\.txt$)/; // lo que usa la página del aviso
 const CADA = 30_000;
 let estadoSitio = { activo: false, hasta: 0, pendiente: null };

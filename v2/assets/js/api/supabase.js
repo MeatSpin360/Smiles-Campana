@@ -457,6 +457,27 @@ export const api = {
   async agregarEvolucion(pacienteId, { texto, piezas }) {
     return ok(await sb.from('evoluciones').insert({ paciente_id: pacienteId, texto, piezas }).select().single());
   },
+  // --- Ventana de mantenimiento ---
+  /**
+   * Estado del sitio. Se pide directo (sin la sesión) y con tiempo límite, porque también sirve para saber si
+   * la base responde al abrir la aplicación. Si no hay respuesta (red, tiempo o error del servidor), lanza error.
+   * Si la base responde pero no puede dar el dato (por ejemplo, la tabla todavía no existe), cuenta como "no activo".
+   */
+  async estadoSitio({ espera = 10_000 } = {}) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/sitio?id=eq.1&select=mantenimiento,actualizado_en,actualizado_por_nombre`, {
+      headers: { apikey: SUPABASE_ANON_KEY }, cache: 'no-store', signal: AbortSignal.timeout(espera),
+    });
+    if (r.status >= 500) throw new Error(`La base no responde (${r.status}).`);
+    if (!r.ok) return { mantenimiento: false };
+    const [fila] = await r.json();
+    return { mantenimiento: fila?.mantenimiento === true, actualizado_en: fila?.actualizado_en || null, actualizado_por_nombre: fila?.actualizado_por_nombre || null };
+  },
+  /** Activa o desactiva la ventana de mantenimiento (solo admin). */
+  async cambiarMantenimiento(activo) {
+    const filas = ok(await sb.from('sitio').update({ mantenimiento: !!activo }).eq('id', 1).select('mantenimiento, actualizado_en, actualizado_por_nombre'));
+    if (!filas.length) throw new Error('No tenés permiso para hacer esto.');
+    return filas[0];
+  },
   // --- Panel de control (solo admin) ---
   async resumenPanel() {
     return ok(await sb.rpc('resumen_panel'));

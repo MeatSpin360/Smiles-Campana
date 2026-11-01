@@ -6,6 +6,8 @@
 //   - Viñeta              (con dos espacios adelante queda dentro de la cláusula anterior)
 //   **negrita**           ____ (tres o más guiones bajos) línea para completar a mano
 //   {{campo}}             se completa al generar el documento; vacío, queda una línea para completar a mano
+//   {{#menor}}...{{/menor}}  parte opcional: al generar aparece un interruptor ("Es menor de edad"); si está
+//                         apagado, ese texto (y sus campos) no va. Sirve con cualquier nombre: {{#garantia}}...{{/garantia}}
 import { CONSULTORIO } from '../../../config.js';
 
 /** Campos que se completan solos (con los datos del paciente y del consultorio). */
@@ -22,6 +24,20 @@ export const CAMPOS_AUTO = [
 ];
 const AUTO = new Set(CAMPOS_AUTO.map((c) => c.id));
 const PATRON = /\{\{\s*([a-z0-9_áéíóúñ]+)\s*\}\}/gi;
+const BLOQUE = /\{\{#\s*([a-z0-9_áéíóúñ]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/gi;
+
+/** Partes opcionales de la plantilla ({{#id}}...{{/id}}), en orden. */
+export function bloquesDe(contenido) {
+  const ids = [];
+  for (const [, id] of String(contenido || '').matchAll(BLOQUE)) if (!ids.includes(id.toLowerCase())) ids.push(id.toLowerCase());
+  return ids;
+}
+/** Texto del interruptor de una parte opcional. */
+export const etiquetaBloque = (id) => (id === 'menor' ? 'Es menor de edad (incluye al responsable)' : `Incluir: ${etiquetaCampo(id).toLowerCase()}`);
+/** Deja las partes opcionales encendidas (sin sus marcas) y quita las apagadas. */
+export function aplicarBloques(contenido, activos) {
+  return String(contenido || '').replace(BLOQUE, (_, id, dentro) => (activos.has(id.toLowerCase()) ? dentro : ''));
+}
 
 const fmtFecha = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 export const fechaDocumento = (d = new Date()) => fmtFecha.format(d);
@@ -69,6 +85,9 @@ function enLinea(texto) {
   return esc(texto)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/_{3,}/g, (m) => `<span class="linea" style="min-width:${Math.min(m.length * 0.45, 14)}em"></span>`)
+    // Marcas de una parte opcional (en la vista previa de la plantilla)
+    .replace(/\{\{#\s*([a-z0-9_áéíóúñ]+)\s*\}\}/gi, (_, id) => `<span class="marca-opcional">si ${esc(etiquetaBloque(id.toLowerCase()).toLowerCase())}:</span>`)
+    .replace(/\{\{\/\s*([a-z0-9_áéíóúñ]+)\s*\}\}/gi, '<span class="marca-opcional">fin</span>')
     // Un campo sin completar todavía (en la vista previa de la plantilla)
     .replace(/\{\{\s*([a-z0-9_áéíóúñ]+)\s*\}\}/gi, (_, id) => `<span class="campo-plantilla">${esc(etiquetaCampo(id.toLowerCase()))}</span>`);
 }
@@ -120,6 +139,7 @@ export const ESTILOS_DOCUMENTO = `
   .doc ol > li { margin-bottom: 6px; text-align: justify; padding-left: 0.2em; }
   .doc ul { margin: 4px 0 8px; padding-left: 1.4em; }
   .doc .linea { display: inline-block; border-bottom: 1px solid #262140; height: 1em; vertical-align: baseline; }
+  .doc .marca-opcional { background: #fbf1cf; color: #6b5308; border-radius: 4px; padding: 0 4px; font-size: 0.8em; font-weight: 600; }
   .doc .campo-plantilla { background: #e8e7f5; color: #4b4796; border-radius: 4px; padding: 0 4px; font-size: 0.9em; }
   .doc p.renglones { text-align: left; margin-top: 22px; line-height: 2.4; }
 `;

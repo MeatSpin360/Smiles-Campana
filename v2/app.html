@@ -13,11 +13,54 @@
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/odontograma.css">
+  <style>
+    /* Aviso de fuera de servicio / sin conexión (ver el script de abajo). Acá, por si no cargan los estilos. */
+    .aviso-sitio { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box;
+      font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #262140; background: #f5f5fa; }
+    .aviso-sitio-caja { width: 100%; max-width: 32rem; box-sizing: border-box; text-align: center; background: #fff; border: 1px solid #dddcea;
+      border-radius: 20px; padding: 40px 28px 34px; box-shadow: 0 18px 40px -24px rgba(38, 33, 64, 0.35); }
+    .aviso-sitio img { height: 76px; width: auto; display: block; margin: 0 auto 26px; }
+    .aviso-sitio-raya { width: 48px; height: 3px; border-radius: 3px; background: #e6b422; margin: 0 auto 22px; }
+    .aviso-sitio h1 { font-size: 1.4rem; line-height: 1.3; margin: 0 0 14px; font-weight: 650; }
+    .aviso-sitio p { margin: 0 0 10px; color: #5d5875; font-size: 1.0625rem; line-height: 1.55; }
+    .aviso-sitio .aviso-sitio-firma { margin-top: 22px; color: #4b4796; font-weight: 600; }
+    .aviso-sitio button { margin-top: 18px; font: inherit; font-weight: 600; color: #4b4796; background: #f0eff9; border: 1px solid #c6c4dc;
+      border-radius: 999px; padding: 10px 22px; cursor: pointer; }
+    .aviso-sitio button:hover { background: #e8e7f5; }
+  </style>
 </head>
 <body>
   <div id="app"><div class="cargando-bloque" style="min-height:100vh"><span class="spinner"></span>Cargando…</div></div>
   <noscript>Para usar Mi espacio necesitás tener JavaScript activado.</noscript>
   <script src="assets/js/aviso-local.js"></script>
-  <script type="module" src="assets/js/app/main.js"></script>
+  <script>
+    // Aviso de "fuera de servicio" o "sin conexión", para este visitante. Lo usa la aplicación (main.js) cuando la base
+    // no responde, y se muestra solo si el código de la aplicación no termina de cargar en 25 segundos.
+    // Va acá, sin depender de nada más, para que funcione aunque falle todo lo demás.
+    (function () {
+      var TEXTOS = {
+        mantenimiento: ['La página se encuentra momentáneamente fuera de servicio.', 'Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad.'],
+        'sin-conexion': ['No hay conexión a internet.', 'Revisá el wifi o los datos del celular. Cuando vuelva la conexión, la página se carga sola.']
+      };
+      TEXTOS.falla = TEXTOS.mantenimiento;
+      window.smilesAviso = function (tipo, opciones) {
+        if (tipo === 'falla' && !navigator.onLine) tipo = 'sin-conexion';
+        var t = TEXTOS[tipo] || TEXTOS.falla;
+        var app = document.getElementById('app');
+        app.innerHTML = '<div class="aviso-sitio"><div class="aviso-sitio-caja" role="alert"><img src="assets/img/logo.png" alt="Smiles Campana">' +
+          '<div class="aviso-sitio-raya"></div><h1></h1><p></p><p class="aviso-sitio-firma">Equipo de Smiles Campana</p>' +
+          '<button type="button"></button></div></div>';
+        app.querySelector('h1').textContent = t[0];
+        app.querySelector('p').textContent = t[1];
+        if (tipo === 'sin-conexion') app.querySelector('.aviso-sitio-firma').remove();
+        var boton = app.querySelector('button');
+        boton.textContent = opciones && opciones.texto ? opciones.texto : 'Reintentar';
+        boton.onclick = opciones && opciones.accion ? opciones.accion : function () { location.reload(); };
+        if (tipo === 'sin-conexion') window.addEventListener('online', function () { location.reload(); }, { once: true });
+      };
+      setTimeout(function () { if (!window.smilesLista) window.smilesAviso('falla'); }, 25000);
+    })();
+  </script>
+  <script type="module" src="assets/js/app/main.js" onerror="smilesAviso('falla')"></script>
 </body>
 </html>

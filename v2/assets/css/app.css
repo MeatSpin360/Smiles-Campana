@@ -731,3 +731,18 @@ h1 .cartel-saldo { font-size: var(--t-s); vertical-align: middle; }
   .editor-plantilla-vista { position: sticky; top: 16px; }
   .editor-plantilla-vista .vista-documento { max-height: calc(100vh - 80px); }
 }
+
+/* ---- Ventana de mantenimiento ---- */
+.banda-mantenimiento { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 20px; padding: 12px 16px; border-radius: 12px;
+  background: var(--aviso-claro); color: var(--aviso); border: 1px solid #f0d9a6; font-size: var(--t-s); line-height: 1.4; }
+.banda-mantenimiento p { margin: 0; flex: 1 1 18rem; }
+.banda-mantenimiento .icono-btn { width: 20px; height: 20px; display: grid; flex: none; }
+.panel-mantenimiento { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
+.panel-mantenimiento > div { flex: 1 1 22rem; }
+.panel-mantenimiento h2 { margin-bottom: 4px; }
+.panel-mantenimiento p { margin: 0; }
+.panel-mantenimiento.activo { border-color: #f0d9a6; background: var(--aviso-claro); }
+.estado-mantenimiento { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--t-xs); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.estado-mantenimiento::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.panel-mantenimiento.activo .estado-mantenimiento { color: var(--aviso); }
+.panel-mantenimiento.activo .estado-mantenimiento::before { background: var(--aviso); }

@@ -1,7 +1,7 @@
 // Panel de control (solo admin): resumen del consultorio, estado de las copias de seguridad y el registro
 // de acciones (quién hizo qué y cuándo). El registro lo arma la base sola; acá solo se consulta.
 import { h, vaciar } from '../../lib/dom.js';
-import { cargando, mensajeError } from '../../lib/ui.js';
+import { cargando, mensajeError, confirmar, aviso } from '../../lib/ui.js';
 import { fechaCorta, fechaLarga, hora, hoy, sumarDias, mayuscula } from '../../lib/dates.js';
 import { encabezado } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
@@ -10,6 +10,9 @@ import { TIPOS, ROLES, describir } from './registro-textos.js';
 const POR_PAGINA = 50;
 const CAPACIDAD_FOTOS = 10 * 1024 ** 3; // plan gratuito de Cloudflare R2
 const DIAS_COPIA = 8; // la copia es semanal: más de 8 días sin copia es una alerta
+
+const DOMINIO = 'smilescampana.com.ar';
+const ENTRADA_PERSONAL = 'https://smiles-campana.emiliobrescasin.workers.dev/app.html';
 
 const megas = (b) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : b >= 1024 ** 2 ? `${Math.round(b / 1024 ** 2)} MB` : `${Math.round(b / 1024)} KB`);
 
@@ -134,6 +137,7 @@ async function resumenYRegistro(ctx, cabecera, pestanas) {
     cabecera,
     pestanas,
     tarjetas,
+    panelMantenimiento(ctx),
     h('section.panel.panel-registro',
       h('div.panel-cabecera', h('div', h('h2', 'Registro de acciones'),
         h('p.texto-suave.nota-chica', `Quién hizo qué y cuándo. ${resumen.acciones_hoy} ${resumen.acciones_hoy === 1 ? 'acción' : 'acciones'} hoy. No se puede modificar ni borrar.`))),
@@ -185,3 +189,41 @@ function fila({ r, n }) {
       r.usuario_rol ? h('span.etiqueta.etiqueta-rol', ROLES[r.usuario_rol] || r.usuario_rol) : null));
 }
 
+
+// ---------- Ventana de mantenimiento ----------
+// Activa: smilescampana.com.ar (y www) muestran a todos el aviso de fuera de servicio, también en el ingreso.
+// El personal sigue entrando por workers.dev. El cambio se ve en el dominio en menos de 30 segundos.
+function panelMantenimiento(ctx) {
+  const s = ctx.sitio || { mantenimiento: false };
+  const activo = s.mantenimiento === true;
+  const enDominio = location.hostname.replace(/^www\./, '') === DOMINIO;
+  const desde = s.actualizado_en ? `${fechaCorta(s.actualizado_en)}, ${hora(s.actualizado_en)} h${s.actualizado_por_nombre ? ` (${s.actualizado_por_nombre})` : ''}` : '';
+  const boton = h(`button.btn${activo ? '.btn-primario' : '.btn-secundario'}`, { type: 'button' }, activo ? 'Desactivar mantenimiento' : 'Activar mantenimiento');
+  boton.onclick = async () => {
+    const texto = activo
+      ? [h('span', `${DOMINIO} vuelve a funcionar normalmente para todos (puede tardar hasta 30 segundos).`)]
+      : [h('span', `${DOMINIO} va a mostrar a todos el aviso de fuera de servicio, también en la pantalla de ingreso. Los pacientes no van a poder entrar a Mi espacio. `),
+        h('span', 'El personal sigue trabajando desde '), h('strong', ENTRADA_PERSONAL.replace('https://', '').replace('/app.html', '')), h('span', '.'),
+        enDominio ? h('span', ' Estás usando el dominio: después de activarla te llevamos a esa dirección para seguir trabajando.') : null];
+    if (!(await confirmar(texto, { titulo: activo ? 'Desactivar mantenimiento' : 'Activar mantenimiento', aceptar: activo ? 'Desactivar' : 'Activar', peligro: !activo }))) return;
+    boton.disabled = true;
+    try {
+      await ctx.api.cambiarMantenimiento(!activo);
+      await ctx.recargarSitio();
+      aviso(activo ? 'Mantenimiento desactivado. El sitio vuelve a estar disponible.' : 'Mantenimiento activado.');
+      if (!activo && enDominio) { location.href = `${ENTRADA_PERSONAL}#/panel`; return; }
+      ctx.redibujar();
+    } catch (e) {
+      aviso(mensajeError(e), 'error');
+      boton.disabled = false;
+    }
+  };
+  return h(`section.panel.panel-mantenimiento${activo ? '.activo' : ''}`, { 'aria-label': 'Ventana de mantenimiento' },
+    h('div',
+      h('span.estado-mantenimiento', activo ? 'Activa' : 'Desactivada'),
+      h('h2', 'Ventana de mantenimiento'),
+      h('p.texto-suave.nota-chica', activo
+        ? [`${DOMINIO} muestra el aviso de fuera de servicio${desde ? ` desde el ${desde}` : ''}. El personal trabaja desde `, h('a', { href: ENTRADA_PERSONAL }, 'workers.dev'), '.']
+        : `Al activarla, ${DOMINIO} muestra a todos un aviso de fuera de servicio. Sirve para trabajos en el sitio o en la base.`)),
+    boton);
+}

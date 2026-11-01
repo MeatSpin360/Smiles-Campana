@@ -72,12 +72,12 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - ~~Recetas digitales~~: descartado por ahora.
 - [ ] A consultar: la Ley 27.706 (historia clínica electrónica) pide firma digital en los registros.
 
-## Ventana de mantenimiento (después de A2 y B)
+## Ventana de mantenimiento
 
-- [ ] Página con el logo: "La página se encuentra momentáneamente fuera de servicio. Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad. Equipo de Smiles Campana." Responde 503 (Google no la guarda).
-- [ ] **Interruptor en el Panel** (admin). Activado: smilescampana.com.ar y www muestran la ventana a todos, incluida la pantalla de ingreso. El personal entra por **smiles-campana.emiliobrescasin.workers.dev**, que sigue funcionando (un paciente que ingrese ahí ve igual la ventana). El Worker consulta el interruptor y guarda la respuesta 30 s.
-- [ ] **Automática, por visitante** (nunca global): si la app no carga o no llega a la base después de 2 intentos de 10 s, y hay conexión a internet, muestra la ventana con "Reintentar" y vuelve sola al recuperarse. Sin internet muestra "Sin conexión". Si el Worker falla al servir una página, muestra la ventana en lugar de un error.
-- [ ] Cambiar el pendiente de seguridad a: redirigir workers.dev al dominio **salvo durante el mantenimiento**.
+- [x] Página `mantenimiento.html` con el logo: "La página se encuentra momentáneamente fuera de servicio. Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad. Equipo de Smiles Campana." Responde 503 (Google no la guarda) y se recarga sola cada 2 minutos.
+- [x] **Interruptor en el Panel** (admin, *Resumen y registro*). Activado: smilescampana.com.ar y www muestran la página a todos, incluida la pantalla de ingreso. El personal entra por **smiles-campana.emiliobrescasin.workers.dev**, que sigue funcionando con una banda "Mantenimiento activo"; un paciente que ingrese ahí ve el aviso. El Worker consulta la tabla `sitio` y guarda la respuesta 30 s; si la base no responde, sigue con el último estado (una falla nunca lo activa sola). Queda en el registro quién la activó y desactivó. El Worker ahora pasa por todas las rutas (`run_worker_first: true`).
+- [x] **Automática, por visitante** (nunca global): al abrir Mi espacio, si la base no responde en 2 intentos de 10 s y hay internet, se muestra el aviso con "Reintentar"; sin internet, "No hay conexión" (se recarga sola al volver). Si el código de la app no carga, el aviso aparece enseguida (o a los 25 s como máximo). Si el Worker falla al servir una página, muestra el aviso en lugar de un error.
+- [ ] Más adelante (seguridad): redirigir workers.dev al dominio **salvo durante el mantenimiento**.
 
 ## Etapa 4: app Android para el odontólogo
 

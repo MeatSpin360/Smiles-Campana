@@ -1,4 +1,5 @@
 // Worker del sitio: sirve los archivos de v2 y atiende /api/... para las fotos clínicas y los comprobantes de pago.
+// También muestra la página de mantenimiento en smilescampana.com.ar cuando el admin la activa (ver más abajo).
 //
 // Las fotos están en un depósito privado de Cloudflare R2 (FOTOS):
 //   pacientes/<paciente_id>/<foto_id>.jpg        foto (hasta 2000 px)
@@ -34,7 +35,22 @@ const clave = (pacienteId, fotoId, mini = false) => `pacientes/${pacienteId}/${f
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
+    const esApi = url.pathname.startsWith('/api/');
+    // Ventana de mantenimiento: solo en el dominio. En workers.dev el personal sigue trabajando.
+    if (DOMINIOS.has(url.hostname) && !LIBRES.test(url.pathname) && (await enMantenimiento(env))) {
+      return esApi ? error(503, 'El sitio está en mantenimiento. Probá en un rato.') : paginaMantenimiento(env, url);
+    }
+    if (!esApi) {
+      // Si falla la entrega de una página, se muestra el aviso en lugar de un error
+      try {
+        const r = await env.ASSETS.fetch(req);
+        if (r.status < 500) return r;
+        console.error('Archivos: respuesta', r.status, url.pathname);
+      } catch (e) {
+        console.error(e);
+      }
+      return paginaMantenimiento(env, url);
+    }
     try {
       return await api(req, env, url);
     } catch (e) {
@@ -43,6 +59,58 @@ export default {
     }
   },
 };
+
+// ---------- Ventana de mantenimiento ----------
+// El admin la activa desde el Panel de control (tabla "sitio" en la base). El Worker consulta el estado cada
+// 30 segundos como mucho. Si la base no responde, sigue con el último estado conocido: una falla de la base
+// nunca activa el aviso por sí sola (empieza en "no").
+const DOMINIOS = new Set(['smilescampana.com.ar', 'www.smilescampana.com.ar']);
+const LIBRES = /^\/(assets\/img\/|mantenimiento(\.html)?$|favicon\.ico$|robots\.txt$)/; // lo que usa la página del aviso
+const CADA = 30_000;
+let estadoSitio = { activo: false, hasta: 0, pendiente: null };
+
+async function enMantenimiento(env) {
+  if (Date.now() < estadoSitio.hasta) return estadoSitio.activo;
+  estadoSitio.pendiente ??= (async () => {
+    try {
+      const r = await fetch(`${env.SUPABASE_URL}/rest/v1/sitio?id=eq.1&select=mantenimiento`, {
+        headers: { apikey: env.SUPABASE_KEY }, signal: AbortSignal.timeout(3000),
+      });
+      if (!r.ok) throw new Error(`estado del sitio: ${r.status}`);
+      const [fila] = await r.json();
+      estadoSitio.activo = fila?.mantenimiento === true;
+      estadoSitio.hasta = Date.now() + CADA;
+    } catch (e) {
+      console.error(e);
+      estadoSitio.hasta = Date.now() + 10_000; // reintenta en 10 s, con el último estado conocido
+    } finally {
+      estadoSitio.pendiente = null;
+    }
+  })();
+  await estadoSitio.pendiente;
+  return estadoSitio.activo;
+}
+
+// Respaldo por si no se puede leer mantenimiento.html
+const AVISO_MINIMO = `<!doctype html><html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Smiles Campana</title></head>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;color:#262140;background:#f6f5fb;text-align:center;padding:24px">
+<main style="max-width:30rem"><img src="/assets/img/logo.png" alt="Smiles Campana" style="height:72px"><h1 style="font-size:1.3rem">La página se encuentra momentáneamente fuera de servicio.</h1>
+<p>Disculpá las molestias, estamos trabajando para ofrecerte la mejor calidad.</p><p><strong>Equipo de Smiles Campana</strong></p></main></body></html>`;
+
+async function paginaMantenimiento(env, url) {
+  let cuerpo = AVISO_MINIMO;
+  try {
+    const r = await env.ASSETS.fetch(new Request(new URL('/mantenimiento', url)));
+    if (r.ok) cuerpo = await r.text();
+  } catch (e) {
+    console.error(e);
+  }
+  return new Response(cuerpo, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '300' },
+  });
+}
 
 async function api(req, env, url) {
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');

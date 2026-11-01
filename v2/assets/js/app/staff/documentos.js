@@ -2,9 +2,9 @@
 // del Panel. El texto de cada documento queda guardado tal como se imprimió.
 import { h, vaciar } from '../../lib/dom.js';
 import { aviso, confirmar, conCarga, hoja, mensajeError } from '../../lib/ui.js';
-import { fechaCorta, hoy } from '../../lib/dates.js';
+import { edad, fechaCorta, hoy } from '../../lib/dates.js';
 import { prepararComprobante, MAX_DOCUMENTO } from '../../lib/imagenes.js';
-import { CAMPOS_AUTO, ESTILOS_DOCUMENTO, aHtml, camposPropios, etiquetaCampo, fechaDocumento, imprimirDocumento, rellenar, valoresAuto } from '../../lib/plantillas.js';
+import { CAMPOS_AUTO, ESTILOS_DOCUMENTO, aHtml, aplicarBloques, bloquesDe, camposPropios, etiquetaBloque, etiquetaCampo, fechaDocumento, imprimirDocumento, rellenar, valoresAuto } from '../../lib/plantillas.js';
 import { encabezado } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
 
@@ -36,13 +36,17 @@ function generar(ctx, p, plantillas, anteriores) {
     let creado = false;
     const activas = plantillas.filter((t) => t.activa);
     const elegir = h('select', { 'aria-label': 'Plantilla' }, activas.map((t) => h('option', { value: t.id }, t.nombre)));
+    const interruptores = h('div.partes-opcionales');
     const campos = h('div.campos-documento');
     const vista = h('div.doc.vista-documento');
     const guardarFicha = h('input', { type: 'checkbox', checked: true });
     const avisoFicha = h('label.interruptor-texto.guardar-en-ficha', { hidden: true }, guardarFicha, h('span', 'Guardar también estos datos en la ficha del paciente'));
     let entradas = {};
+    let activos = new Set();      // partes opcionales encendidas
+    const escrito = {};           // lo que se va escribiendo, para no perderlo al prender o apagar una parte
 
     const plantilla = () => activas.find((t) => t.id === elegir.value);
+    const texto = () => aplicarBloques(plantilla()?.contenido || '', activos);
     const valores = () => {
       const v = { ...valoresAuto(p) };
       for (const [k, input] of Object.entries(entradas)) {
@@ -53,14 +57,33 @@ function generar(ctx, p, plantillas, anteriores) {
     };
     const actualizar = () => {
       const t = plantilla();
-      vista.innerHTML = t ? aHtml(rellenar(t.contenido, valores())) : '';
+      vista.innerHTML = t ? aHtml(rellenar(texto(), valores())) : '';
       avisoFicha.hidden = !Object.entries(DE_LA_FICHA).some(([k, c]) => entradas[k] && entradas[k].value.trim() !== (p[c] || ''));
+    };
+    // Interruptores de las partes opcionales. "Es menor de edad" se prende solo si la ficha dice que es
+    // menor (por la fecha de nacimiento) o si ya tiene cargado un responsable.
+    const elegirPlantilla = () => {
+      const t = plantilla();
+      for (const k of Object.keys(escrito)) delete escrito[k];
+      const previo = anteriores.find((d) => d.plantilla_id === t?.id)?.datos || {};
+      const esMenor = (p.fecha_nac && edad(p.fecha_nac) < 18) || !!p.responsable_nombre;
+      activos = new Set(bloquesDe(t?.contenido).filter((id) => (id === 'menor' ? esMenor : !!previo[`#${id}`])));
+      vaciar(interruptores, bloquesDe(t?.contenido).map((id) => {
+        const caja = h('input', { type: 'checkbox', checked: activos.has(id) });
+        caja.addEventListener('change', () => {
+          if (caja.checked) activos.add(id); else activos.delete(id);
+          dibujarCampos();
+        });
+        return h('label.interruptor-texto', caja, h('span', etiquetaBloque(id)));
+      }));
+      dibujarCampos();
     };
     const dibujarCampos = () => {
       const t = plantilla();
+      for (const [k, i] of Object.entries(entradas)) escrito[k] = i.value;
       entradas = {};
       if (!t) { vaciar(campos, h('p.vacio', 'No hay plantillas activas. El admin las agrega desde Panel → Plantillas.')); return; }
-      const enUso = usados(t.contenido);
+      const enUso = usados(texto());
       const auto = valoresAuto(p);
       // Lo que viene de la ficha se puede corregir; lo propio de la plantilla se sugiere del documento anterior
       const previo = anteriores.find((d) => d.plantilla_id === t.id)?.datos || {};
@@ -68,13 +91,13 @@ function generar(ctx, p, plantillas, anteriores) {
       for (const c of CAMPOS_AUTO) {
         if (!enUso.has(c.id) || ['profesional', 'matricula', 'consultorio'].includes(c.id)) continue;
         const input = c.id === 'fecha'
-          ? h('input', { type: 'date', value: hoy() })
-          : h('input', { value: auto[c.id] || '', inputmode: c.id.endsWith('dni') ? 'numeric' : null, autocomplete: 'off' });
+          ? h('input', { type: 'date', value: escrito.fecha ?? hoy() })
+          : h('input', { value: escrito[c.id] ?? auto[c.id] ?? '', inputmode: c.id.endsWith('dni') ? 'numeric' : null, autocomplete: 'off' });
         entradas[c.id] = input;
         filas.push(h('label.campo', h('span', c.texto), input));
       }
-      for (const id of camposPropios(t.contenido)) {
-        const input = h('input', { value: previo[id] || '', autocomplete: 'off' });
+      for (const id of camposPropios(texto())) {
+        const input = h('input', { value: escrito[id] ?? previo[id] ?? '', autocomplete: 'off' });
         entradas[id] = input;
         filas.push(h('label.campo', h('span', etiquetaCampo(id)), input));
       }
@@ -83,27 +106,28 @@ function generar(ctx, p, plantillas, anteriores) {
       for (const i of Object.values(entradas)) i.addEventListener('input', actualizar);
       actualizar();
     };
-    elegir.addEventListener('change', dibujarCampos);
+    elegir.addEventListener('change', elegirPlantilla);
 
     const guardar = h('button.btn.btn-primario', { type: 'button', disabled: !activas.length }, icono('nota'), 'Guardar e imprimir');
     const { cerrar } = hoja({
       titulo: 'Nuevo documento',
       ancho: 'ancho',
       cuerpo: h('div.generar-documento',
-        h('div.generar-datos', h('label.campo', h('span', 'Plantilla'), elegir), campos, avisoFicha),
+        h('div.generar-datos', h('label.campo', h('span', 'Plantilla'), elegir), interruptores, campos, avisoFicha),
         h('div.generar-vista', h('span.texto-suave.nota-chica', 'Vista previa'), vista)),
       pie: [guardar],
       alCerrar: () => resolve(creado),
     });
-    dibujarCampos();
+    elegirPlantilla();
 
     guardar.onclick = () => conCarga(guardar, async () => {
       const t = plantilla();
       const v = valores();
       const datos = Object.fromEntries(Object.keys(entradas).map((k) => [k, k === 'fecha' ? entradas.fecha.value : v[k]]));
+      for (const id of bloquesDe(t.contenido)) datos[`#${id}`] = activos.has(id);
       if (datos.responsable_dni) datos.responsable_dni = datos.responsable_dni.replace(/\D/g, '');
       if (datos.responsable_dni && !/^\d{6,9}$/.test(datos.responsable_dni)) throw new Error('Revisá el DNI del responsable: solo números, sin puntos.');
-      const contenido = rellenar(t.contenido, v);
+      const contenido = rellenar(texto(), v);
       const doc = await ctx.api.crearDocumento({ paciente_id: p.id, plantilla_id: t.id, titulo: t.nombre, contenido, datos });
       creado = true;
       if (!avisoFicha.hidden && guardarFicha.checked) {
@@ -206,7 +230,9 @@ export async function plantillasPanel(ctx) {
     const ejemplo = { nombre: 'Ana', apellido: 'García', dni: '30123456', direccion: 'Calle 123, Campana', responsable_nombre: '', responsable_dni: '' };
     const conEjemplo = h('input', { type: 'checkbox' });
     const actualizar = () => {
-      vista.innerHTML = aHtml(conEjemplo.checked ? rellenar(texto.value, Object.fromEntries(camposPropios(texto.value).map((c) => [c, '…']).concat(Object.entries(valoresAuto(ejemplo))))) : texto.value);
+      vista.innerHTML = aHtml(conEjemplo.checked
+        ? rellenar(aplicarBloques(texto.value, new Set(bloquesDe(texto.value))), Object.fromEntries(camposPropios(texto.value).map((c) => [c, '…']).concat(Object.entries(valoresAuto(ejemplo)))))
+        : texto.value);
     };
     texto.addEventListener('input', actualizar);
     conEjemplo.addEventListener('change', actualizar);
@@ -214,6 +240,15 @@ export async function plantillasPanel(ctx) {
       const a = texto.selectionStart ?? texto.value.length;
       const b = texto.selectionEnd ?? a;
       texto.setRangeText(s, a, b, 'end');
+      texto.focus();
+      actualizar();
+    };
+    // Encierra lo seleccionado en una parte opcional (por ejemplo, lo del responsable de un menor)
+    const envolver = (id) => {
+      const a = texto.selectionStart ?? texto.value.length;
+      const b = texto.selectionEnd ?? a;
+      const sel = texto.value.slice(a, b) || 'texto que se incluye solo si corresponde';
+      texto.setRangeText(`{{#${id}}}${sel}{{/${id}}}`, a, b, 'select');
       texto.focus();
       actualizar();
     };
@@ -259,6 +294,10 @@ export async function plantillasPanel(ctx) {
             h('span', 'Agregar un dato del paciente o del consultorio'),
             h('div.botones-campos', CAMPOS_AUTO.map((c) => h('button.btn.btn-chico.btn-secundario', { type: 'button', onclick: () => insertar(`{{${c.id}}}`) }, c.texto)))),
           h('div.campo',
+            h('span', 'Parte opcional'),
+            h('div.botones-campos', h('button.btn.btn-chico.btn-secundario', { type: 'button', onclick: () => envolver('menor') }, 'Solo si es menor de edad')),
+            h('small', 'Seleccioná el texto y tocá el botón: al generar aparece el interruptor "Es menor de edad"; si está apagado, ese texto no va.')),
+          h('div.campo',
             h('span', 'O un dato que se completa al generar'),
             h('div.agregar-campo', propio, h('button.btn.btn-chico.btn-secundario', { type: 'button', onclick: agregarPropio }, 'Agregar'))),
           h('label.campo', h('span', 'Texto'), texto),
@@ -269,6 +308,7 @@ export async function plantillasPanel(ctx) {
               h('li', h('code', '1. '), 'cláusula numerada (todas con "1.": se numeran solas)'),
               h('li', h('code', '- '), 'viñeta (con dos espacios adelante, queda dentro de la cláusula anterior)'),
               h('li', h('code', '**texto**'), ' negrita · ', h('code', '____'), ' línea para completar a mano'),
+              h('li', h('code', '{{#menor}}'), '…', h('code', '{{/menor}}'), ' parte que va solo si es menor de edad'),
               h('li', 'Una línea en blanco separa los párrafos.'))),
           t?.actualizado_en ? h('p.texto-suave.nota-chica', `Última modificación: ${fechaCorta(t.actualizado_en)}${t.actualizado_por_nombre ? ` por ${t.actualizado_por_nombre}` : ''}.`) : null,
           h('div.acciones-form', borrar, guardar)),

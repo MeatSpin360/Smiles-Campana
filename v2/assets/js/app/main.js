@@ -85,6 +85,18 @@ function rutaActual() {
   return { ruta: ruta || '/', query: new URLSearchParams(query) };
 }
 
+// Ventana de mantenimiento (la activa el admin en el Panel). En el dominio la muestra el Worker; acá se usa
+// cuando se entra por workers.dev: el personal trabaja con una banda de aviso y un paciente ve el aviso.
+let sitio = { mantenimiento: false };
+async function recargarSitio() {
+  try {
+    sitio = await api.estadoSitio();
+  } catch (e) {
+    console.warn('No se pudo consultar el estado del sitio', e); // se conserva el último estado conocido
+  }
+  return sitio;
+}
+
 let vistaActual = null; // { encontrada, ctx, contenido, ruta } para refrescar en silencio
 
 async function cargarRuta() {
@@ -113,7 +125,17 @@ async function cargarRuta() {
     return navegar('/', { reemplazar: true });
   }
 
-  const ctx = { api, sesion, perfil: sesion?.perfil, params, query, navegar, recargarSesion, rol };
+  if (sitio.mantenimiento && rol === 'paciente') {
+    vistaActual = null;
+    window.smilesAviso('mantenimiento', { texto: 'Cerrar sesión', accion: salirSinPreguntar });
+    return;
+  }
+
+  const ctx = {
+    api, sesion, perfil: sesion?.perfil, params, query, navegar, rol, sitio, recargarSitio,
+    recargarSesion: async () => { const s = await recargarSesion(); await recargarSitio(); return s; },
+    redibujar: cargarRuta,
+  };
   const contenido = h('div.vista');
   vistaActual = { encontrada, ctx, contenido, ruta };
   if (encontrada.publica || !sesion) {
@@ -183,6 +205,14 @@ async function recargarSesion() {
   return sesion;
 }
 
+async function salirSinPreguntar() {
+  await api.salir();
+  sesion = null;
+  escucharCambios();
+  if (rutaActual().ruta === '/ingresar') cargarRuta();
+  else navegar('/ingresar');
+}
+
 async function salir() {
   if (!(await confirmar('Vas a cerrar la sesión en este dispositivo.', { titulo: 'Cerrar sesión', aceptar: 'Cerrar sesión' }))) return;
   await api.salir();
@@ -205,6 +235,14 @@ function bandaDemo() {
         }
       },
     }, 'Reiniciar'));
+}
+
+function bandaMantenimiento(rol) {
+  if (!sitio.mantenimiento) return null;
+  return h('div.banda-mantenimiento', { role: 'status' },
+    h('span.icono-btn', { html: ICONOS.alerta }),
+    h('p', h('strong', 'Mantenimiento activo. '), 'smilescampana.com.ar muestra el aviso de fuera de servicio y los pacientes no pueden ingresar.'),
+    rol === 'admin' ? h('a.btn.btn-secundario.btn-chico', { href: '#/panel' }, 'Desactivar') : null);
 }
 
 function marcoPublico(contenido) {
@@ -240,17 +278,48 @@ function marco(contenido, ruta) {
         h('a.marca-app', { href: '#/' }, h('img', { src: 'assets/img/logo.png', alt: 'Smiles Campana' })),
         h('span.barra-rol', ROLES[perfil.rol]),
         h('button.btn-icono', { type: 'button', 'aria-label': 'Cerrar sesión', onclick: salir, html: ICONOS.salir })),
-      h('main.principal', contenido),
+      h('main.principal', bandaMantenimiento(perfil.rol), contenido),
       h('nav.menu-inferior', { 'aria-label': 'Secciones' }, items.map((i) => enlace(i, 'menu-inf-item')))));
+}
+
+// ---------- Arranque ----------
+// El código ya cargó: desde acá, los problemas los maneja la aplicación (ver el aviso de respaldo en app.html).
+window.smilesLista = true;
+
+const conTiempo = (promesa, ms) => Promise.race([promesa, new Promise((_, no) => setTimeout(() => no(new Error('Tiempo agotado')), ms))]);
+
+// Antes de mostrar nada se comprueba que la base responda: dos intentos de hasta 10 segundos.
+// Si no responde y hay internet, aviso de fuera de servicio con "Reintentar"; sin internet, "Sin conexión".
+// Es solo para este visitante: no cambia nada para los demás.
+async function arrancar() {
+  for (let intento = 1; ; intento++) {
+    try {
+      sitio = await api.estadoSitio({ espera: 10_000 });
+      break;
+    } catch (e) {
+      console.warn(`La base no respondió (intento ${intento})`, e);
+      if (!navigator.onLine) { window.smilesAviso('sin-conexion'); return false; }
+      if (intento >= 2) { window.smilesAviso('falla'); return false; }
+    }
+  }
+  try {
+    await conTiempo(recargarSesion(), 20_000);
+    return true;
+  } catch (e) {
+    console.error(e);
+    window.smilesAviso(navigator.onLine ? 'falla' : 'sin-conexion');
+    return false;
+  }
 }
 
 // Si se llega desde un enlace de email vencido, Supabase deja el error en la URL
 const errorEnlace = new URLSearchParams(location.hash.slice(1)).get('error_description');
-await recargarSesion();
-window.addEventListener('hashchange', cargarRuta);
-if (errorEnlace) {
-  aviso('El enlace del email venció o ya se usó. Pedí uno nuevo.', 'error');
-  history.replaceState(null, '', location.pathname);
+if (await arrancar()) {
+  window.addEventListener('hashchange', cargarRuta);
+  if (errorEnlace) {
+    aviso('El enlace del email venció o ya se usó. Pedí uno nuevo.', 'error');
+    history.replaceState(null, '', location.pathname);
+  }
+  if (sesion && api.esRecuperacion?.()) navegar('/nueva-clave', { reemplazar: true });
+  else cargarRuta();
 }
-if (sesion && api.esRecuperacion?.()) navegar('/nueva-clave', { reemplazar: true });
-else cargarRuta();

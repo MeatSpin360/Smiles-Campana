@@ -14,7 +14,7 @@ export const TIPOS = [
   { id: 'documentos', texto: 'Documentos y plantillas', prefijos: ['documento', 'plantilla'] },
   { id: 'usuarios', texto: 'Usuarios y cuentas', prefijos: ['usuario'] },
   { id: 'agenda', texto: 'Agenda y horarios', prefijos: ['agenda'] },
-  { id: 'sistema', texto: 'Sistema (copias de seguridad)', prefijos: ['sistema'] },
+  { id: 'sistema', texto: 'Sistema (copias y mantenimiento)', prefijos: ['sistema'] },
 ];
 
 export const ROLES = { paciente: 'Paciente', recepcion: 'Recepción', odontologia: 'Odontología', admin: 'Admin', contabilidad: 'Contabilidad' };
@@ -122,6 +122,8 @@ export function describir({ accion, detalle: d = {} }) {
     case 'agenda.bloqueo_modificado': return { texto: 'Modificó un bloqueo de la agenda', extra: bloqueo(d) };
 
     case 'sistema.copia': return { texto: 'Copia de seguridad', extra: `${d.pacientes ?? '?'} pacientes, ${d.turnos ?? '?'} turnos, ${d.fotos ?? '?'} fotos` };
+    case 'sistema.mantenimiento_on': return { texto: 'Activó la ventana de mantenimiento', extra: 'smilescampana.com.ar muestra el aviso' };
+    case 'sistema.mantenimiento_off': return { texto: 'Desactivó la ventana de mantenimiento', extra: 'El sitio volvió a estar disponible' };
     case 'sistema.restauracion': return { texto: 'Restauró una copia de seguridad', extra: d.copia_del ? `Copia del ${cuando(d.copia_del)}` : '' };
     default: return { texto: accion, extra: '' };
   }

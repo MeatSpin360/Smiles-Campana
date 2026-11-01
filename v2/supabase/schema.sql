@@ -357,7 +357,7 @@ insert into plantillas (nombre, contenido, orden)
 select * from (values
   ('Contrato de ortodoncia', '# CONTRATO DE ORTODONCIA
 
-Entre Dra. D’Ambrosio Florencia {{matricula}}, con domicilio en Jean Jaures 568, Campana, en su calidad de prestadora, y por la otra {{paciente}}, acreditando identidad con el DNI {{dni}} y domicilio en {{domicilio}}, quien en adelante será denominado “el paciente”, en caso de ser menor de edad, representado por {{responsable}} con DNI {{responsable_dni}} en calidad de padre, madre/tutor, se celebra el presente, conforme las siguientes cláusulas y condiciones:
+Entre Dra. D’Ambrosio Florencia {{matricula}}, con domicilio en Jean Jaures 568, Campana, en su calidad de prestadora, y por la otra {{paciente}}, acreditando identidad con el DNI {{dni}} y domicilio en {{domicilio}}, quien en adelante será denominado “el paciente”{{#menor}}, en caso de ser menor de edad, representado por {{responsable}} con DNI {{responsable_dni}} en calidad de padre, madre/tutor{{/menor}}, se celebra el presente, conforme las siguientes cláusulas y condiciones:
 
 1. El presente tiene por objeto regular el compromiso asumido por las partes bajo los cuales el paciente recibirá el tratamiento de ortodoncia proporcionado por el prestador.
 1. El tratamiento tendrá una duración aproximada de {{controles_mensuales}} controles mensuales, dependiendo, en principio, de la evaluación de la salud bucal del paciente; para el caso que esto suceda, el prestador no tendrá responsabilidad del retardo del tratamiento, brindando el paciente su consentimiento. Por otro lado, también dependerá de que el paciente concurra regularmente a los controles mensuales y lleve a cabo el tratamiento indicado por el profesional.
@@ -1590,3 +1590,40 @@ begin
 end $$;
 revoke execute on function resumen_panel() from public, anon;
 grant execute on function resumen_panel() to authenticated;
+
+-- ---------- Ventana de mantenimiento ----------
+-- Una sola fila. Si está activa, smilescampana.com.ar (y www) muestran a todos la página de mantenimiento
+-- (lo decide el Worker, que consulta esta tabla cada 30 segundos). El personal sigue entrando por
+-- smiles-campana.emiliobrescasin.workers.dev; un paciente que ingrese por ahí ve el mismo aviso.
+-- La lee cualquiera (también sin sesión); la cambia solo el admin, desde el Panel de control.
+create table if not exists sitio (
+  id                      int primary key default 1 check (id = 1),
+  mantenimiento           boolean not null default false,
+  actualizado_en          timestamptz not null default now(),
+  actualizado_por_nombre  text
+);
+insert into sitio (id) values (1) on conflict (id) do nothing;
+alter table sitio enable row level security;
+create policy "todos ven el estado del sitio" on sitio for select to anon, authenticated using (true);
+create policy "admin cambia el estado del sitio" on sitio for update to authenticated
+  using ((select mi_rol()) = 'admin') with check ((select mi_rol()) = 'admin');
+
+create or replace function preparar_sitio() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_when = 'BEFORE' then
+    new.id := 1;
+    new.actualizado_en := now();
+    new.actualizado_por_nombre := coalesce(nullif(mi_nombre(), ''), (select email from perfiles where id = auth.uid()));
+    return new;
+  end if;
+  if new.mantenimiento is distinct from old.mantenimiento then
+    perform anotar(case when new.mantenimiento then 'sistema.mantenimiento_on' else 'sistema.mantenimiento_off' end);
+  end if;
+  return null;
+end $$;
+revoke execute on function preparar_sitio() from public, anon, authenticated;
+drop trigger if exists preparar on sitio;
+create trigger preparar before update on sitio for each row execute function preparar_sitio();
+drop trigger if exists registrar on sitio;
+create trigger registrar after update on sitio for each row execute function preparar_sitio();

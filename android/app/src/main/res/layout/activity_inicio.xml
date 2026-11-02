@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pantalla inicial de la app: dos modos (InicioActivity.kt) -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:background="@color/esmalte">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:gravity="center"
+        android:paddingStart="24dp" android:paddingEnd="24dp" android:paddingTop="40dp" android:paddingBottom="32dp">
+
+        <ImageView
+            android:layout_width="wrap_content" android:layout_height="96dp"
+            android:adjustViewBounds="true" android:src="@drawable/logo"
+            android:contentDescription="Smiles Campana" />
+
+        <View
+            android:layout_width="48dp" android:layout_height="3dp"
+            android:layout_marginTop="20dp" android:layout_marginBottom="28dp"
+            android:background="@color/oro" />
+
+        <LinearLayout
+            android:id="@+id/opcionFotos"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="22dp"
+            android:background="@drawable/fondo_opcion_principal"
+            android:clickable="true" android:focusable="true">
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Subir fotos paciente" android:textColor="@color/blanco"
+                android:textSize="21sp" android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Elegís el paciente, sacás las fotos y las subís a su ficha."
+                android:textColor="#E8E7F5" android:textSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/opcionTrabajo"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical" android:padding="22dp"
+            android:background="@drawable/fondo_opcion"
+            android:clickable="true" android:focusable="true">
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Ventana de trabajo" android:textColor="@color/tinta"
+                android:textSize="21sp" android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="La intranet completa: agenda, pacientes, caja…"
+                android:textColor="#5D5875" android:textSize="15sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/version"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:textColor="#8F8AA8" android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

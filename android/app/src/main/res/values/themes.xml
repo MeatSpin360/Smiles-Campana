@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Tema" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/lavanda_osc</item>
+        <item name="colorAccent">@color/lavanda_osc</item>
+        <item name="android:windowBackground">@color/esmalte</item>
+        <item name="android:statusBarColor">@color/blanco</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/blanco</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="TemaCamara" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/negro</item>
+        <item name="android:statusBarColor">@color/negro</item>
+        <item name="android:navigationBarColor">@color/negro</item>
+    </style>
+</resources>

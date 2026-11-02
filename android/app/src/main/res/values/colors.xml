@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tinta">#262140</color>
+    <color name="lavanda">#8D8AC6</color>
+    <color name="lavanda_osc">#4B4796</color>
+    <color name="esmalte">#F5F5FA</color>
+    <color name="oro">#E6B422</color>
+    <color name="blanco">#FFFFFF</color>
+    <color name="negro">#000000</color>
+</resources>

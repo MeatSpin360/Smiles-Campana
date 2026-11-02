@@ -776,3 +776,15 @@ h1 .cartel-saldo { font-size: var(--t-s); vertical-align: middle; }
 .plan-texto p { margin: 0; white-space: pre-wrap; color: var(--tinta-2); }
 .plan-paciente-acciones { display: flex; justify-content: flex-end; margin-top: 18px; }
 .mis-fotos .seccion-fotos-titulo h2 { margin: 0; font-size: var(--t-m); }
+
+/* ---- Ficha sin DNI ---- */
+.marca-falta-dni { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; background: var(--aviso-claro); color: var(--aviso);
+  font-size: var(--t-xs); font-weight: 600; white-space: nowrap; vertical-align: middle; }
+h1 .marca-falta-dni { font-size: 0.8rem; }
+
+/* ---- Secciones en desarrollo (Mi espacio) ---- */
+.en-desarrollo { text-align: center; }
+.en-desarrollo h2 { font-size: var(--t-m); margin: 6px 0 4px; }
+.en-desarrollo p { max-width: 30rem; margin: 0 auto; }
+.etiqueta-desarrollo { display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; background: var(--oro-claro); color: #6b5308;
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }

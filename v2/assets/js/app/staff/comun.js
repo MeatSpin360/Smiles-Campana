@@ -15,7 +15,7 @@ export function buscadorPaciente({ api, alElegir, autofoco = true }) {
   const buscar = async () => {
     const r = await api.buscarPacientes(input.value);
     vaciar(lista, r.length ? r.slice(0, 8).map((p) => h('li', h('button.resultado', { type: 'button', onclick: () => alElegir(p) },
-      h('strong', nombreCompleto(p)), h('span', `DNI ${p.dni}`)))) : h('li.texto-suave.sin-resultados', 'No hay pacientes con esa búsqueda.'));
+      h('strong', nombreCompleto(p)), h('span', p.dni ? `DNI ${p.dni}` : 'Falta el DNI')))) : h('li.texto-suave.sin-resultados', 'No hay pacientes con esa búsqueda.'));
   };
   input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(buscar, 180); });
   buscar();
@@ -30,7 +30,8 @@ export function formularioPaciente(p = {}) {
       h('label.campo', h('span', 'Nombre'), h('input', { name: 'nombre', value: p.nombre || '', required: true })),
       h('label.campo', h('span', 'Apellido'), h('input', { name: 'apellido', value: p.apellido || '', required: true }))),
     h('div.fila-campos',
-      h('label.campo', h('span', 'DNI'), h('input', { name: 'dni', value: p.dni || '', inputmode: 'numeric', required: true })),
+      h('label.campo', h('span', 'DNI'), h('input', { name: 'dni', value: p.dni || '', inputmode: 'numeric', autocomplete: 'off' }),
+        h('small', 'Si todavía no lo tenés, dejalo vacío: la ficha queda marcada "Falta el DNI".')),
       h('label.campo', h('span', 'Fecha de nacimiento'), h('input', { name: 'fecha_nac', type: 'date', value: p.fecha_nac || '', max: hoy() }))),
     h('div.fila-campos',
       h('label.campo', h('span', 'Celular'), h('input', { name: 'telefono', type: 'tel', value: p.telefono || '' })),
@@ -48,7 +49,7 @@ export function formularioPaciente(p = {}) {
 export function validarPaciente(d) {
   d.dni = (d.dni || '').replace(/\D/g, '');
   if (!d.nombre || !d.apellido) return 'Completá nombre y apellido.';
-  if (!/^\d{6,9}$/.test(d.dni)) return 'Revisá el DNI: solo números, sin puntos.';
+  if (d.dni && !/^\d{6,9}$/.test(d.dni)) return 'Revisá el DNI: solo números, sin puntos (o dejalo vacío si todavía no lo tenés).';
   if ('responsable_dni' in d) {
     d.responsable_dni = (d.responsable_dni || '').replace(/\D/g, '');
     if (d.responsable_dni && !/^\d{6,9}$/.test(d.responsable_dni)) return 'Revisá el DNI del responsable: solo números, sin puntos.';
@@ -143,7 +144,13 @@ export function darTurno(api, { paciente = null, inicio = null, dias = 30, sobre
 
 export function lineaPaciente(p) {
   const e = edad(p.fecha_nac);
-  return [`DNI ${p.dni}`, e != null ? `${e} años` : null, p.telefono].filter(Boolean).join(', ');
+  // Sin DNI no se repite acá: la ficha y la lista muestran la marca "Falta el DNI"
+  return [p.dni ? `DNI ${p.dni}` : null, e != null ? `${e} años` : null, p.telefono].filter(Boolean).join(', ');
+}
+
+/** Marca para las fichas a las que les falta el DNI (se completa en la primera visita). */
+export function marcaFaltaDni(p) {
+  return p.dni ? null : h('span.marca-falta-dni', { title: 'Completalo en la próxima visita' }, 'Falta el DNI');
 }
 
 export { bloqueFecha };

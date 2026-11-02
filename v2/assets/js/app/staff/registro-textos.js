@@ -59,12 +59,12 @@ export function describir({ accion, detalle: d = {} }) {
     case 'turno.borrado': return { texto: 'Borró un turno', extra: cuando(d.inicio) };
 
     case 'paciente.creado': return d.desde === 'registro online'
-      ? { texto: 'Se registró online (ficha nueva)', extra: `DNI ${d.dni}` }
-      : { texto: 'Creó la ficha', extra: `DNI ${d.dni}` };
+      ? { texto: 'Se registró online (ficha nueva)', extra: d.dni ? `DNI ${d.dni}` : 'sin DNI' }
+      : { texto: 'Creó la ficha', extra: d.dni ? `DNI ${d.dni}` : 'sin DNI' };
     case 'paciente.editado': return { texto: 'Editó los datos de la ficha', extra: `Cambió: ${lista(d.campos)}` };
     case 'paciente.cuenta_vinculada': return { texto: 'Vinculó la cuenta de Mi espacio', extra: d.cuenta || '' };
     case 'paciente.cuenta_desvinculada': return { texto: 'Desvinculó la cuenta de Mi espacio', extra: d.cuenta || '' };
-    case 'paciente.eliminado': return { texto: 'Eliminó al paciente, con todo lo suyo', extra: `DNI ${d.dni}` };
+    case 'paciente.eliminado': return { texto: 'Eliminó al paciente, con todo lo suyo', extra: d.dni ? `DNI ${d.dni}` : 'sin DNI' };
 
     case 'antecedentes.actualizados': return { texto: 'Actualizó los antecedentes', extra: '' };
     case 'evolucion.registrada': return { texto: 'Registró una evolución', extra: d.piezas ? `Piezas ${d.piezas}` : '' };

@@ -31,7 +31,7 @@ create table if not exists perfiles (
 
 create table if not exists pacientes (
   id          uuid primary key default gen_random_uuid(),
-  dni         text not null unique,
+  dni         text unique,          -- puede faltar (ficha "a completar", por ejemplo importada del calendario)
   nombre      text not null,
   apellido    text not null,
   fecha_nac   date,
@@ -46,6 +46,10 @@ create table if not exists pacientes (
 );
 alter table pacientes add column if not exists responsable_nombre text;
 alter table pacientes add column if not exists responsable_dni text;
+-- Ficha sin DNI: se permite (se completa en la primera visita), pero nunca vacío
+alter table pacientes alter column dni drop not null;
+alter table pacientes drop constraint if exists pacientes_dni_no_vacio;
+alter table pacientes add constraint pacientes_dni_no_vacio check (dni is null or btrim(dni) <> '');
 
 -- Antecedentes médicos: tabla aparte para que recepción no los vea.
 create table if not exists antecedentes (
@@ -476,6 +480,13 @@ end $$;
 --   * sin ficha previa con ese DNI: crea la ficha y la vincula;
 --   * con ficha previa y mismo email: la vincula;
 --   * con ficha previa y otro email: queda pendiente para que recepción la vincule.
+--   * sin ficha con ese DNI pero con una ficha SIN DNI que parece suya: si tiene el mismo email, la vincula y le
+--     completa el DNI; si coinciden nombre y apellido, no crea otra: queda pendiente para que recepción la vincule.
+create or replace function normalizar_nombre(t text) returns text
+language sql immutable set search_path = public as $$
+  select lower(translate(btrim(regexp_replace(coalesce(t, ''), '\s+', ' ', 'g')), 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))
+$$;
+
 create or replace function al_confirmar_email() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
@@ -489,6 +500,19 @@ begin
 
   select * into v_pac from pacientes where dni = v_dni;
   if not found then
+    -- ¿Tiene una ficha cargada sin DNI?
+    select * into v_pac from pacientes
+    where dni is null and usuario_id is null and coalesce(email, '') <> '' and lower(email) = lower(new.email)
+    limit 1;
+    if found then
+      update pacientes set usuario_id = new.id, dni = v_dni where id = v_pac.id;
+      return new;
+    end if;
+    if exists (select 1 from pacientes where dni is null and usuario_id is null
+               and normalizar_nombre(apellido) = normalizar_nombre(m->>'apellido')
+               and normalizar_nombre(nombre) = normalizar_nombre(m->>'nombre')) then
+      return new;  -- queda en "cuentas sin vincular"
+    end if;
     insert into pacientes (dni, nombre, apellido, fecha_nac, telefono, email, usuario_id)
     values (v_dni, coalesce(m->>'nombre', ''), coalesce(m->>'apellido', ''),
             nullif(m->>'fecha_nac', '')::date, m->>'telefono', new.email, new.id);
@@ -506,6 +530,23 @@ create trigger smiles_1_perfil after insert on auth.users
 drop trigger if exists smiles_2_vincular_ficha on auth.users;
 create trigger smiles_2_vincular_ficha after insert or update of email_confirmed_at on auth.users
   for each row execute function al_confirmar_email();
+
+-- Al vincular una cuenta a una ficha sin DNI, la ficha toma el DNI con el que se registró la cuenta
+-- (si no lo tiene ya otra ficha).
+create or replace function completar_dni_al_vincular() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.usuario_id is not null and new.usuario_id is distinct from old.usuario_id and new.dni is null then
+    new.dni := (select p.dni from perfiles p
+                where p.id = new.usuario_id and nullif(btrim(p.dni), '') is not null
+                  and not exists (select 1 from pacientes x where x.dni = p.dni and x.id <> new.id));
+  end if;
+  return new;
+end $$;
+revoke execute on function completar_dni_al_vincular() from public, anon, authenticated;
+drop trigger if exists completar_dni on pacientes;
+create trigger completar_dni before update of usuario_id on pacientes
+  for each row execute function completar_dni_al_vincular();
 
 -- Solo un admin puede cambiar roles, y nunca el propio.
 -- (Desde el SQL Editor, sin usuario, sí se permite: así se crea el primer admin.)
@@ -599,9 +640,11 @@ create policy "personal crea turnos" on turnos for insert to authenticated
 create policy "personal edita turnos" on turnos for update to authenticated
   using ((select es_personal())) with check ((select es_personal()));
 
--- odontogramas: el paciente puede verlos; solo odontología/admin crea versiones nuevas
+-- odontogramas: los ve odontología/admin, que es quien crea versiones nuevas
+-- Por ahora el paciente NO ve su odontograma (en Mi espacio la sección dice "en desarrollo"; etapa 5 en pausa).
+-- Para volver a mostrárselo: or paciente_id = (select mi_paciente_id())
 create policy "ver odontogramas" on odontogramas for select to authenticated
-  using ((select es_clinico()) or paciente_id = (select mi_paciente_id()));
+  using ((select es_clinico()));
 create policy "clinico registra odontograma" on odontogramas for insert to authenticated
   with check ((select es_clinico()) and creado_por = (select auth.uid()));
 -- Corregir: la última versión, quien la creó o admin, en cualquier momento (queda registro en "correcciones").
@@ -1318,7 +1361,9 @@ language sql stable security definer set search_path = public as $$
     'estado', t.estado,
     'inicio', t.inicio,
     'fin', t.fin,
-    'titulo', coalesce((select apellido || ', ' || nombre from pacientes where id = t.paciente_id), 'Paciente')
+    -- "PRUEBA · " mientras los datos de la app no sean reales (el calendario tiene los turnos verdaderos):
+    -- se quita con una migración cuando el sistema arranque en serio.
+    'titulo', 'PRUEBA · ' || coalesce((select apellido || ', ' || nombre from pacientes where id = t.paciente_id), 'Paciente')
               || coalesce(' · ' || nullif(trim(t.motivo), ''), ''),
     'sobreturno', t.sobreturno,
     'paciente_id', t.paciente_id)
@@ -1385,12 +1430,9 @@ begin
 end $$;
 revoke execute on function sincronizar_calendario(int) from public, anon, authenticated;
 
--- Repaso diario: a las 3:23 de Argentina (6:23 UTC).
-do $$ begin
-  perform cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');
-exception when others then
-  raise notice 'pg_cron no disponible en esta base: el repaso diario del calendario no queda programado (%).', sqlerrm;
-end $$;
+-- Repaso diario: a las 3:23 de Argentina (6:23 UTC). TODAVÍA NO SE PROGRAMA: mandaría al calendario real todos los
+-- turnos de prueba. Al arrancar en serio, ejecutar en el SQL Editor:
+--   select cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');
 
 -- ---------- Registro de acciones (trazabilidad) ----------
 -- La base anota sola cada acción importante: quién, cuándo, qué y sobre qué paciente. Lo ve solo el admin
@@ -1437,7 +1479,7 @@ end $$;
 revoke execute on function anotar(text, uuid, jsonb, text) from public, anon, authenticated;
 
 -- El registro no se modifica ni se borra (salvo desde el SQL Editor de Supabase, con permisos de dueño)
-create or replace function registro_inmutable() returns trigger language plpgsql as $$
+create or replace function registro_inmutable() returns trigger language plpgsql set search_path = public as $$
 begin
   raise exception 'El registro de acciones no se puede modificar.';
 end $$;

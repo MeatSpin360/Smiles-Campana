@@ -4,7 +4,7 @@ import { fechaLarga, fechaCorta, hora, mayuscula } from '../../lib/dates.js';
 import { crearOdontograma } from '../../odontograma/componente.js';
 import { hallazgos } from '../../odontograma/modelo.js';
 import { etiquetaEstado, etiquetaSobreturno, nombreCompleto, ESTADOS, enlaceWhatsapp, enlaceCorreo } from '../comunes.js';
-import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerClinica } from './comun.js';
+import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerClinica, marcaFaltaDni } from './comun.js';
 import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
 import { vistaFotos } from './fotos.js';
@@ -41,7 +41,7 @@ export async function ficha(ctx) {
     h('a.volver', { href: '#/pacientes' }, h('span.icono-btn', { html: ICONOS.izquierda }), 'Pacientes'),
     h('div.ficha-titulo',
       h('span.avatar.avatar-grande', { 'aria-hidden': 'true' }, (p.apellido || '?')[0]),
-      h('div', h('h1', `${p.nombre} ${p.apellido}`, ' ', cartelSaldo(saldo)), h('p.texto-suave', lineaPaciente(p))),
+      h('div', h('h1', `${p.nombre} ${p.apellido}`, ' ', cartelSaldo(saldo), ' ', marcaFaltaDni(p)), h('p.texto-suave', lineaPaciente(p))),
       h('div.ficha-contacto',
         enlaceWhatsapp(p.telefono) ? h('a.btn-icono', { href: enlaceWhatsapp(p.telefono), target: '_blank', rel: 'noopener', 'aria-label': 'WhatsApp', title: 'WhatsApp', html: ICONOS.whatsapp }) : null,
         enlaceCorreo(p.email) ? h('a.btn-icono', { href: enlaceCorreo(p.email), target: '_blank', rel: 'noopener', 'aria-label': 'Escribir un email', title: p.email, html: ICONOS.correo }) : null,
@@ -60,6 +60,10 @@ export async function ficha(ctx) {
 async function vistaDatos(ctx, p) {
   const err = h('p.error-campo', { hidden: true });
   const form = h('form.panel', { novalidate: true }, formularioPaciente(p), err);
+  const faltaDni = p.dni ? null : h('div.nota.nota-aviso',
+    h('span.nota-icono', { html: ICONOS.alerta }),
+    h('div', h('strong', 'Falta el DNI'),
+      h('p', 'Pedíselo en la próxima visita y cargalo acá. Lo necesitan los documentos y, si el paciente se registra en Mi espacio, para vincular su cuenta.')));
   const boton = h('button.btn.btn-primario', { type: 'submit' }, 'Guardar cambios');
   form.append(h('div.acciones-form',
     h('span.texto-suave.nota-chica', p.usuario_id ? 'Tiene cuenta en Mi espacio.' : 'Todavía no creó su cuenta en Mi espacio.'),
@@ -79,22 +83,24 @@ async function vistaDatos(ctx, p) {
       aviso('Datos guardados.');
     });
   });
-  return ctx.rol === 'admin' ? h('div', form, zonaEliminar(ctx, p)) : form;
+  return h('div', faltaDni, form, ctx.rol === 'admin' ? zonaEliminar(ctx, p) : null);
 }
 
 // SOLO PARA LA ETAPA DE PRUEBAS (ver PENDIENTES.md): el admin elimina la ficha con todo lo suyo.
 function zonaEliminar(ctx, p) {
   const abrir = () => {
-    const dni = h('input', { inputmode: 'numeric', autocomplete: 'off', 'aria-label': 'DNI del paciente' });
+    // Se confirma escribiendo el DNI, o el apellido si la ficha no tiene DNI
+    const clave = p.dni ? String(p.dni) : p.apellido;
+    const dni = h('input', { inputmode: p.dni ? 'numeric' : 'text', autocomplete: 'off', 'aria-label': p.dni ? 'DNI del paciente' : 'Apellido del paciente' });
     const ok = h('button.btn.btn-peligro', { type: 'button', disabled: true }, 'Eliminar definitivamente');
     const volver = h('button.btn.btn-secundario', { type: 'button' }, 'Volver');
-    dni.addEventListener('input', () => { ok.disabled = dni.value.trim() !== String(p.dni); });
+    dni.addEventListener('input', () => { ok.disabled = dni.value.trim().toLowerCase() !== clave.trim().toLowerCase(); });
     const { cerrar } = hoja({
       titulo: 'Eliminar paciente',
       ancho: 'chico',
       cuerpo: h('div',
         h('p', `Se borran la ficha de ${p.nombre} ${p.apellido}, sus turnos, odontogramas, antecedentes y evoluciones${p.usuario_id ? ', y su cuenta de Mi espacio' : ''}. No se puede deshacer.`),
-        h('label.campo', h('span', `Para confirmar, escribí su DNI (${p.dni})`), dni)),
+        h('label.campo', h('span', p.dni ? `Para confirmar, escribí su DNI (${p.dni})` : `Para confirmar, escribí su apellido (${p.apellido})`), dni)),
       pie: [volver, ok],
     });
     volver.onclick = cerrar;

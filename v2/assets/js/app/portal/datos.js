@@ -11,7 +11,7 @@ export async function misDatos(ctx) {
   const form = h('form.panel', { novalidate: true },
     h('dl.datos-fijos',
       h('div', h('dt', 'Nombre'), h('dd', `${ficha.nombre} ${ficha.apellido}`)),
-      h('div', h('dt', 'DNI'), h('dd', ficha.dni)),
+      h('div', h('dt', 'DNI'), h('dd', ficha.dni || 'Lo cargamos en tu próxima visita')),
       ficha.fecha_nac ? h('div', h('dt', 'Nacimiento'), h('dd', fechaCorta(ficha.fecha_nac))) : null),
     h('p.texto-suave.nota-chica', 'Para corregir nombre, DNI o fecha de nacimiento, avisanos en el consultorio.'),
     h('label.campo', h('span', 'Celular'), h('input', { name: 'telefono', type: 'tel', value: ficha.telefono || '', autocomplete: 'tel' })),

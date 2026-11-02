@@ -136,8 +136,13 @@ Con la sesión de **smiles.campana@gmail.com** abierta, en el proyecto del scrip
    **"Listo. Si no hubo errores, el calendario está conectado."**
 4. **Implementar** → *Gestionar implementaciones* → ✏️ → Versión: **Nueva versión** → *Implementar*.
    La dirección no cambia.
-5. Avisar para activar la parte de la base (migración p20) y hacer la **carga inicial** de los turnos futuros
-   (en Supabase → SQL Editor: `select sincronizar_calendario();`).
+5. Avisar para activar la parte de la base (migración p20, aplicada el 02/11/2026).
+
+**Mientras los datos de la app sean de prueba:** los eventos dicen "PRUEBA · …", no se hizo la carga inicial y el
+repaso diario **no está programado** (mandaría todos los turnos de prueba al calendario real). Solo van al calendario
+los turnos que se dan o cambian. Al arrancar en serio: quitar el prefijo, hacer la carga inicial
+(`select sincronizar_calendario();`) y programar el repaso:
+`select cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');`
 
 ### Verlo en otro teléfono o cuenta
 

@@ -5,6 +5,24 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 > **Antes de cargar pacientes reales:** quitar *Eliminar paciente* (función `eliminar_paciente` y su botón en
 > la ficha). Es solo para la etapa de pruebas: la historia clínica se conserva al menos 10 años (Ley 26.529).
 
+## Arranque con pacientes reales (objetivo: antes del 14/11/2026, próximos turnos reales)
+
+- [x] Extracción del calendario actual (`C:\Claudio\migracion-smiles\pacientes-calendario.xlsx`, fuera del repositorio: datos reales). 72 pacientes probables, 40 con DNI. Casi todos tienen un solo evento que se fue moviendo; la historia está en la descripción.
+- Criterios de la revisión con la odontóloga:
+  - "guardia" en el título = **urgencia** (probablemente brackets despegados), no es apellido.
+  - Duplicados: a veces se atendió a un familiar en el mismo turno y quedó en el mismo evento ("mamá Valentino", "papá de Meza").
+  - "Señor que trabaja enfrente": probablemente después se registró con su nombre.
+  - Sin DNI: puede estar en otro evento o anotado en papel.
+- [x] **Fichas sin DNI** ("Falta el DNI"): se pueden crear sin DNI y quedan marcadas en la lista y la ficha. Si el paciente se registra en Mi espacio con el email de esa ficha, se vincula sola y toma su DNI; si coincide solo el nombre, no se crea otra ficha: queda en "Cuentas por vincular" y, al vincularla, la ficha toma el DNI de la cuenta.
+- [ ] **El listado lo filtra Emilio** con la odontóloga (hay datos en papel): deja solo los pacientes reales y exactos. Recién después se importa.
+- Importación (la hago yo, con resumen previo y OK; no hace falta una pantalla porque es una sola vez):
+  - Notas del calendario → **evolución** en la historia clínica ("Historia previa, importada del calendario"). A definir: una sola evolución o una por consulta.
+  - Turnos futuros → turnos **confirmados**.
+  - Limpieza de los datos de prueba, con copia de seguridad antes (deja personal, precios, plantillas y horarios).
+- [ ] Al arrancar: exportar el calendario de nuevo y volver a correr la extracción; cargar pacientes y turnos futuros; borrar los datos de prueba.
+- [ ] Al arrancar: quitar el prefijo "PRUEBA · " de los eventos (`turno_para_calendario`), programar el repaso diario del calendario (ver `supabase/schema.sql`) y resolver los eventos cargados a mano para que no se dupliquen.
+- [ ] Al arrancar: quitar "Eliminar paciente" (solo para la etapa de pruebas).
+
 ## Hecho
 
 - [x] Turnos a confirmar: el paciente **pide** un turno (queda "Por confirmar" y el horario queda reservado). Recepción u odontología lo **confirman** o lo **rechazan** desde *Hoy*, la agenda o la ficha. El paciente ve el estado en *Mis turnos*.
@@ -30,11 +48,13 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Dominio **https://smilescampana.com.ar** (y `www`): delegado desde NIC Argentina a Cloudflare y conectado al Worker. La dirección de workers.dev sigue funcionando.
 - [x] Supabase *Site URL* y *Redirect URLs* con el dominio definitivo. Script de correos con `SITIO` en el dominio.
 - [x] Correos del dominio: `cuentas@` (correos de la cuenta, desde Supabase), `turnos@` (avisos de turnos, desde el script) y `consultas@` (contacto del sitio). Reciben con Cloudflare *Email Routing* y envían con Resend (Supabase SMTP y Gmail "Enviar como"). Guía: `google/CORREO-DOMINIO.md`.
-- [ ] Revocar la contraseña de aplicación de Gmail que usaba Supabase (ya no hace falta).
+- [x] Revocada la contraseña de aplicación de Gmail que usaba Supabase (02/11/2026).
+- [x] Claves con **letras y números, 8 o más** (la app lo pide y lo explica; en Supabase: *Authentication → Sign In / Providers → Email → Password requirements: Letters and digits*, mínimo 8).
+- La protección contra contraseñas filtradas de Supabase es solo del plan Pro: el aviso queda en el plan gratuito.
 
 ## Etapa 2: integraciones con Google
 
-- [x] **Google Calendar como espejo** de la agenda: los turnos confirmados (y después atendidos o ausentes) van al calendario principal de smiles.campana@gmail.com, al instante, por el script de Google (`google/avisos.gs`, servicio Google Calendar API). Una sola dirección: app → Calendar. Repaso diario a las 3:23 (próximos 60 días) que corrige diferencias y solo toca eventos de la app. Evento: apellido, nombre · motivo, con enlace a la ficha; sin teléfono, invitados ni recordatorios. Guía: `google/LEEME.md`. Desde que el sistema arranca, los turnos se dan solo en el sistema.
+- [x] **Google Calendar como espejo** de la agenda: los turnos confirmados (y después atendidos o ausentes) van al calendario principal de smiles.campana@gmail.com, al instante, por el script de Google (`google/avisos.gs`, servicio Google Calendar API). Una sola dirección: app → Calendar. Repaso diario a las 3:23 (próximos 60 días) que corrige diferencias y solo toca eventos de la app. Evento: apellido, nombre · motivo, con enlace a la ficha; sin teléfono, invitados ni recordatorios. Guía: `google/LEEME.md`. Desde que el sistema arranca, los turnos se dan solo en el sistema. **Mientras los datos sean de prueba, los eventos dicen "PRUEBA · …"; al arrancar en serio, quitar ese prefijo (función `turno_para_calendario`) y resolver los eventos que hoy están cargados a mano para que no queden duplicados.**
 - [x] **Copia de seguridad semanal** de la base a Google Drive (domingos 3:00, se conservan ~3 meses, aviso por correo si falta una). Restaurar con `supabase/restaurar.sql`. Las fotos (etapa 3) se resuelven aparte.
 
 ## Etapa 3: fotos clínicas
@@ -45,7 +65,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
   - modo ver: secciones con título (por ejemplo "Primera consulta 02/11/2026") y miniaturas; vista ampliada pasando de una foto a otra;
   - modo *Editar*: agregar sección (rectángulo con título y fotos), arrastrar fotos desde la PC o buscarlas, moverlas entre secciones, borrar fotos, renombrar o borrar secciones.
-- [x] El paciente ve en *Mi espacio → Mis fotos* las fotos que odontología marca como visibles (foto por foto con el ojo, o "Mostrar todas" por sección; las nuevas empiezan ocultas). Queda en el registro. Comparación antes y después: etapa 5.
+- [x] El paciente ve en *Mi espacio → Mis fotos* las fotos que odontología marca como visibles (foto por foto con el ojo, o "Mostrar todas" por sección; las nuevas empiezan ocultas). Queda en el registro.
 
 ## Panel de control (admin)
 
@@ -88,8 +108,9 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [ ] Definir cómo se asocian las fotos a la consulta (evolución del día, o elegir una).
 - [ ] A considerar: el celular guarda datos de salud (bloqueo de pantalla, copia de respaldo de la carpeta).
 
-## Etapa 5: historia clínica para el paciente
+## Etapa 5: historia clínica para el paciente (EN PAUSA)
 
+- [x] **Por ahora el paciente no ve su historia clínica:** en *Mi espacio → Odontograma* aparece un cartel "En desarrollo", y la base tampoco le devuelve el odontograma (política "ver odontogramas", migración p22).
 - [ ] En *Mi espacio*, reemplazar "Odontograma" por **"Historia clínica"**. El paciente no ve el odontograma.
 - [ ] **Resumen comprensible** de su historia clínica, sin lenguaje técnico, generado con IA.
   - El odontólogo lo revisa y lo aprueba antes de que el paciente lo vea.
@@ -97,4 +118,4 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
   - Enviar datos clínicos a un servicio de IA requiere informarlo al paciente en el consentimiento.
 - [x] **Fotos del tratamiento** en *Mis fotos* (las que marca odontología).
 - [x] **Mi plan**: el paciente ve sus planes de tratamiento desde que se le proponen (no borradores ni descartados), con etapas, precios, descuentos, total, forma de pago y observaciones, y lo puede imprimir o guardar en PDF. Solo ver.
-- [ ] Comparación **antes y después** de fotos.
+- ~~Comparación antes y después de fotos~~: descartado (alcanza con *Mis fotos*).

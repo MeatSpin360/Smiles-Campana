@@ -311,7 +311,7 @@ export async function pagosContabilidad(ctx) {
   };
   const visibles = () => {
     const q = normalizar(paciente.value);
-    return q ? lista.filter((x) => normalizar(`${x.paciente} ${x.dni}`).includes(q)) : lista;
+    return q ? lista.filter((x) => normalizar(`${x.paciente} ${x.dni || ''}`).includes(q)) : lista;
   };
   const totales = (filas) => {
     const f = redondo(filas.reduce((s, x) => s + x.facturado, 0));
@@ -330,7 +330,7 @@ export async function pagosContabilidad(ctx) {
         const d = redondo(x.facturado - x.pagado);
         return h('div.fila-pago-cont',
           h('span.pc-fecha', fechaCorta(x.fecha)),
-          h('span.pc-paciente', h('strong', x.paciente), h('small', `DNI ${x.dni}`)),
+          h('span.pc-paciente', h('strong', x.paciente), h('small', x.dni ? `DNI ${x.dni}` : 'Falta el DNI')),
           h('span.num', h('small', 'Facturado '), pesos(x.facturado)),
           h('span.num', h('small', 'Pagado '), pesos(x.pagado)),
           h(`span.num${d > 0 ? '.debe' : d < 0 ? '.a-favor' : ''}`, h('small', 'Diferencia '), d ? (d > 0 ? `+${pesos(d)}` : `−${pesos(-d)}`) : '—'),
@@ -374,7 +374,7 @@ export async function pagosContabilidad(ctx) {
         { titulo: 'Facturado', ancho: 15, tipo: 'pesos' }, { titulo: 'Pagado', ancho: 15, tipo: 'pesos' },
         { titulo: 'Diferencia (+ debe, − a favor)', ancho: 18, tipo: 'pesos' }, { titulo: 'Comentario', ancho: 40 },
         { titulo: 'Comprobante', ancho: 13 }, { titulo: 'Cargó', ancho: 20 }],
-      filas.map((x) => [x.fecha, x.paciente, x.dni, x.facturado, x.pagado, redondo(x.facturado - x.pagado), x.comentario || '', x.comprobante_tipo ? 'Sí' : 'No', x.creado_por_nombre || '']),
+      filas.map((x) => [x.fecha, x.paciente, x.dni || '', x.facturado, x.pagado, redondo(x.facturado - x.pagado), x.comentario || '', x.comprobante_tipo ? 'Sí' : 'No', x.creado_por_nombre || '']),
       [`Total (${nombre}${paciente.value.trim() ? `, "${paciente.value.trim()}"` : ''})`, '', '', t.facturado, t.pagado, t.diferencia, '', '', '']);
   };
 

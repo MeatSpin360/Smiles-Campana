@@ -205,11 +205,19 @@ export const api = {
     const d = cargar();
     if (d.usuarios.some((u) => u.email.toLowerCase() === email.toLowerCase())) throw new Error('User already registered');
     if (clave.length < 8) throw new Error('Password should be at least 8 characters');
+    if (!/[a-zA-Z]/.test(clave) || !/\d/.test(clave)) throw new Error('Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, 0123456789');
     const u = { id: id(), email, clave, rol: 'paciente', nombre, apellido, dni };
     d.usuarios.push(u);
     // Misma regla que la base real: si ya hay una ficha con ese DNI, recepción la vincula.
     const existente = d.pacientes.find((p) => p.dni === dni);
-    if (!existente) {
+    const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const sinDniMismoEmail = !existente && d.pacientes.find((p) => !p.dni && !p.usuario_id && p.email && p.email.toLowerCase() === email.toLowerCase());
+    const sinDniMismoNombre = !existente && d.pacientes.some((p) => !p.dni && !p.usuario_id && norm(p.apellido) === norm(apellido) && norm(p.nombre) === norm(nombre));
+    if (sinDniMismoEmail) {
+      Object.assign(sinDniMismoEmail, { usuario_id: u.id, dni });
+    } else if (sinDniMismoNombre) {
+      // queda en "cuentas sin vincular" para que recepción la vincule
+    } else if (!existente) {
       d.pacientes.push({ id: id(), dni, nombre, apellido, fecha_nac, telefono, email, direccion: '', notas: '', usuario_id: u.id, creado_en: ahora() });
     } else if (!existente.usuario_id && existente.email && existente.email.toLowerCase() === email.toLowerCase()) {
       existente.usuario_id = u.id;
@@ -356,8 +364,8 @@ export const api = {
   async crearPaciente(datos) {
     requiere(...PERSONAL);
     const d = cargar();
-    if (d.pacientes.some((p) => p.dni === datos.dni)) throw new Error('Ya existe un paciente con ese DNI.');
-    const p = { id: id(), direccion: '', notas: '', email: '', telefono: '', fecha_nac: null, ...datos, usuario_id: null, creado_en: ahora() };
+    if (datos.dni && d.pacientes.some((p) => p.dni === datos.dni)) throw new Error('Ya existe un paciente con ese DNI.');
+    const p = { id: id(), direccion: '', notas: '', email: '', telefono: '', fecha_nac: null, ...datos, dni: datos.dni || null, usuario_id: null, creado_en: ahora() };
     d.pacientes.push(p);
     guardar();
     return espera(p);
@@ -391,7 +399,7 @@ export const api = {
     const d = cargar();
     const p = d.pacientes.find((x) => x.id === pid);
     if (datos.dni && d.pacientes.some((x) => x.dni === datos.dni && x.id !== pid)) throw new Error('Ya existe otro paciente con ese DNI.');
-    Object.assign(p, datos);
+    Object.assign(p, datos, 'dni' in datos ? { dni: datos.dni || null } : {});
     guardar();
     return espera(p);
   },
@@ -621,6 +629,9 @@ export const api = {
     const p = d.pacientes.find((x) => x.id === pacienteId);
     if (p.usuario_id) throw new Error('Esa ficha ya tiene una cuenta vinculada.');
     p.usuario_id = perfilId;
+    // Como la base: una ficha sin DNI toma el de la cuenta (si no lo tiene otra ficha)
+    const cuenta = d.usuarios.find((u) => u.id === perfilId);
+    if (!p.dni && cuenta?.dni && !d.pacientes.some((x) => x.dni === cuenta.dni)) p.dni = cuenta.dni;
     guardar();
   },
   async usuarios() {

@@ -109,3 +109,47 @@ por error o para reconstruir en un proyecto nuevo) y no envía correos mientras 
 
 En Supabase → SQL Editor: `select enviar_respaldo();` (en uno o dos minutos aparece el archivo en Drive).
 
+
+## Turnos en Google Calendar
+
+Los turnos **confirmados** aparecen solos en el **calendario principal** de smiles.campana@gmail.com, y se
+actualizan cuando se cambia el horario, se marcan como atendidos (verde) o ausentes (gris) o se cancelan
+(el evento se borra). Los pedidos por confirmar no aparecen hasta que se confirman.
+
+- Cada evento dice **apellido, nombre · motivo** y trae un enlace a la ficha en la intranet. No lleva teléfono
+  ni datos clínicos, no tiene invitados (no se le avisa nada al paciente) y no tiene recordatorios.
+- Va en **una sola dirección**: lo que se cambie en Google Calendar no vuelve a la app. Todos los días a las 3:23
+  la base manda la lista de turnos de los próximos 60 días y el script deja el calendario igual que la app
+  (crea lo que falta, corrige lo que se movió a mano y borra lo que sobra). Solo toca los eventos de turnos:
+  los que cargues a mano en el calendario no se tocan.
+
+### Activar (una sola vez, unos 10 minutos)
+
+Con la sesión de **smiles.campana@gmail.com** abierta, en el proyecto del script (<https://script.google.com>):
+
+1. Reemplazar todo el código por el `avisos.gs` actualizado y **guardar**.
+2. **Servicio de Calendar:** en el menú de la izquierda, junto a *Servicios*, tocar **+** → elegir
+   **Google Calendar API** → dejar el identificador como está (`Calendar`) → **Agregar**.
+3. **Prueba y permiso:** elegir la función `probarCalendario` en la lista de arriba → **Ejecutar**. Google pide un
+   permiso nuevo para el **Calendario**: aceptarlo igual que antes (*Configuración avanzada* → *Ir a…* →
+   *Permitir*). En el *Registro de ejecución* tiene que decir "Crear… Mover… Borrar…" y al final
+   **"Listo. Si no hubo errores, el calendario está conectado."**
+4. **Implementar** → *Gestionar implementaciones* → ✏️ → Versión: **Nueva versión** → *Implementar*.
+   La dirección no cambia.
+5. Avisar para activar la parte de la base (migración p20) y hacer la **carga inicial** de los turnos futuros
+   (en Supabase → SQL Editor: `select sincronizar_calendario();`).
+
+### Verlo en otro teléfono o cuenta
+
+En Google Calendar (web) con la cuenta del consultorio: ⚙️ *Configuración* → en *Configuración de mis
+calendarios*, el calendario principal → *Compartir con determinadas personas* → agregar la cuenta personal →
+permiso **"Ver todos los detalles de los eventos"**. Así se ve en el celular sin poder modificarlo.
+Ojo: se comparte todo el calendario principal de la cuenta, no solo los turnos.
+
+### Si algo no aparece
+
+- Esperar al repaso de la madrugada, o forzarlo en Supabase → SQL Editor: `select sincronizar_calendario();`.
+- Revisar las respuestas: `select created, status_code, content from net._http_response order by created desc limit 10;`
+  (`{"ok":true,"tipo":"calendario_completo",...}` indica cuántos eventos creó, corrigió y borró).
+- En el script: *Ejecuciones* muestra cada llamada y cualquier error (por ejemplo, si falta el servicio
+  *Google Calendar API* del paso 2).

@@ -34,7 +34,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Etapa 2: integraciones con Google
 
-- [ ] **Google Calendar como espejo** de la agenda (solo turnos confirmados), en un solo sentido: sistema → Calendar, al instante, por la API de Google (no por suscripción ICS, que tarda 12 a 24 h en actualizarse). Desde que el sistema arranca, los turnos se dan solo en el sistema.
+- [x] **Google Calendar como espejo** de la agenda: los turnos confirmados (y después atendidos o ausentes) van al calendario principal de smiles.campana@gmail.com, al instante, por el script de Google (`google/avisos.gs`, servicio Google Calendar API). Una sola dirección: app → Calendar. Repaso diario a las 3:23 (próximos 60 días) que corrige diferencias y solo toca eventos de la app. Evento: apellido, nombre · motivo, con enlace a la ficha; sin teléfono, invitados ni recordatorios. Guía: `google/LEEME.md`. Desde que el sistema arranca, los turnos se dan solo en el sistema.
 - [x] **Copia de seguridad semanal** de la base a Google Drive (domingos 3:00, se conservan ~3 meses, aviso por correo si falta una). Restaurar con `supabase/restaurar.sql`. Las fotos (etapa 3) se resuelven aparte.
 
 ## Etapa 3: fotos clínicas

@@ -1304,6 +1304,94 @@ exception when others then
   raise notice 'pg_cron no disponible en esta base: la copia semanal no queda programada (%).', sqlerrm;
 end $$;
 
+-- ---------- Turnos en Google Calendar ----------
+-- Copia de una sola dirección: los turnos confirmados (y después atendidos o ausentes) aparecen en el calendario
+-- principal de smiles.campana@gmail.com. Cada cambio le avisa al script (google/avisos.gs), que crea, mueve o borra
+-- el evento (cada evento lleva el código del turno, así nunca se duplica). Todos los días se le manda además la
+-- lista completa de los próximos 60 días para corregir diferencias. Lo que se cambie en Google no vuelve a la app.
+-- El evento lleva nombre, motivo y un enlace a la ficha; no lleva teléfono ni datos clínicos.
+create or replace function turno_para_calendario(t turnos) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'id', t.id,
+    'mostrar', t.estado in ('confirmado', 'atendido', 'ausente'),
+    'estado', t.estado,
+    'inicio', t.inicio,
+    'fin', t.fin,
+    'titulo', coalesce((select apellido || ', ' || nombre from pacientes where id = t.paciente_id), 'Paciente')
+              || coalesce(' · ' || nullif(trim(t.motivo), ''), ''),
+    'sobreturno', t.sobreturno,
+    'paciente_id', t.paciente_id)
+$$;
+revoke execute on function turno_para_calendario(turnos) from public, anon, authenticated;
+
+create or replace function calendario_turno() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_antes boolean := tg_op <> 'INSERT' and old.estado in ('confirmado', 'atendido', 'ausente');
+  v_ahora boolean := tg_op <> 'DELETE' and new.estado in ('confirmado', 'atendido', 'ausente');
+  v_turno jsonb;
+  v_url text;
+  v_secreto text;
+begin
+  -- Solo si el turno está o estaba en el calendario, y cambió algo que se ve en el evento
+  if not (v_antes or v_ahora) then return null; end if;
+  if tg_op = 'UPDATE' and (new.estado, new.inicio, new.fin, new.motivo, new.sobreturno, new.paciente_id)
+     is not distinct from (old.estado, old.inicio, old.fin, old.motivo, old.sobreturno, old.paciente_id) then
+    return null;
+  end if;
+  v_turno := case when v_ahora then turno_para_calendario(new) else jsonb_build_object('id', old.id, 'mostrar', false) end;
+  begin
+    select decrypted_secret into v_url from vault.decrypted_secrets where name = 'avisos_url';
+    select decrypted_secret into v_secreto from vault.decrypted_secrets where name = 'avisos_secreto';
+    if v_url is null or v_secreto is null then return null; end if;
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('secreto', v_secreto, 'tipo', 'calendario', 'turno', v_turno),
+      headers := '{"Content-Type": "application/json"}'::jsonb,
+      timeout_milliseconds := 15000);
+  exception when others then
+    -- Un problema con el calendario nunca debe impedir dar, cambiar o cancelar un turno (lo corrige el repaso diario)
+    raise warning 'No se pudo avisar al calendario el turno %: %', coalesce(new.id, old.id), sqlerrm;
+  end;
+  return null;
+end $$;
+revoke execute on function calendario_turno() from public, anon, authenticated;
+drop trigger if exists calendario_turno on turnos;
+create trigger calendario_turno after insert or update or delete on turnos
+  for each row execute function calendario_turno();
+
+-- Lista completa para el repaso diario (y la carga inicial): turnos que se muestran entre ayer y dentro de p_dias.
+create or replace function sincronizar_calendario(p_dias int default 60) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_url text;
+  v_secreto text;
+  v_desde timestamptz := date_trunc('day', now()) - interval '1 day';
+  v_hasta timestamptz := date_trunc('day', now()) + make_interval(days => p_dias);
+begin
+  select decrypted_secret into v_url from vault.decrypted_secrets where name = 'avisos_url';
+  select decrypted_secret into v_secreto from vault.decrypted_secrets where name = 'avisos_secreto';
+  if v_url is null or v_secreto is null then
+    raise exception 'Faltan los secretos avisos_url / avisos_secreto en Vault.';
+  end if;
+  return net.http_post(
+    url := v_url,
+    body := jsonb_build_object('secreto', v_secreto, 'tipo', 'calendario_completo', 'desde', v_desde, 'hasta', v_hasta,
+      'turnos', (select coalesce(jsonb_agg(turno_para_calendario(t) order by t.inicio), '[]') from turnos t
+                 where t.estado in ('confirmado', 'atendido', 'ausente') and t.fin > v_desde and t.inicio < v_hasta)),
+    headers := '{"Content-Type": "application/json"}'::jsonb,
+    timeout_milliseconds := 60000);
+end $$;
+revoke execute on function sincronizar_calendario(int) from public, anon, authenticated;
+
+-- Repaso diario: a las 3:23 de Argentina (6:23 UTC).
+do $$ begin
+  perform cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');
+exception when others then
+  raise notice 'pg_cron no disponible en esta base: el repaso diario del calendario no queda programado (%).', sqlerrm;
+end $$;
+
 -- ---------- Registro de acciones (trazabilidad) ----------
 -- La base anota sola cada acción importante: quién, cuándo, qué y sobre qué paciente. Lo ve solo el admin
 -- (Panel de control) y nadie puede modificarlo ni borrarlo desde la app. Guarda qué cambió, no el contenido

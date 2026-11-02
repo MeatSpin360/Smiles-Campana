@@ -7,6 +7,10 @@
  * - Copias de seguridad: una vez por semana la base le manda una copia de sus tablas y el script la
  *   guarda en la carpeta de Drive "Smiles Campana – Respaldos" (borra las de más de 3 meses).
  *   Los lunes, 'controlarRespaldo' avisa por correo si falta la copia de la semana.
+ * - Calendario: los turnos confirmados (y después atendidos o ausentes) se copian al calendario principal de la
+ *   cuenta. La base avisa cada cambio y una vez por día manda la lista completa para corregir diferencias.
+ *   Requiere el servicio avanzado "Google Calendar API" (Servicios → +). Va en una sola dirección: lo que se
+ *   cambie en Google Calendar no vuelve a la app y el repaso diario lo deja como en la app.
  *
  * Seguridad: solo atiende pedidos que traen la clave secreta guardada en
  * Configuración del proyecto → Propiedades del script → SECRETO.
@@ -55,6 +59,8 @@ function doPost(e) {
   const secreto = PropertiesService.getScriptProperties().getProperty('SECRETO');
   if (!secreto || datos.secreto !== secreto) return respuesta({ ok: false, error: 'clave' });
   if (datos.tipo === 'respaldo') return respuesta(guardarRespaldo(datos.respaldo));
+  if (datos.tipo === 'calendario') return respuesta(conCuidado(() => turnoEnCalendario(datos.turno)));
+  if (datos.tipo === 'calendario_completo') return respuesta(conCuidado(() => sincronizarCalendario(datos)));
   if (!datos.email || !TIPOS[datos.tipo]) return respuesta({ ok: false, error: 'datos' });
 
   const correo = armarCorreo(datos);
@@ -330,4 +336,168 @@ function instalarControlRespaldo() {
     .forEach((t) => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('controlarRespaldo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9).inTimezone(ZONA).create();
   carpetaRespaldos(); // crea la carpeta y pide el permiso de Drive ahora
+}
+
+// ---------- Turnos en Google Calendar ----------
+// Cada evento usa como identificador el código del turno (sin guiones): así se encuentra siempre el mismo evento
+// y nunca se duplica. Además lleva la marca privada smiles=turno: el repaso diario solo toca eventos con esa
+// marca, nunca los que se cargaron a mano en el calendario.
+const CALENDARIO = 'primary';
+const MARCA = 'turno';
+const ESTADOS_EN_CALENDARIO = ['confirmado', 'atendido', 'ausente'];
+const COLOR_ESTADO = { atendido: '10', ausente: '8' }; // verde y gris; los confirmados, con el color del calendario
+
+function conCuidado(fn) {
+  try {
+    return fn();
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: String(err && err.message || err) };
+  }
+}
+
+function idEvento(turnoId) {
+  return String(turnoId).replace(/-/g, '').toLowerCase();
+}
+
+/** El evento tal como tiene que quedar: título, horario, enlace a la ficha. Sin teléfono ni datos clínicos. */
+function eventoDeTurno(t) {
+  const titulo = (t.sobreturno ? 'Sobreturno · ' : '') + t.titulo + (t.estado === 'ausente' ? ' (ausente)' : '');
+  const ev = {
+    summary: titulo,
+    description: `Turno de la agenda de ${CONSULTORIO.nombre}.\nFicha: ${SITIO}/app.html#/pacientes/${t.paciente_id}\n\n`
+      + 'Se actualiza solo desde la app: los cambios hechos acá no se guardan en la app y se corrigen cada noche.',
+    start: { dateTime: new Date(t.inicio).toISOString(), timeZone: ZONA },
+    end: { dateTime: new Date(t.fin).toISOString(), timeZone: ZONA },
+    status: 'confirmed',
+    transparency: 'opaque',
+    reminders: { useDefault: false, overrides: [] }, // sin notificaciones por cada turno
+    extendedProperties: { private: { smiles: MARCA } },
+  };
+  if (COLOR_ESTADO[t.estado]) ev.colorId = COLOR_ESTADO[t.estado];
+  return ev;
+}
+
+const noEncontrado = (err) => /not ?found|404|410|deleted/i.test(String(err && err.message || err));
+
+/** Crea o actualiza el evento del turno (también lo recupera si alguien lo borró a mano). */
+function guardarEvento(t) {
+  const id = idEvento(t.id);
+  const recurso = eventoDeTurno(t);
+  try {
+    Calendar.Events.update(recurso, CALENDARIO, id);
+    return 'actualizado';
+  } catch (err) {
+    if (!noEncontrado(err)) throw err;
+  }
+  recurso.id = id;
+  Calendar.Events.insert(recurso, CALENDARIO);
+  return 'creado';
+}
+
+/** Para un turno que no está en el calendario: lo crea (si su código ya se usó en un evento borrado, lo recupera). */
+function crearEvento(t) {
+  const recurso = eventoDeTurno(t);
+  recurso.id = idEvento(t.id);
+  try {
+    Calendar.Events.insert(recurso, CALENDARIO);
+    return 'creado';
+  } catch (err) {
+    if (!/already exists|duplicate|409/i.test(String(err && err.message || err))) throw err;
+  }
+  return guardarEvento(t);
+}
+
+function borrarEvento(turnoId) {
+  try {
+    Calendar.Events.remove(CALENDARIO, idEvento(turnoId));
+    return 'borrado';
+  } catch (err) {
+    if (noEncontrado(err)) return 'no estaba';
+    throw err;
+  }
+}
+
+/** Un cambio de un turno: si se muestra, crea o actualiza el evento; si no, lo borra. */
+function turnoEnCalendario(t) {
+  if (!t || !t.id) return { ok: false, error: 'datos' };
+  const mostrar = t.mostrar && ESTADOS_EN_CALENDARIO.indexOf(t.estado) >= 0;
+  return { ok: true, tipo: 'calendario', resultado: mostrar ? guardarEvento(t) : borrarEvento(t.id) };
+}
+
+/** ¿El evento del calendario es distinto de cómo tiene que quedar? */
+function eventoDistinto(ev, nuevo) {
+  const hora = (x) => (x && x.dateTime ? new Date(x.dateTime).getTime() : null);
+  return ev.summary !== nuevo.summary || (ev.description || '') !== nuevo.description
+    || hora(ev.start) !== hora(nuevo.start) || hora(ev.end) !== hora(nuevo.end)
+    || (ev.colorId || '') !== (nuevo.colorId || '') || ev.status === 'cancelled';
+}
+
+/**
+ * Repaso completo: deja en el calendario exactamente los turnos de la lista entre "desde" y "hasta".
+ * Crea los que faltan, corrige los que cambiaron (también si alguien los movió a mano) y borra los eventos de
+ * turnos que ya no corresponden. Solo toca eventos con la marca de la app.
+ */
+function sincronizarCalendario(datos) {
+  if (!datos || !Array.isArray(datos.turnos) || !datos.desde || !datos.hasta) return { ok: false, error: 'datos' };
+  const quiero = {};
+  datos.turnos.forEach((t) => { if (ESTADOS_EN_CALENDARIO.indexOf(t.estado) >= 0) quiero[idEvento(t.id)] = t; });
+
+  const hay = {};
+  let pagina;
+  do {
+    const r = Calendar.Events.list(CALENDARIO, {
+      timeMin: new Date(datos.desde).toISOString(),
+      timeMax: new Date(datos.hasta).toISOString(),
+      privateExtendedProperty: 'smiles=' + MARCA,
+      singleEvents: true,
+      showDeleted: false,
+      maxResults: 2500,
+      pageToken: pagina,
+    });
+    (r.items || []).forEach((ev) => { hay[ev.id] = ev; });
+    pagina = r.nextPageToken;
+  } while (pagina);
+
+  let creados = 0;
+  let corregidos = 0;
+  let borrados = 0;
+  Object.keys(quiero).forEach((id) => {
+    const t = quiero[id];
+    if (!hay[id]) {
+      crearEvento(t);
+      creados++;
+    } else if (eventoDistinto(hay[id], eventoDeTurno(t))) {
+      guardarEvento(t);
+      corregidos++;
+    }
+  });
+  Object.keys(hay).forEach((id) => {
+    if (!quiero[id]) {
+      borrarEvento(id);
+      borrados++;
+    }
+  });
+  return { ok: true, tipo: 'calendario_completo', turnos: Object.keys(quiero).length, creados, corregidos, borrados };
+}
+
+/**
+ * Para probar desde el editor (pide el permiso del calendario): crea un evento de prueba dentro de una hora,
+ * lo mueve y lo borra. Mirá el resultado en "Registro de ejecución".
+ */
+function probarCalendario() {
+  const inicio = new Date(Date.now() + 3600e3);
+  inicio.setMinutes(0, 0, 0);
+  const t = {
+    id: '00000000-0000-4000-8000-' + String(Date.now()).slice(-12),
+    mostrar: true, estado: 'confirmado', titulo: 'Prueba, Smiles · Control', sobreturno: false,
+    inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + 30 * 60e3).toISOString(), paciente_id: 'prueba',
+  };
+  console.log('Crear:', JSON.stringify(turnoEnCalendario(t)));
+  t.inicio = new Date(inicio.getTime() + 3600e3).toISOString();
+  t.fin = new Date(inicio.getTime() + 5400e3).toISOString();
+  console.log('Mover:', JSON.stringify(turnoEnCalendario(t)));
+  t.mostrar = false;
+  console.log('Borrar:', JSON.stringify(turnoEnCalendario(t)));
+  console.log('Listo. Si no hubo errores, el calendario está conectado.');
 }

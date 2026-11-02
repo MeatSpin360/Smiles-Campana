@@ -277,6 +277,21 @@ export const api = {
     guardar();
     return espera(p);
   },
+  async misFotos() {
+    const p = miPaciente();
+    if (!p) return { secciones: [], fotos: [] };
+    const d = cargar();
+    const orden = (a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en);
+    const fotos = d.fotos.filter((x) => x.paciente_id === p.id && x.visible_paciente).sort(orden);
+    const secciones = d.foto_secciones.filter((s) => fotos.some((f) => f.seccion_id === s.id)).sort(orden);
+    return espera({ secciones: secciones.map((x) => ({ ...x })), fotos: fotos.map((x) => ({ ...x })) });
+  },
+  async misPlanes() {
+    const p = miPaciente();
+    if (!p) return [];
+    return espera(cargar().planes.filter((x) => x.paciente_id === p.id && ['propuesto', 'aceptado', 'en_curso', 'terminado'].includes(x.estado))
+      .sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map((x) => ({ ...x })));
+  },
   async misTurnos() {
     const p = miPaciente();
     if (!p) return [];
@@ -502,8 +517,9 @@ export const api = {
     const d = cargar();
     const orden = (a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en);
     return espera({
-      secciones: d.foto_secciones.filter((x) => x.paciente_id === pid).sort(orden),
-      fotos: d.fotos.filter((x) => x.paciente_id === pid).sort(orden),
+      // Copias, como las devuelve la base (así los cambios en pantalla no tocan los datos guardados)
+      secciones: d.foto_secciones.filter((x) => x.paciente_id === pid).sort(orden).map((x) => ({ ...x })),
+      fotos: d.fotos.filter((x) => x.paciente_id === pid).sort(orden).map((x) => ({ ...x })),
     });
   },
   async subirFoto(pid, archivo, { seccionId = null, orden = 0 } = {}) {
@@ -514,10 +530,13 @@ export const api = {
     await archivos.guardar(`${f.id}:mini`, p.mini);
     cargar().fotos.push(f);
     guardar();
-    return espera(f);
+    return espera({ ...f });
   },
   urlFoto(fid, { mini = false } = {}) {
-    requiere(...CLINICO);
+    const u = requiere();
+    const f = cargar().fotos.find((x) => x.id === fid);
+    const propia = u.rol === 'paciente' && f?.visible_paciente && f.paciente_id === miPaciente()?.id;
+    if (!CLINICO.includes(u.rol) && !propia) throw new Error('No tenés permiso para ver esta foto.');
     const k = `${fid}${mini ? ':mini' : ''}`;
     if (!urlsFotos.has(k)) {
       urlsFotos.set(k, archivos.leer(k).then((b) => {
@@ -536,6 +555,13 @@ export const api = {
     await archivos.borrar(`${fid}:mini`);
     return espera();
   },
+  async visibilidadFotos(ids, visible) {
+    requiere(...CLINICO);
+    const d = cargar();
+    for (const fid of ids) Object.assign(d.fotos.find((x) => x.id === fid), { visible_paciente: !!visible });
+    guardar();
+    return espera(ids.map((fid) => ({ id: fid, visible_paciente: !!visible })));
+  },
   async ordenarFotos(cambios) {
     requiere(...CLINICO);
     const d = cargar();
@@ -553,7 +579,7 @@ export const api = {
     const s = { id: id(), paciente_id: pid, titulo, orden, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora() };
     cargar().foto_secciones.push(s);
     guardar();
-    return espera(s);
+    return espera({ ...s });
   },
   async actualizarSeccion(sid, cambios) {
     requiere(...CLINICO);
@@ -708,6 +734,12 @@ const ANOTACIONES = {
   borrarFoto: {
     pre: ([fid]) => ({ ...cargar().fotos.find((f) => f.id === fid) }),
     post: (a, r, f) => anotar('foto.borrada', f.paciente_id, { seccion: tituloSeccion(f.seccion_id) }),
+  },
+  visibilidadFotos: {
+    pre: ([ids]) => ids.map((fid) => ({ ...cargar().fotos.find((f) => f.id === fid) })),
+    post: ([ids, visible], r, antes) => antes.forEach((f) => {
+      if (!!f.visible_paciente !== !!visible) anotar(visible ? 'foto.visible' : 'foto.oculta', f.paciente_id, { seccion: tituloSeccion(f.seccion_id) });
+    }),
   },
   ordenarFotos: {
     pre: ([cambios]) => cambios.map((c) => ({ ...cargar().fotos.find((f) => f.id === c.id) })),

@@ -19,8 +19,8 @@ const DESCRIPCION_ESTADO = {
 };
 const icono = (n) => h('span.icono-btn', { html: ICONOS[n] });
 const numero = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')));
-const subtotalItem = (i) => (numero(i.cantidad) ?? 1) * (numero(i.precio) || 0) * (1 - Math.min(Math.max(numero(i.descuento) || 0, 0), 100) / 100);
-const subtotalDe = (items) => items.reduce((s, i) => s + subtotalItem(i), 0);
+export const subtotalItem = (i) => (numero(i.cantidad) ?? 1) * (numero(i.precio) || 0) * (1 - Math.min(Math.max(numero(i.descuento) || 0, 0), 100) / 100);
+export const subtotalDe = (items) => items.reduce((s, i) => s + subtotalItem(i), 0);
 /** Total como lo calcula la base: prácticas con su descuento, después % general y monto fijo */
 const totalDe = (plan) => Math.max(Math.round((subtotalDe(plan.items) * (1 - (Number(plan.descuento) || 0) / 100) - (Number(plan.descuento_monto) || 0)) * 100) / 100, 0);
 

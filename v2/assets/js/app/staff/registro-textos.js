@@ -78,6 +78,8 @@ export function describir({ accion, detalle: d = {} }) {
     case 'foto.subida': return { texto: 'Subió una foto', extra: entre(d.seccion), plural: (n) => `Subió ${n} fotos` };
     case 'foto.movida': return { texto: 'Movió una foto', extra: `${entre(d.de)} → ${entre(d.a)}`, plural: (n) => `Movió ${n} fotos` };
     case 'foto.borrada': return { texto: 'Borró una foto', extra: entre(d.seccion), plural: (n) => `Borró ${n} fotos` };
+    case 'foto.visible': return { texto: 'Mostró una foto al paciente', extra: entre(d.seccion), plural: (n) => `Mostró ${n} fotos al paciente` };
+    case 'foto.oculta': return { texto: 'Ocultó una foto al paciente', extra: entre(d.seccion), plural: (n) => `Ocultó ${n} fotos al paciente` };
 
     case 'plan.creado': return { texto: 'Creó un plan de tratamiento', extra: `"${d.titulo}" · ${pesos(d.total)}` };
     case 'plan.editado': return { texto: 'Modificó un plan de tratamiento', extra: `"${d.titulo}"${d.total !== d.total_antes ? ` · ${pesos(d.total_antes)} → ${pesos(d.total)}` : ''}` };

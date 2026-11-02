@@ -3,7 +3,8 @@
 // Modo ver: secciones con su título y miniaturas; al tocar una foto se abre grande (visor).
 // Modo editar: agregar, renombrar, ordenar y borrar secciones; subir fotos arrastrándolas desde la PC
 // o con "Buscar fotos"; mover fotos entre secciones (arrastrando o con el botón Mover) y borrarlas.
-// Cada cambio se guarda en el momento.
+// Cada foto se puede mostrar al paciente en Mi espacio (botón del ojo, o "Mostrar todas" por sección);
+// las fotos nuevas empiezan ocultas. Cada cambio se guarda en el momento.
 import { h, vaciar } from '../../lib/dom.js';
 import { aviso, confirmar, hoja, mensajeError } from '../../lib/ui.js';
 import { fechaCorta } from '../../lib/dates.js';
@@ -14,6 +15,8 @@ const TIPO_FOTO = 'application/x-smiles-foto';
 const porOrden = (a, b) => a.orden - b.orden || a.creado_en.localeCompare(b.creado_en);
 const icono = (nombre) => h('span.icono-btn', { html: ICONOS[nombre] });
 const cantidad = (n) => `${n} ${n === 1 ? 'foto' : 'fotos'}`;
+const visiblesTexto = (n) => (n ? `${n} ${n === 1 ? 'visible' : 'visibles'} para el paciente` : 'Ninguna visible para el paciente');
+const marcaVisible = () => h('span.marca-visible', { title: 'El paciente la ve en Mi espacio' }, icono('ojo'), h('span', 'Paciente'));
 
 export async function vistaFotos(ctx, p) {
   const { api } = ctx;
@@ -74,7 +77,9 @@ export async function vistaFotos(ctx, p) {
     const editar = h('button.btn.btn-primario', { type: 'button', onclick: () => { editando = true; dibujar(); } },
       icono('foto'), total || secciones.length ? 'Editar' : 'Agregar fotos');
     const cabecera = h('div.panel-cabecera.fotos-cabecera',
-      h('div', h('h2', 'Fotos'), h('p.texto-suave.nota-chica', total ? `${cantidad(total)} en ${secciones.length} ${secciones.length === 1 ? 'sección' : 'secciones'}` : 'Fotos clínicas del paciente, agrupadas por consulta.')),
+      h('div', h('h2', 'Fotos'), h('p.texto-suave.nota-chica', total
+        ? `${cantidad(total)} en ${secciones.length} ${secciones.length === 1 ? 'sección' : 'secciones'} · ${visiblesTexto(fotos.filter((f) => f.visible_paciente).length)}`
+        : 'Fotos clínicas del paciente, agrupadas por consulta.')),
       editar);
     if (!total && !secciones.length) {
       editar.onclick = async () => {
@@ -89,13 +94,15 @@ export async function vistaFotos(ctx, p) {
     return h('div',
       h('section.panel.panel-fotos-cabecera', cabecera),
       visibles.map((g) => h('section.panel.seccion-fotos',
-        h('div.seccion-fotos-titulo', h('h3', g.seccion?.titulo || 'Sin sección'), h('span.texto-suave.nota-chica', g.fotos.length ? cantidad(g.fotos.length) : 'Sin fotos')),
+        h('div.seccion-fotos-titulo', h('h3', g.seccion?.titulo || 'Sin sección'), h('span.texto-suave.nota-chica', g.fotos.length
+          ? `${cantidad(g.fotos.length)}${g.fotos.some((f) => f.visible_paciente) ? ` · ${g.fotos.filter((f) => f.visible_paciente).length} para el paciente` : ''}`
+          : 'Sin fotos')),
         g.fotos.length
           ? h('div.grilla-fotos', g.fotos.map((f) => h('button.foto-mini', {
             type: 'button',
-            'aria-label': `Ver foto ${enOrden.findIndex((x) => x.foto === f) + 1} de ${enOrden.length}`,
+            'aria-label': `Ver foto ${enOrden.findIndex((x) => x.foto === f) + 1} de ${enOrden.length}${f.visible_paciente ? ' (visible para el paciente)' : ''}`,
             onclick: () => abrirVisor(api, enOrden, enOrden.findIndex((x) => x.foto === f)),
-          }, imagenMini(f))))
+          }, imagenMini(f), f.visible_paciente ? marcaVisible() : null)))
           : null)));
   }
 
@@ -109,7 +116,8 @@ export async function vistaFotos(ctx, p) {
     const lista = grupos();
     return h('div.fotos-editando',
       h('div.barra-edicion.barra-fotos',
-        h('p', h('strong', 'Editando fotos.'), ' Arrastrá fotos desde la PC a una sección o usá ', h('em', 'Buscar fotos'), '. Los cambios se guardan solos.'),
+        h('p', h('strong', 'Editando fotos.'), ' Arrastrá fotos desde la PC a una sección o usá ', h('em', 'Buscar fotos'),
+          '. Con el ojo elegís qué fotos ve el paciente en Mi espacio (las nuevas empiezan ocultas). Los cambios se guardan solos.'),
         h('div.barra-edicion-acciones', agregar, listo)),
       lista.length ? lista.map((g, i) => seccionEditable(g, i, lista)) : h('div.panel.vacio-turno',
         h('span.vacio-icono', { html: ICONOS.foto }), h('p', 'Agregá una sección para empezar a subir fotos.')));
@@ -145,6 +153,13 @@ export async function vistaFotos(ctx, p) {
     } else {
       cabecera = h('div.seccion-fotos-editar-cabecera', h('h3', 'Sin sección'), h('span.texto-suave.nota-chica', 'Fotos de secciones borradas. Movelas a una sección.'));
     }
+    if (propias.length) {
+      const todas = propias.every((f) => f.visible_paciente);
+      cabecera.append(h('div.seccion-visibilidad',
+        h('span.texto-suave.nota-chica', visiblesTexto(propias.filter((f) => f.visible_paciente).length)),
+        h('button.btn.btn-fantasma.btn-chico', { type: 'button', onclick: () => cambiarVisibilidad(propias, !todas) },
+          icono(todas ? 'ojoNo' : 'ojo'), todas ? 'Ocultar todas' : 'Mostrar todas')));
+    }
 
     const buscar = h('input', { type: 'file', accept: 'image/*,.heic,.heif', multiple: true, hidden: true });
     buscar.addEventListener('change', () => { subir([...buscar.files], sid); buscar.value = ''; });
@@ -158,9 +173,19 @@ export async function vistaFotos(ctx, p) {
   }
 
   function miniaturaEditable(f) {
-    const tarjeta = h('div.foto-mini.foto-editable', { draggable: true, 'data-id': f.id },
+    const visible = !!f.visible_paciente;
+    const tarjeta = h(`div.foto-mini.foto-editable${visible ? '.foto-visible' : ''}`, { draggable: true, 'data-id': f.id },
       imagenMini(f),
+      visible ? marcaVisible() : null,
       h('div.foto-acciones',
+        h(`button.btn-icono${visible ? '.btn-icono-activo' : ''}`, {
+          type: 'button',
+          'aria-pressed': String(visible),
+          title: visible ? 'El paciente la ve. Tocá para ocultarla' : 'Mostrar al paciente en Mi espacio',
+          'aria-label': visible ? 'Ocultar al paciente' : 'Mostrar al paciente',
+          html: visible ? ICONOS.ojo : ICONOS.ojoNo,
+          onclick: () => cambiarVisibilidad([f], !visible),
+        }),
         h('button.btn-icono', { type: 'button', title: 'Mover a otra sección', 'aria-label': 'Mover a otra sección', html: ICONOS.mover, onclick: () => elegirDestino(f) }),
         h('button.btn-icono.btn-icono-peligro', { type: 'button', title: 'Borrar foto', 'aria-label': 'Borrar foto', html: ICONOS.basura, onclick: () => borrarFoto(f) })));
     tarjeta.addEventListener('dragstart', (e) => {
@@ -311,6 +336,17 @@ export async function vistaFotos(ctx, p) {
     });
   }
 
+  async function cambiarVisibilidad(lista, visible) {
+    const cambian = lista.filter((f) => !!f.visible_paciente !== visible);
+    if (!cambian.length) return;
+    for (const f of cambian) f.visible_paciente = visible;
+    dibujar();
+    try {
+      await api.visibilidadFotos(cambian.map((f) => f.id), visible);
+      if (cambian.length > 1) aviso(visible ? `El paciente ya ve las ${cambian.length} fotos.` : `Se ocultaron ${cambian.length} fotos al paciente.`);
+    } catch (e) { falla(e); }
+  }
+
   async function borrarFoto(f) {
     if (!(await confirmar('La foto se borra definitivamente.', { titulo: 'Borrar foto', aceptar: 'Borrar', peligro: true }))) return;
     try {
@@ -351,8 +387,8 @@ export async function vistaFotos(ctx, p) {
   return raiz;
 }
 
-// ---------- Visor: la foto grande, con anterior y siguiente ----------
-function abrirVisor(api, lista, inicio) {
+// ---------- Visor: la foto grande, con anterior y siguiente (también lo usa Mi espacio) ----------
+export function abrirVisor(api, lista, inicio) {
   let i = inicio;
   const img = h('img.visor-imagen', { alt: '' });
   const pie = h('p.visor-pie');

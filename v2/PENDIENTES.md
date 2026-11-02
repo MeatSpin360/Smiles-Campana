@@ -45,7 +45,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] Pestaña **Fotos** en la ficha, junto a *Historia clínica*:
   - modo ver: secciones con título (por ejemplo "Primera consulta 02/11/2026") y miniaturas; vista ampliada pasando de una foto a otra;
   - modo *Editar*: agregar sección (rectángulo con título y fotos), arrastrar fotos desde la PC o buscarlas, moverlas entre secciones, borrar fotos, renombrar o borrar secciones.
-- [ ] Más adelante: el paciente ve sus fotos en *Mi espacio* (ver etapa 5).
+- [x] El paciente ve en *Mi espacio → Mis fotos* las fotos que odontología marca como visibles (foto por foto con el ojo, o "Mostrar todas" por sección; las nuevas empiezan ocultas). Queda en el registro. Comparación antes y después: etapa 5.
 
 ## Panel de control (admin)
 
@@ -95,4 +95,6 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
   - El odontólogo lo revisa y lo aprueba antes de que el paciente lo vea.
   - La generación corre en un servidor (la clave del servicio de IA no puede estar en el navegador).
   - Enviar datos clínicos a un servicio de IA requiere informarlo al paciente en el consentimiento.
-- [ ] **Fotos del tratamiento** con comparación **antes y después**.
+- [x] **Fotos del tratamiento** en *Mis fotos* (las que marca odontología).
+- [x] **Mi plan**: el paciente ve sus planes de tratamiento desde que se le proponen (no borradores ni descartados), con etapas, precios, descuentos, total, forma de pago y observaciones, y lo puede imprimir o guardar en PDF. Solo ver.
+- [ ] Comparación **antes y después** de fotos.

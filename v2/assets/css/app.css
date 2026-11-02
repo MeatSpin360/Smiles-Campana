@@ -746,3 +746,33 @@ h1 .cartel-saldo { font-size: var(--t-s); vertical-align: middle; }
 .estado-mantenimiento::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 .panel-mantenimiento.activo .estado-mantenimiento { color: var(--aviso); }
 .panel-mantenimiento.activo .estado-mantenimiento::before { background: var(--aviso); }
+
+/* ---- Fotos visibles para el paciente ---- */
+.marca-visible { position: absolute; left: 6px; top: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; border-radius: 999px;
+  background: rgb(38 33 64 / 0.78); color: #fff; font-size: 0.72rem; font-weight: 600; pointer-events: none; }
+.marca-visible .icono-btn, .marca-visible .icono-btn svg { width: 14px; height: 14px; display: block; }
+.foto-acciones .btn-icono-activo { background: var(--lavanda-osc); color: #fff; }
+.foto-acciones .btn-icono-activo:hover { background: var(--lavanda-hover); }
+.seccion-visibilidad { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; margin-left: auto; }
+
+/* ---- Mi espacio: Mi plan ---- */
+.plan-paciente-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+.plan-paciente-cabecera h2 { margin: 0 0 2px; }
+.plan-paciente-cabecera p { margin: 0; }
+.plan-paciente-cabecera .etiqueta { flex: none; }
+.plan-ayuda { color: var(--tinta-2); margin: 0 0 12px; }
+.plan-etapa h3 { font-size: var(--t-s); text-transform: uppercase; letter-spacing: 0.04em; color: var(--lavanda-osc); margin: 16px 0 4px; }
+.plan-items { list-style: none; margin: 0; padding: 0; }
+.plan-item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--linea); }
+.plan-item > div { display: grid; gap: 2px; min-width: 0; }
+.plan-practica { font-weight: 500; }
+.plan-monto { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.plan-totales { display: grid; grid-template-columns: 1fr auto; gap: 4px 0; margin: 12px 0 0 auto; max-width: 320px; }
+.plan-totales dd { padding-left: 16px; }
+.plan-totales dt { color: var(--tinta-2); }
+.plan-totales dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.plan-totales .plan-total { color: var(--tinta); font-weight: 700; font-size: var(--t-m); border-top: 1px solid var(--tinta); padding-top: 6px; margin-top: 2px; }
+.plan-texto h3 { font-size: var(--t-s); margin: 18px 0 4px; }
+.plan-texto p { margin: 0; white-space: pre-wrap; color: var(--tinta-2); }
+.plan-paciente-acciones { display: flex; justify-content: flex-end; margin-top: 18px; }
+.mis-fotos .seccion-fotos-titulo h2 { margin: 0; font-size: var(--t-m); }

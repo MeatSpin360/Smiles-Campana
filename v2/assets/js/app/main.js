@@ -22,6 +22,8 @@ const RUTAS = [
   { p: '/', roles: ['paciente'], vista: () => import('./portal/turnos.js').then((m) => m.misTurnos) },
   { p: '/pedir-turno', roles: ['paciente'], vista: () => import('./portal/turnos.js').then((m) => m.pedirTurno) },
   { p: '/odontograma', roles: ['paciente'], vista: () => import('./portal/odontograma.js').then((m) => m.miOdontograma) },
+  { p: '/mi-plan', roles: ['paciente'], vista: () => import('./portal/planes.js').then((m) => m.miPlan) },
+  { p: '/mis-fotos', roles: ['paciente'], vista: () => import('./portal/fotos.js').then((m) => m.misFotos) },
   { p: '/mis-datos', roles: ['paciente'], vista: () => import('./portal/datos.js').then((m) => m.misDatos) },
 
   { p: '/', roles: ['recepcion', 'odontologia', 'admin'], vista: () => import('./staff/inicio.js').then((m) => m.inicio) },
@@ -44,6 +46,8 @@ const RUTAS = [
 const MENU = {
   paciente: [
     { ruta: '/', texto: 'Mis turnos', icono: 'calendario' },
+    { ruta: '/mi-plan', texto: 'Mi plan', icono: 'nota' },
+    { ruta: '/mis-fotos', texto: 'Mis fotos', icono: 'foto' },
     { ruta: '/odontograma', texto: 'Odontograma', icono: 'diente' },
     { ruta: '/mis-datos', texto: 'Mis datos', icono: 'persona' },
   ],

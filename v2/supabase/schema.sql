@@ -190,6 +190,7 @@ create table if not exists fotos (
   ancho              int,
   alto               int,
   bytes              int,
+  visible_paciente   boolean not null default false,  -- la ve el paciente en Mi espacio (la elige odontología)
   creado_por         uuid references perfiles(id),
   creado_por_nombre  text,
   creado_en          timestamptz not null default now()
@@ -612,15 +613,24 @@ create policy "autor o admin borra odontograma reciente" on odontogramas for del
   using ((select es_clinico()) and (creado_por = (select auth.uid()) or (select mi_rol()) = 'admin')
          and creado_en > now() - interval '48 hours');
 
--- fotos y secciones: solo odontología/admin (el paciente, más adelante)
+-- fotos y secciones: las gestiona odontología/admin. El paciente ve (solo ver) las fotos suyas que se marcaron
+-- como visibles, y los títulos de las secciones donde están.
 create policy "clinico gestiona secciones de fotos" on foto_secciones for all to authenticated
   using ((select es_clinico())) with check ((select es_clinico()));
 create policy "clinico gestiona fotos" on fotos for all to authenticated
   using ((select es_clinico())) with check ((select es_clinico()));
+create policy "paciente ve sus fotos visibles" on fotos for select to authenticated
+  using (visible_paciente and paciente_id = (select mi_paciente_id()));
+create policy "paciente ve las secciones de sus fotos visibles" on foto_secciones for select to authenticated
+  using (paciente_id = (select mi_paciente_id())
+         and exists (select 1 from fotos f where f.seccion_id = foto_secciones.id and f.visible_paciente));
 
--- planes de tratamiento: recepción, odontología y admin
+-- planes de tratamiento: recepción, odontología y admin. El paciente ve (solo ver) los suyos desde que se le
+-- proponen: no los borradores ni los descartados.
 create policy "personal gestiona planes" on planes for all to authenticated
   using ((select es_personal())) with check ((select es_personal()));
+create policy "paciente ve sus planes" on planes for select to authenticated
+  using (paciente_id = (select mi_paciente_id()) and estado in ('propuesto', 'aceptado', 'en_curso', 'terminado'));
 
 -- precios: los ve todo el personal (y contabilidad); los editan contabilidad y admin
 create policy "personal ve precios" on precios for select to authenticated
@@ -1435,6 +1445,10 @@ begin
         perform anotar('foto.movida', v_pac, jsonb_build_object(
           'de', (select titulo from foto_secciones where id = old.seccion_id), 'a', v_titulo));
       end if;  -- reordenar no se anota
+      if new.visible_paciente is distinct from old.visible_paciente then
+        perform anotar(case when new.visible_paciente then 'foto.visible' else 'foto.oculta' end, v_pac,
+          jsonb_build_object('seccion', v_titulo));
+      end if;
     else
       perform anotar('foto.borrada', v_pac, jsonb_build_object('seccion', v_titulo));
     end if;

@@ -153,6 +153,18 @@ export const api = {
   async actualizarMisDatos({ telefono, email, direccion }) {
     return ok(await sb.rpc('actualizar_mis_datos', { p_telefono: telefono, p_email: email, p_direccion: direccion }));
   },
+  /** Las fotos que el consultorio marcó como visibles, con sus secciones (la base solo devuelve esas). */
+  async misFotos() {
+    const [secciones, fotos] = await Promise.all([
+      sb.from('foto_secciones').select('id, titulo, orden, creado_en').order('orden').order('creado_en'),
+      sb.from('fotos').select('id, seccion_id, orden, ancho, alto, creado_en').order('orden').order('creado_en'),
+    ]);
+    return { secciones: ok(secciones), fotos: ok(fotos) };
+  },
+  /** Sus planes de tratamiento desde que se le proponen (la base no devuelve borradores ni descartados). */
+  async misPlanes() {
+    return ok(await sb.from('planes').select('*').order('creado_en', { ascending: false }));
+  },
   async misTurnos() {
     return ok(await sb.from('turnos').select('*').order('inicio')).map(turnoDesdeDB);
   },
@@ -434,6 +446,13 @@ export const api = {
   },
   async borrarFoto(id) {
     await alWorker(`/api/fotos/${id}`, { method: 'DELETE' });
+  },
+  /** Muestra u oculta fotos al paciente (Mi espacio). */
+  async visibilidadFotos(ids, visible) {
+    if (!ids.length) return [];
+    const filas = ok(await sb.from('fotos').update({ visible_paciente: !!visible }).in('id', ids).select('id, visible_paciente'));
+    if (filas.length < ids.length) throw new Error('No tenés permiso para cambiar estas fotos.');
+    return filas;
   },
   /** Mueve o reordena fotos: [{ id, seccion_id, orden }]. */
   async ordenarFotos(cambios) {

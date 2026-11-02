@@ -14,12 +14,19 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
   - "Señor que trabaja enfrente": probablemente después se registró con su nombre.
   - Sin DNI: puede estar en otro evento o anotado en papel.
 - [x] **Fichas sin DNI** ("Falta el DNI"): se pueden crear sin DNI y quedan marcadas en la lista y la ficha. Si el paciente se registra en Mi espacio con el email de esa ficha, se vincula sola y toma su DNI; si coincide solo el nombre, no se crea otra ficha: queda en "Cuentas por vincular" y, al vincularla, la ficha toma el DNI de la cuenta.
-- [ ] **El listado lo filtra Emilio** con la odontóloga (hay datos en papel): deja solo los pacientes reales y exactos. Recién después se importa.
-- Importación (la hago yo, con resumen previo y OK; no hace falta una pantalla porque es una sola vez):
-  - Notas del calendario → **evolución** en la historia clínica ("Historia previa, importada del calendario"). A definir: una sola evolución o una por consulta.
+- [ ] **El listado lo arma Emilio** con la odontóloga (hay datos en papel): unifica pacientes e historias clínicas y deja solo los pacientes reales y exactos. Cuando esté, deja la planilla y se define la carga.
+- Importación (se define junto con el listado; la hago yo, con resumen previo y OK):
+  - Notas del calendario → **evolución** en la historia clínica. A definir: una sola evolución o una por consulta.
   - Turnos futuros → turnos **confirmados**.
-  - Limpieza de los datos de prueba, con copia de seguridad antes (deja personal, precios, plantillas y horarios).
-- [ ] Al arrancar: exportar el calendario de nuevo y volver a correr la extracción; cargar pacientes y turnos futuros; borrar los datos de prueba.
+- [x] **Limpieza de los datos de prueba: preparada** (se corre una vez, justo antes de la importación).
+  1. Copia de seguridad (`select enviar_respaldo();`) y confirmar que llegó al Drive.
+  2. Borrar todas las fichas (con turnos, historia, fotos, planes, pagos y documentos, en cascada) y las cuentas de
+     Mi espacio de pacientes. Quedan el personal, precios, plantillas, horarios y la configuración de la agenda.
+     Los turnos que estaban en Google Calendar se borran solos de ahí.
+  3. A decidir: vaciar también el registro de acciones, para empezar de cero.
+  4. Vaciar las carpetas `pacientes/`, `comprobantes/` y `documentos/` del depósito R2 desde el panel de Cloudflare.
+  Hoy (02/11) hay 5 fichas, 8 turnos, 4 fotos y 3 cuentas de pacientes, todo de prueba.
+- [ ] Al arrancar: exportar el calendario de nuevo y volver a correr la extracción; borrar los datos de prueba; cargar pacientes y turnos futuros.
 - [ ] Al arrancar: quitar el prefijo "PRUEBA · " de los eventos (`turno_para_calendario`), programar el repaso diario del calendario (ver `supabase/schema.sql`) y resolver los eventos cargados a mano para que no se dupliquen.
 - [ ] Al arrancar: quitar "Eliminar paciente" (solo para la etapa de pruebas).
 
@@ -103,9 +110,11 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 - App "Smiles" (`android/` en el repositorio; guía en `android/LEEME.md`): la intranet dentro de una ventana + cámara propia.
   Se arma en GitHub (Actions) y se instala a mano (.apk). Solo odontología y admin usan las fotos.
+- [x] Pantalla inicial con dos modos: **Subir fotos paciente** (pacientes con turno hoy y buscador → sección nueva o
+  existente → cámara → revisar y subir) y **Ventana de trabajo** (la intranet completa).
 - [x] Sacar todas las fotos que se quiera: cada una se guarda **en calidad completa** en el celular, en `Imágenes/smiles-campana/<Apellido Nombre - DNI>/`.
-- [x] "Fotos sin subir": revisar (ver, descartar, girar), elegir sección (por defecto la consulta del día) y subir la copia reducida a la ficha (R2). El original queda en el celular.
-- [ ] Primera compilación en GitHub y prueba en el celular.
+- [x] "Fotos sin subir": revisar (ver, descartar, girar) y subir a la ficha (R2). La app las achica antes (rápido) y se suben de a dos. El original queda en el celular.
+- [x] Compilación en GitHub y prueba en el celular (02/11/2026).
 - [ ] Llave de firma en GitHub (para que las actualizaciones se instalen encima).
 - [ ] Más adelante, si hace falta: recortar.
 - El respaldo de la carpeta del celular lo hace el consultorio a un disco externo. El celular tiene que tener bloqueo de pantalla.

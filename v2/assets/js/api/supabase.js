@@ -421,9 +421,12 @@ export const api = {
     ]);
     return { secciones: ok(secciones), fotos: ok(fotos) };
   },
-  /** Achica la foto en el navegador y la sube. Devuelve la fila creada. */
-  async subirFoto(pacienteId, archivo, { seccionId = null, orden = 0, giro = 0 } = {}) {
-    const p = await prepararFoto(archivo, { giro });
+  /**
+   * Achica la foto en el navegador y la sube. Devuelve la fila creada.
+   * preparada: { foto, mini, ancho, alto } ya achicada (la app del celular lo hace más rápido); archivo va null.
+   */
+  async subirFoto(pacienteId, archivo, { seccionId = null, orden = 0, giro = 0, preparada = null } = {}) {
+    const p = preparada || await prepararFoto(archivo, { giro });
     const form = new FormData();
     form.set('paciente_id', pacienteId);
     if (seccionId) form.set('seccion_id', seccionId);

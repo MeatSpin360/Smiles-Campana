@@ -41,6 +41,10 @@ const RUTAS = [
   { p: '/usuarios', roles: ['admin'], vista: () => import('./staff/usuarios.js').then((m) => m.usuarios) },
   { p: '/panel', roles: ['admin'], vista: () => import('./staff/panel.js').then((m) => m.panel) },
   { p: '/panel/:seccion', roles: ['admin'], vista: () => import('./staff/panel.js').then((m) => m.panel) },
+
+  // App del celular → "Subir fotos paciente": pantalla sin menú (la vista avisa si el rol no puede subir fotos)
+  { p: '/app-fotos', roles: ['recepcion', 'odontologia', 'admin', 'contabilidad'], marco: 'app', vista: () => import('./staff/app-fotos.js').then((m) => m.appFotos) },
+  { p: '/app-fotos/:id', roles: ['recepcion', 'odontologia', 'admin', 'contabilidad'], marco: 'app', vista: () => import('./staff/app-fotos.js').then((m) => m.appFotos) },
 ];
 
 const MENU = {
@@ -144,6 +148,8 @@ async function cargarRuta() {
   vistaActual = { encontrada, ctx, contenido, ruta };
   if (encontrada.publica || !sesion) {
     vaciar(raiz, marcoPublico(contenido));
+  } else if (encontrada.marco === 'app') {
+    vaciar(raiz, marcoApp(contenido));
   } else {
     vaciar(raiz, marco(contenido, ruta));
   }
@@ -256,6 +262,32 @@ function marcoPublico(contenido) {
       h('a.btn.btn-fantasma.btn-chico', { href: 'index.html' }, 'Volver al sitio')),
     h('main.principal-publico', contenido));
 }
+
+// Modo "Subir fotos paciente" de la app: solo la marca y cerrar sesión
+function marcoApp(contenido) {
+  return h('div.marco.marco-app',
+    bandaDemo(),
+    h('header.barra-movil.barra-app',
+      h('span.marca-app', h('img', { src: 'assets/img/logo.png', alt: 'Smiles Campana' })),
+      h('span.barra-rol', 'Subir fotos'),
+      h('button.btn-icono', { type: 'button', 'aria-label': 'Cerrar sesión', onclick: salir, html: ICONOS.salir })),
+    h('main.principal.principal-app', contenido));
+}
+
+// Botón "atrás" del celular en la app (MainActivity.kt): primero cierra la ventana abierta; en el modo fotos,
+// de un paciente vuelve a la lista. Devuelve false si no hizo nada (la app decide: volver o salir).
+window.smilesAppAtras = () => {
+  const abierta = [...document.querySelectorAll('dialog[open]')].pop();
+  if (abierta) {
+    if (!abierta.dataset.ocupado) abierta.close();
+    return true;
+  }
+  if (/^\/app-fotos\/./.test(rutaActual().ruta)) {
+    navegar('/app-fotos', { reemplazar: true });
+    return true;
+  }
+  return false;
+};
 
 function marco(contenido, ruta) {
   const { perfil } = sesion;

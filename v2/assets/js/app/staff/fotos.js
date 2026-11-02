@@ -32,7 +32,7 @@ export async function vistaFotos(ctx, p) {
     for (const e of entradas) {
       if (!e.isIntersecting) continue;
       observador.unobserve(e.target);
-      api.urlFoto(e.target.dataset.id, { mini: true })
+      Promise.resolve().then(() => api.urlFoto(e.target.dataset.id, { mini: true })) // (sin sesión, la demo falla al llamarla)
         .then((url) => { e.target.src = url; })
         .catch(() => e.target.closest('.foto-mini')?.classList.add('foto-error'));
     }

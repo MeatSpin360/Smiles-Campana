@@ -101,12 +101,14 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Etapa 4: app Android para el odontólogo
 
-- [ ] App de uso exclusivo en el celular del odontólogo, con ingreso con su cuenta.
-- [ ] Elegir paciente → sacar fotos.
-- [ ] Cada foto se guarda **en calidad completa** en el celular, en `smiles-campana/<Apellido Nombre - DNI>/`.
-- [ ] Una copia **reducida a menos de 1 MB** se sube a la historia clínica del paciente (R2).
-- [ ] Definir cómo se asocian las fotos a la consulta (evolución del día, o elegir una).
-- [ ] A considerar: el celular guarda datos de salud (bloqueo de pantalla, copia de respaldo de la carpeta).
+- App "Smiles" (`android/` en el repositorio; guía en `android/LEEME.md`): la intranet dentro de una ventana + cámara propia.
+  Se arma en GitHub (Actions) y se instala a mano (.apk). Solo odontología y admin usan las fotos.
+- [x] Sacar todas las fotos que se quiera: cada una se guarda **en calidad completa** en el celular, en `Imágenes/smiles-campana/<Apellido Nombre - DNI>/`.
+- [x] "Fotos sin subir": revisar (ver, descartar, girar), elegir sección (por defecto la consulta del día) y subir la copia reducida a la ficha (R2). El original queda en el celular.
+- [ ] Primera compilación en GitHub y prueba en el celular.
+- [ ] Llave de firma en GitHub (para que las actualizaciones se instalen encima).
+- [ ] Más adelante, si hace falta: recortar.
+- El respaldo de la carpeta del celular lo hace el consultorio a un disco externo. El celular tiene que tener bloqueo de pantalla.
 
 ## Etapa 5: historia clínica para el paciente (EN PAUSA)
 

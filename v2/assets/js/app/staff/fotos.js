@@ -9,6 +9,7 @@ import { h, vaciar } from '../../lib/dom.js';
 import { aviso, confirmar, hoja, mensajeError } from '../../lib/ui.js';
 import { fechaCorta } from '../../lib/dates.js';
 import { ICONOS } from '../iconos.js';
+import { barraApp } from './app-celular.js';
 
 const SUBIDAS_A_LA_VEZ = 2;
 const TIPO_FOTO = 'application/x-smiles-foto';
@@ -87,12 +88,13 @@ export async function vistaFotos(ctx, p) {
         await agregarSeccion();
       };
       return h('section.panel', cabecera,
+        barraApp({ api, paciente: p, secciones: () => secciones, alSubir: () => recargar().catch(() => {}) }),
         h('div.vacio-turno', h('span.vacio-icono', { html: ICONOS.foto }), h('p', 'Todavía no hay fotos de este paciente.')));
     }
     const visibles = grupos();
     const enOrden = visibles.flatMap((g) => g.fotos.map((f) => ({ foto: f, titulo: g.seccion?.titulo || 'Sin sección' })));
     return h('div',
-      h('section.panel.panel-fotos-cabecera', cabecera),
+      h('section.panel.panel-fotos-cabecera', cabecera, barraApp({ api, paciente: p, secciones: () => secciones, alSubir: () => recargar().catch(() => {}) })),
       visibles.map((g) => h('section.panel.seccion-fotos',
         h('div.seccion-fotos-titulo', h('h3', g.seccion?.titulo || 'Sin sección'), h('span.texto-suave.nota-chica', g.fotos.length
           ? `${cantidad(g.fotos.length)}${g.fotos.some((f) => f.visible_paciente) ? ` · ${g.fotos.filter((f) => f.visible_paciente).length} para el paciente` : ''}`

@@ -422,8 +422,8 @@ export const api = {
     return { secciones: ok(secciones), fotos: ok(fotos) };
   },
   /** Achica la foto en el navegador y la sube. Devuelve la fila creada. */
-  async subirFoto(pacienteId, archivo, { seccionId = null, orden = 0 } = {}) {
-    const p = await prepararFoto(archivo);
+  async subirFoto(pacienteId, archivo, { seccionId = null, orden = 0, giro = 0 } = {}) {
+    const p = await prepararFoto(archivo, { giro });
     const form = new FormData();
     form.set('paciente_id', pacienteId);
     if (seccionId) form.set('seccion_id', seccionId);

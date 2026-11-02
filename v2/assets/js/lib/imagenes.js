@@ -80,25 +80,27 @@ function convertirHeic(archivo) {
   return convertidas.get(archivo);
 }
 
-/** Devuelve { foto, mini, ancho, alto } con foto y mini como Blob JPEG. */
-export async function prepararFoto(archivo) {
+/** Devuelve { foto, mini, ancho, alto } con foto y mini como Blob JPEG. giro: 0, 90, 180 o 270 (sentido horario). */
+export async function prepararFoto(archivo, { giro = 0 } = {}) {
   if (!archivo?.type?.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif)$/i.test(archivo?.name || '') && !(await esHeic(archivo))) {
     throw new Error(`"${archivo?.name || 'El archivo'}" no es una imagen.`);
   }
   const imagen = await leerImagen(archivo);
   try {
-    const foto = await reducir(imagen, LADO_FOTO, 0.85);
-    const mini = await reducir(imagen, LADO_MINI, 0.8);
+    const foto = await reducir(imagen, LADO_FOTO, 0.85, giro);
+    const mini = await reducir(imagen, LADO_MINI, 0.8, giro);
     return { foto: foto.blob, mini: mini.blob, ancho: foto.ancho, alto: foto.alto };
   } finally {
     imagen.close?.();
   }
 }
 
-async function reducir(imagen, lado, calidad) {
+async function reducir(imagen, lado, calidad, giro = 0) {
   const escala = Math.min(1, lado / Math.max(imagen.width, imagen.height));
-  const ancho = Math.max(1, Math.round(imagen.width * escala));
-  const alto = Math.max(1, Math.round(imagen.height * escala));
+  const w = Math.max(1, Math.round(imagen.width * escala));
+  const hh = Math.max(1, Math.round(imagen.height * escala));
+  const g = ((Math.round(giro / 90) * 90) % 360 + 360) % 360;
+  const [ancho, alto] = g === 90 || g === 270 ? [hh, w] : [w, hh];
   const lienzo = document.createElement('canvas');
   lienzo.width = ancho;
   lienzo.height = alto;
@@ -106,7 +108,9 @@ async function reducir(imagen, lado, calidad) {
   ctx.fillStyle = '#fff'; // las PNG con transparencia quedan sobre blanco
   ctx.fillRect(0, 0, ancho, alto);
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(imagen, 0, 0, ancho, alto);
+  ctx.translate(ancho / 2, alto / 2);
+  ctx.rotate((g * Math.PI) / 180);
+  ctx.drawImage(imagen, -w / 2, -hh / 2, w, hh);
   const blob = await new Promise((ok, mal) => lienzo.toBlob((b) => (b ? ok(b) : mal(new Error('No se pudo preparar la foto.'))), 'image/jpeg', calidad));
   return { blob, ancho, alto };
 }

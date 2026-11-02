@@ -530,9 +530,9 @@ export const api = {
       fotos: d.fotos.filter((x) => x.paciente_id === pid).sort(orden).map((x) => ({ ...x })),
     });
   },
-  async subirFoto(pid, archivo, { seccionId = null, orden = 0 } = {}) {
+  async subirFoto(pid, archivo, { seccionId = null, orden = 0, giro = 0 } = {}) {
     const u = requiere(...CLINICO);
-    const p = await prepararFoto(archivo);
+    const p = await prepararFoto(archivo, { giro });
     const f = { id: id(), paciente_id: pid, seccion_id: seccionId, orden, ancho: p.ancho, alto: p.alto, bytes: p.foto.size, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora() };
     await archivos.guardar(f.id, p.foto);
     await archivos.guardar(`${f.id}:mini`, p.mini);

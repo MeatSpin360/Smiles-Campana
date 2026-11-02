@@ -1,13 +1,19 @@
 # App Android "Smiles" (para odontología)
 
-La app es la intranet de siempre dentro de una ventana, más lo propio del celular:
+Al abrirla, una pantalla propia de la app ofrece dos modos (el botón "atrás" vuelve a esa pantalla; la sesión es la
+misma en los dos):
 
-- **Sacar fotos** (en la pestaña *Fotos* de la ficha): abre la cámara; se pueden sacar todas las que se quiera.
-  Cada foto se guarda **en calidad completa** en el celular, en `Imágenes/smiles-campana/<Apellido Nombre - DNI>/`
-  (o "- sin DNI"), sin necesidad de internet.
-- **Fotos sin subir (N)**: se revisan (ver grande, descartar, girar), se elige la sección (por defecto la consulta del
-  día, que se crea sola) y se suben a la ficha, achicadas como cualquier otra foto. El original queda en el celular.
-- Todo lo demás (ingreso, pacientes, turnos…) es el sitio: cuando el sitio cambia, la app ya está actualizada.
+- **Subir fotos paciente** (modo simple, `#/app-fotos` del sitio): lista de pacientes (arriba los que tienen turno hoy,
+  y un buscador) → al elegir uno, **sección nueva** (propone "Consulta dd/mm/aaaa") o **una existente** → cámara →
+  revisión rápida (descartar, girar, destildar) → se suben a esa sección. Lo usan Odontología y Administración.
+- **Ventana de trabajo**: la intranet completa, según el rol. En la pestaña *Fotos* de la ficha también están
+  **Sacar fotos** y **Fotos sin subir (N)**.
+
+En los dos, cada foto se guarda **en calidad completa** en el celular, en
+`Imágenes/smiles-campana/<Apellido Nombre - DNI>/` (o "- sin DNI"), sin necesidad de internet, y queda en la lista
+de "sin subir" hasta que se sube. Para subir, la app la achica (2000 px y miniatura de 400 px, lo mismo que hace el
+sitio en la computadora, pero más rápido) y el sitio la sube de a dos. El original queda en el celular.
+Todo lo demás (ingreso, pacientes, turnos…) es el sitio: cuando el sitio cambia, la app ya está actualizada.
 
 Arranca por `smiles-campana.emiliobrescasin.workers.dev` (fuera del mantenimiento lleva al dominio).
 Requiere Android 10 o más nuevo.

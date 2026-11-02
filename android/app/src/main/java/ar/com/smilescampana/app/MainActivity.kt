@@ -21,6 +21,8 @@ import java.io.ByteArrayInputStream
  * La app es la intranet de siempre (el sitio) dentro de una ventana, más lo propio del celular: la cámara, la carpeta de
  * originales y la lista de fotos sin subir. El sitio habla con la app a través de window.SmilesApp (ver Puente.kt).
  * Arranca por workers.dev: fuera del mantenimiento lleva al dominio; durante el mantenimiento, es la entrada del personal.
+ * Se abre desde la pantalla inicial (InicioActivity) en uno de dos modos: la intranet completa o "Subir fotos paciente"
+ * (#/app-fotos del sitio).
  */
 class MainActivity : AppCompatActivity() {
 
@@ -28,7 +30,12 @@ class MainActivity : AppCompatActivity() {
         const val INICIO = "https://smiles-campana.emiliobrescasin.workers.dev/app.html"
         val SITIOS = setOf("smilescampana.com.ar", "www.smilescampana.com.ar", "smiles-campana.emiliobrescasin.workers.dev")
         const val RUTA_FOTOS = "/__app/foto/"
+        const val MODO = "modo"
+        const val MODO_TRABAJO = "trabajo"
+        const val MODO_FOTOS = "fotos"
     }
+
+    private val modoFotos by lazy { intent.getStringExtra(MODO) == MODO_FOTOS }
 
     lateinit var web: WebView
     @Volatile var sitioActual: String? = null
@@ -94,10 +101,20 @@ class MainActivity : AppCompatActivity() {
                 if (!ruta.startsWith(RUTA_FOTOS) || url.host !in SITIOS) return null
                 val foto = Pendientes.buscar(this@MainActivity, ruta.removePrefix(RUTA_FOTOS))
                     ?: return respuesta(404, "No encontrada")
+                // ?lado=N&giro=G: achicada acá (rápido) y con su tamaño en X-Ancho / X-Alto; sin lado, el original
+                val lado = url.getQueryParameter("lado")?.toIntOrNull()?.coerceIn(100, 4000)
+                val giro = url.getQueryParameter("giro")?.toIntOrNull()?.let { ((it / 90) * 90 % 360 + 360) % 360 } ?: 0
                 return try {
-                    val datos = contentResolver.openInputStream(Uri.parse(foto.uri)) ?: return respuesta(404, "No encontrada")
-                    WebResourceResponse("image/jpeg", null, 200, "OK", mapOf("Cache-Control" to "no-store"), datos)
-                } catch (e: Exception) {
+                    if (lado != null) {
+                        val r = Achicar.jpeg(contentResolver, Uri.parse(foto.uri), lado, giro, if (lado <= 400) 80 else 85)
+                        WebResourceResponse("image/jpeg", null, 200, "OK",
+                            mapOf("Cache-Control" to "no-store", "X-Ancho" to r.ancho.toString(), "X-Alto" to r.alto.toString()),
+                            ByteArrayInputStream(r.jpeg))
+                    } else {
+                        val datos = contentResolver.openInputStream(Uri.parse(foto.uri)) ?: return respuesta(404, "No encontrada")
+                        WebResourceResponse("image/jpeg", null, 200, "OK", mapOf("Cache-Control" to "no-store"), datos)
+                    }
+                } catch (e: Throwable) { // también falta de memoria con una foto enorme
                     respuesta(404, "No encontrada")
                 }
             }
@@ -118,13 +135,19 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Atrás: primero le pregunta al sitio (cierra la ventana abierta; en el modo fotos, de un paciente vuelve a la
+        // lista). Si el sitio no hizo nada: en la intranet, la página anterior; si no hay, a la pantalla inicial.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (web.canGoBack()) web.goBack() else finish()
+                web.evaluateJavascript("(window.smilesAppAtras && window.smilesAppAtras()) ? 'si' : 'no'") { r ->
+                    if (r == "\"si\"") return@evaluateJavascript
+                    if (!modoFotos && web.canGoBack()) web.goBack() else finish()
+                }
             }
         })
 
-        if (savedInstanceState != null) web.restoreState(savedInstanceState) else web.loadUrl(INICIO)
+        if (savedInstanceState != null) web.restoreState(savedInstanceState)
+        else web.loadUrl(if (modoFotos) "$INICIO#/app-fotos" else INICIO)
     }
 
     private fun respuesta(estado: Int, texto: String) =

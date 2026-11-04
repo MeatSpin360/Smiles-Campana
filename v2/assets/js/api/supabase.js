@@ -184,7 +184,7 @@ export const api = {
   async buscarPacientes(texto = '') {
     let q = sb.from('pacientes').select('*').order('apellido').limit(100);
     const t = texto.trim().replace(/[%,()]/g, ' ');
-    if (t) q = q.or(`apellido.ilike.%${t}%,nombre.ilike.%${t}%,dni.ilike.%${t}%,telefono.ilike.%${t}%`);
+    if (t) q = q.or(`apellido.ilike.%${t}%,nombre.ilike.%${t}%,dni.ilike.%${t}%,telefono.ilike.%${t}%,telefono_2.ilike.%${t}%`);
     return ok(await q);
   },
   async paciente(id) {

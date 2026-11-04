@@ -5,30 +5,24 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 > **Antes de cargar pacientes reales:** quitar *Eliminar paciente* (función `eliminar_paciente` y su botón en
 > la ficha). Es solo para la etapa de pruebas: la historia clínica se conserva al menos 10 años (Ley 26.529).
 
-## Arranque con pacientes reales (objetivo: antes del 14/11/2026, próximos turnos reales)
+## Arranque con pacientes reales (hecho el 04/11/2026)
 
-- [x] Extracción del calendario actual (`C:\Claudio\migracion-smiles\pacientes-calendario.xlsx`, fuera del repositorio: datos reales). 72 pacientes probables, 40 con DNI. Casi todos tienen un solo evento que se fue moviendo; la historia está en la descripción.
-- Criterios de la revisión con la odontóloga:
-  - "guardia" en el título = **urgencia** (probablemente brackets despegados), no es apellido.
-  - Duplicados: a veces se atendió a un familiar en el mismo turno y quedó en el mismo evento ("mamá Valentino", "papá de Meza").
-  - "Señor que trabaja enfrente": probablemente después se registró con su nombre.
-  - Sin DNI: puede estar en otro evento o anotado en papel.
-- [x] **Fichas sin DNI** ("Falta el DNI"): se pueden crear sin DNI y quedan marcadas en la lista y la ficha. Si el paciente se registra en Mi espacio con el email de esa ficha, se vincula sola y toma su DNI; si coincide solo el nombre, no se crea otra ficha: queda en "Cuentas por vincular" y, al vincularla, la ficha toma el DNI de la cuenta.
-- [ ] **El listado lo arma Emilio** con la odontóloga (hay datos en papel): unifica pacientes e historias clínicas y deja solo los pacientes reales y exactos. Cuando esté, deja la planilla y se define la carga.
-- Importación (se define junto con el listado; la hago yo, con resumen previo y OK):
-  - Notas del calendario → **evolución** en la historia clínica. A definir: una sola evolución o una por consulta.
-  - Turnos futuros → turnos **confirmados**.
-- [x] **Limpieza de los datos de prueba: preparada** (se corre una vez, justo antes de la importación).
-  1. Copia de seguridad (`select enviar_respaldo();`) y confirmar que llegó al Drive.
-  2. Borrar todas las fichas (con turnos, historia, fotos, planes, pagos y documentos, en cascada) y las cuentas de
-     Mi espacio de pacientes. Quedan el personal, precios, plantillas, horarios y la configuración de la agenda.
-     Los turnos que estaban en Google Calendar se borran solos de ahí.
-  3. A decidir: vaciar también el registro de acciones, para empezar de cero.
-  4. Vaciar las carpetas `pacientes/`, `comprobantes/` y `documentos/` del depósito R2 desde el panel de Cloudflare.
-  Hoy (02/11) hay 5 fichas, 8 turnos, 4 fotos y 3 cuentas de pacientes, todo de prueba.
-- [ ] Al arrancar: exportar el calendario de nuevo y volver a correr la extracción; borrar los datos de prueba; cargar pacientes y turnos futuros.
-- [ ] Al arrancar: quitar el prefijo "PRUEBA · " de los eventos (`turno_para_calendario`), programar el repaso diario del calendario (ver `supabase/schema.sql`) y resolver los eventos cargados a mano para que no se dupliquen.
-- [ ] Al arrancar: quitar "Eliminar paciente" (solo para la etapa de pruebas).
+- [x] **Carga hecha el 04/11/2026**: copia de seguridad previa (`respaldo-2026-11-04_1235.json`), limpieza de los datos
+  de prueba (fichas, cuentas de pacientes y registro de acciones) y migración p23. Se cargaron **54 fichas, 249
+  evoluciones y 6 turnos confirmados** (14/11 al 26/11) desde `C:\Claudio\migracion-smiles` (fuera del repositorio:
+  datos reales).
+  - Una evolución por consulta, con la fecha de la consulta; autor "Historia previa (importada del calendario)".
+    Las fechas provisorias empiezan con **[Fecha provisoria]**: completarlas si aparece la fecha real.
+  - Teléfonos y datos de contacto del WhatsApp del consultorio. **Teléfono secundario** opcional en la ficha.
+  - La ficha de Emilio quedó vinculada a su usuario de admin.
+  - Desde ahora los turnos se dan **solo en el sistema**; los eventos del calendario ya no dicen "PRUEBA ·" y el
+    repaso diario (3:23) está programado.
+- [ ] Borrar en Google Calendar los 6 eventos cargados a mano de esos turnos (la app ya creó los suyos).
+- [ ] Vaciar las carpetas `pacientes/`, `comprobantes/` y `documentos/` del depósito R2 (fotos de prueba).
+- [ ] Segunda tanda con más datos de WhatsApp (se cruzan con las fichas existentes: completar, no duplicar).
+- [ ] La odontóloga decide qué hacer con las fichas incompletas: Amelia "(sin apellido)" y Ocampo "(sin nombre)".
+  Después, quitar "Eliminar paciente" (solo para la etapa de pruebas).
+- [ ] Desactivar el mantenimiento cuando se decida abrir Mi espacio a los pacientes.
 
 ## Hecho
 
@@ -61,7 +55,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 ## Etapa 2: integraciones con Google
 
-- [x] **Google Calendar como espejo** de la agenda: los turnos confirmados (y después atendidos o ausentes) van al calendario principal de smiles.campana@gmail.com, al instante, por el script de Google (`google/avisos.gs`, servicio Google Calendar API). Una sola dirección: app → Calendar. Repaso diario a las 3:23 (próximos 60 días) que corrige diferencias y solo toca eventos de la app. Evento: apellido, nombre · motivo, con enlace a la ficha; sin teléfono, invitados ni recordatorios. Guía: `google/LEEME.md`. Desde que el sistema arranca, los turnos se dan solo en el sistema. **Mientras los datos sean de prueba, los eventos dicen "PRUEBA · …"; al arrancar en serio, quitar ese prefijo (función `turno_para_calendario`) y resolver los eventos que hoy están cargados a mano para que no queden duplicados.**
+- [x] **Google Calendar como espejo** de la agenda: los turnos confirmados (y después atendidos o ausentes) van al calendario principal de smiles.campana@gmail.com, al instante, por el script de Google (`google/avisos.gs`, servicio Google Calendar API). Una sola dirección: app → Calendar. Repaso diario a las 3:23 (próximos 60 días) que corrige diferencias y solo toca eventos de la app. Evento: apellido, nombre · motivo, con enlace a la ficha; sin teléfono, invitados ni recordatorios. Guía: `google/LEEME.md`. Desde que el sistema arranca, los turnos se dan solo en el sistema. Desde la carga de pacientes reales (04/11/2026) los eventos llevan solo el nombre y el repaso diario está programado.
 - [x] **Copia de seguridad semanal** de la base a Google Drive (domingos 3:00, se conservan ~3 meses, aviso por correo si falta una). Restaurar con `supabase/restaurar.sql`. Las fotos (etapa 3) se resuelven aparte.
 
 ## Etapa 3: fotos clínicas

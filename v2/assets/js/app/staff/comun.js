@@ -35,8 +35,11 @@ export function formularioPaciente(p = {}) {
       h('label.campo', h('span', 'Fecha de nacimiento'), h('input', { name: 'fecha_nac', type: 'date', value: p.fecha_nac || '', max: hoy() }))),
     h('div.fila-campos',
       h('label.campo', h('span', 'Celular'), h('input', { name: 'telefono', type: 'tel', value: p.telefono || '' })),
-      h('label.campo', h('span', 'Email'), h('input', { name: 'email', type: 'email', value: p.email || '' }))),
-    h('label.campo', h('span', 'Dirección'), h('input', { name: 'direccion', value: p.direccion || '' })),
+      h('label.campo', h('span', 'Teléfono secundario (opcional)'), h('input', { name: 'telefono_2', type: 'tel', value: p.telefono_2 || '' }),
+        h('small', 'Por ejemplo, de un familiar. Aclaralo en las notas.'))),
+    h('div.fila-campos',
+      h('label.campo', h('span', 'Email'), h('input', { name: 'email', type: 'email', value: p.email || '' })),
+      h('label.campo', h('span', 'Dirección'), h('input', { name: 'direccion', value: p.direccion || '' }))),
     h('label.campo', h('span', 'Notas administrativas'), h('textarea', { name: 'notas', rows: 3, placeholder: 'Por ejemplo: prefiere turnos a la tarde.' }, p.notas || '')),
     h('fieldset.grupo-responsable',
       h('legend', 'Responsable, si es menor de edad'),
@@ -145,7 +148,7 @@ export function darTurno(api, { paciente = null, inicio = null, dias = 30, sobre
 export function lineaPaciente(p) {
   const e = edad(p.fecha_nac);
   // Sin DNI no se repite acá: la ficha y la lista muestran la marca "Falta el DNI"
-  return [p.dni ? `DNI ${p.dni}` : null, e != null ? `${e} años` : null, p.telefono].filter(Boolean).join(', ');
+  return [p.dni ? `DNI ${p.dni}` : null, e != null ? `${e} años` : null, p.telefono, p.telefono_2 ? `tel. 2: ${p.telefono_2}` : null].filter(Boolean).join(', ');
 }
 
 /** Marca para las fichas a las que les falta el DNI (se completa en la primera visita). */

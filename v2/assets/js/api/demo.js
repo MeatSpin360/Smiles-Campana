@@ -29,7 +29,7 @@ function semilla() {
     ['35678901', 'Lucía', 'Sánchez', '1998-02-25', '3489444107', 'lucia@correo.com'],
     ['36789012', 'Diego', 'Romero', '1987-06-12', '3489444108', ''],
   ].map(([dni, nombre, apellido, fecha_nac, telefono, email]) => ({
-    id: id(), dni, nombre, apellido, fecha_nac, telefono, email, direccion: '', notas: '', usuario_id: null, creado_en: ahora(),
+    id: id(), dni, nombre, apellido, fecha_nac, telefono, telefono_2: '', email, direccion: '', notas: '', usuario_id: null, creado_en: ahora(),
   }));
 
   const usuarios = [
@@ -351,7 +351,7 @@ export const api = {
     const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const q = norm(texto);
     return espera(cargar().pacientes
-      .filter((p) => !q || norm(`${p.apellido} ${p.nombre} ${p.dni} ${p.telefono}`).includes(q))
+      .filter((p) => !q || norm(`${p.apellido} ${p.nombre} ${p.dni} ${p.telefono} ${p.telefono_2 || ''}`).includes(q))
       .sort((a, b) => a.apellido.localeCompare(b.apellido))
       .slice(0, 100));
   },
@@ -365,7 +365,7 @@ export const api = {
     requiere(...PERSONAL);
     const d = cargar();
     if (datos.dni && d.pacientes.some((p) => p.dni === datos.dni)) throw new Error('Ya existe un paciente con ese DNI.');
-    const p = { id: id(), direccion: '', notas: '', email: '', telefono: '', fecha_nac: null, ...datos, dni: datos.dni || null, usuario_id: null, creado_en: ahora() };
+    const p = { id: id(), direccion: '', notas: '', email: '', telefono: '', telefono_2: '', fecha_nac: null, ...datos, dni: datos.dni || null, usuario_id: null, creado_en: ahora() };
     d.pacientes.push(p);
     guardar();
     return espera(p);

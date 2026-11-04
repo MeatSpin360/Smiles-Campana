@@ -20,7 +20,7 @@ export const TIPOS = [
 export const ROLES = { paciente: 'Paciente', recepcion: 'Recepción', odontologia: 'Odontología', admin: 'Admin', contabilidad: 'Contabilidad' };
 
 const CAMPOS = {
-  dni: 'DNI', nombre: 'nombre', apellido: 'apellido', fecha_nac: 'fecha de nacimiento', telefono: 'celular',
+  dni: 'DNI', nombre: 'nombre', apellido: 'apellido', fecha_nac: 'fecha de nacimiento', telefono: 'celular', telefono_2: 'teléfono secundario',
   email: 'correo', direccion: 'dirección', notas: 'notas', responsable_nombre: 'responsable', responsable_dni: 'DNI del responsable',
   duracion: 'duración de los turnos', intervalo: 'intervalo', margen_sobreturno: 'margen de sobreturnos',
   dias_visibles: 'días visibles', horas_cancelacion: 'horas para cancelar',

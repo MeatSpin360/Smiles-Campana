@@ -42,10 +42,12 @@ create table if not exists pacientes (
   usuario_id  uuid unique references perfiles(id) on delete set null,
   creado_en   timestamptz not null default now(),
   responsable_nombre  text,         -- si es menor de edad: madre, padre o tutor (para los documentos)
-  responsable_dni     text
+  responsable_dni     text,
+  telefono_2  text                  -- teléfono secundario, opcional (por ejemplo, de un familiar)
 );
 alter table pacientes add column if not exists responsable_nombre text;
 alter table pacientes add column if not exists responsable_dni text;
+alter table pacientes add column if not exists telefono_2 text;
 -- Ficha sin DNI: se permite (se completa en la primera visita), pero nunca vacío
 alter table pacientes alter column dni drop not null;
 alter table pacientes drop constraint if exists pacientes_dni_no_vacio;
@@ -1361,9 +1363,8 @@ language sql stable security definer set search_path = public as $$
     'estado', t.estado,
     'inicio', t.inicio,
     'fin', t.fin,
-    -- "PRUEBA · " mientras los datos de la app no sean reales (el calendario tiene los turnos verdaderos):
-    -- se quita con una migración cuando el sistema arranque en serio.
-    'titulo', 'PRUEBA · ' || coalesce((select apellido || ', ' || nombre from pacientes where id = t.paciente_id), 'Paciente')
+    -- (Durante las pruebas el título empezaba con "PRUEBA · "; se quitó al cargar los pacientes reales.)
+    'titulo', coalesce((select apellido || ', ' || nombre from pacientes where id = t.paciente_id), 'Paciente')
               || coalesce(' · ' || nullif(trim(t.motivo), ''), ''),
     'sobreturno', t.sobreturno,
     'paciente_id', t.paciente_id)
@@ -1430,9 +1431,12 @@ begin
 end $$;
 revoke execute on function sincronizar_calendario(int) from public, anon, authenticated;
 
--- Repaso diario: a las 3:23 de Argentina (6:23 UTC). TODAVÍA NO SE PROGRAMA: mandaría al calendario real todos los
--- turnos de prueba. Al arrancar en serio, ejecutar en el SQL Editor:
---   select cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');
+-- Repaso diario: a las 3:23 de Argentina (6:23 UTC). Se programó al cargar los pacientes reales.
+do $$ begin
+  perform cron.schedule('calendario-diario', '23 6 * * *', 'select public.sincronizar_calendario()');
+exception when others then
+  raise notice 'pg_cron no disponible en esta base: el repaso diario del calendario no queda programado (%).', sqlerrm;
+end $$;
 
 -- ---------- Registro de acciones (trazabilidad) ----------
 -- La base anota sola cada acción importante: quién, cuándo, qué y sobre qué paciente. Lo ve solo el admin

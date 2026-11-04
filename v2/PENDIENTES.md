@@ -9,7 +9,7 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 
 - [x] **Carga hecha el 04/11/2026**: copia de seguridad previa (`respaldo-2026-11-04_1235.json`), limpieza de los datos
   de prueba (fichas, cuentas de pacientes y registro de acciones) y migración p23. Se cargaron **54 fichas, 249
-  evoluciones y 6 turnos confirmados** (14/11 al 26/11) desde `C:\Claudio\migracion-smiles` (fuera del repositorio:
+  evoluciones y 7 turnos confirmados** (12/11 al 26/11) desde `C:\Claudio\migracion-smiles` (fuera del repositorio:
   datos reales).
   - Una evolución por consulta, con la fecha de la consulta; autor "Historia previa (importada del calendario)".
     Las fechas provisorias empiezan con **[Fecha provisoria]**: completarlas si aparece la fecha real.
@@ -17,11 +17,12 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
   - La ficha de Emilio quedó vinculada a su usuario de admin.
   - Desde ahora los turnos se dan **solo en el sistema**; los eventos del calendario ya no dicen "PRUEBA ·" y el
     repaso diario (3:23) está programado.
-- [ ] Borrar en Google Calendar los 6 eventos cargados a mano de esos turnos (la app ya creó los suyos).
+- [x] Eventos cargados a mano de esos turnos borrados de Google Calendar (quedan los de la app).
 - [ ] Vaciar las carpetas `pacientes/`, `comprobantes/` y `documentos/` del depósito R2 (fotos de prueba).
 - [ ] Segunda tanda con más datos de WhatsApp (se cruzan con las fichas existentes: completar, no duplicar).
 - [ ] La odontóloga decide qué hacer con las fichas incompletas: Amelia "(sin apellido)" y Ocampo "(sin nombre)".
-  Después, quitar "Eliminar paciente" (solo para la etapa de pruebas).
+  Después, quitar "Eliminar paciente" (solo para la etapa de pruebas) o ponerle un seguro: que una ficha con
+  historia clínica no se pueda borrar hasta 10 años después de la última atención.
 - [ ] Desactivar el mantenimiento cuando se decida abrir Mi espacio a los pacientes.
 
 ## Hecho

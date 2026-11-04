@@ -85,3 +85,21 @@ implementaciones* → ✏️ → **Nueva versión**. El script usa `turnos@` aut
 2. Abrir uno recibido → ⋮ → **Mostrar original**: SPF, DKIM y DMARC tienen que decir **PASS**.
 3. En el sitio, "Olvidé mi clave" con una cuenta de prueba: el correo tiene que llegar de `cuentas@…`.
 4. Confirmar un turno de prueba y revisar que llegue a la bandeja de entrada (no a spam).
+
+## 7. Bandeja de entrada: solo `consultas@` (hecho el 04/11/2026)
+
+Para que Recibidos no se llene de avisos, lo que llega **a** `turnos@` y `cuentas@` (respuestas de pacientes a los
+avisos, rebotes, códigos de verificación) va a una etiqueta aparte, sin pasar por Recibidos ni avisar en el celular.
+Lo que llega a `consultas@` sigue entrando normal.
+
+Filtro en Gmail (smiles.campana@gmail.com):
+
+1. Buscar `to:(turnos@smilescampana.com.ar OR cuentas@smilescampana.com.ar)` → ícono de opciones del buscador →
+   **Crear filtro**.
+2. Marcar **Omitir Recibidos (archivarlo)**, **Aplicar la etiqueta** `Turnos y cuentas`, **Nunca enviarlo a Spam** y
+   **Aplicar el filtro también a las conversaciones que coinciden**. **No** marcar "Marcar como leído": así la
+   etiqueta muestra cuántos hay sin leer y no se pierde la respuesta de un paciente ("no puedo ir").
+3. **Crear filtro**.
+
+Revisar la etiqueta `Turnos y cuentas` de vez en cuando. Para cambiarlo: Gmail → ⚙️ → *Ver toda la configuración* →
+*Filtros y direcciones bloqueadas*.

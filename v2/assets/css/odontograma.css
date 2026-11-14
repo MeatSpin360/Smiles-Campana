@@ -11,16 +11,16 @@
 .od-colores { display: inline-flex; padding: 3px; gap: 3px; border-radius: 999px; background: var(--esmalte); }
 .od-color { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; font-size: var(--t-s); font-weight: 600; color: var(--tinta-2); }
 .od-color .muestra { width: 14px; height: 14px; border-radius: 4px; }
-.od-color-r .muestra { background: var(--od-rojo); }
-.od-color-b .muestra { background: var(--od-azul); }
+.od-color-r .muestra { background: var(--od-a-realizar); }
+.od-color-b .muestra { background: var(--od-realizado); }
 .od-color[aria-checked='true'] { background: var(--papel); color: var(--tinta); box-shadow: 0 1px 3px rgb(38 33 64 / 0.18); }
 .od-herramientas { display: flex; flex-wrap: wrap; gap: 6px; }
 .od-herr { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1.5px solid var(--linea); border-radius: 10px; background: var(--papel); cursor: pointer; font-size: var(--t-xs); font-weight: 600; color: var(--tinta-2); }
 .od-herr .icono { width: 18px; height: 18px; display: grid; }
 .od-herr:hover { border-color: var(--lavanda); color: var(--tinta); }
 .od-herr[aria-checked='true'], .od-herr[aria-pressed='true'] { border-color: var(--lavanda-osc); background: var(--lavanda-tenue); color: var(--lavanda-osc); }
-.odontograma[data-color='r'] .od-herr[aria-checked='true'] .icono { color: var(--od-rojo); }
-.odontograma[data-color='b'] .od-herr[aria-checked='true'] .icono { color: var(--od-azul); }
+.odontograma[data-color='r'] .od-herr[aria-checked='true'] .icono { color: var(--od-a-realizar); }
+.odontograma[data-color='b'] .od-herr[aria-checked='true'] .icono { color: var(--od-realizado); }
 @media (max-width: 760px) {
   /* En celulares se edita pieza por pieza, la barra no hace falta */
   .od-barra { display: none; }
@@ -55,8 +55,8 @@
 .lectura .pieza:hover .zona, .pieza:hover .zona { fill: var(--lavanda-tenue); }
 @media (hover: hover) {
   .editable .pieza .cara:not(.marcada):hover { fill: var(--lavanda-claro); }
-  .editable[data-color='r'] .pieza .cara:not(.marcada):hover { fill: color-mix(in srgb, var(--od-rojo) 25%, white); }
-  .editable[data-color='b'] .pieza .cara:not(.marcada):hover { fill: color-mix(in srgb, var(--od-azul) 25%, white); }
+  .editable[data-color='r'] .pieza .cara:not(.marcada):hover { fill: color-mix(in srgb, var(--od-a-realizar) 25%, white); }
+  .editable[data-color='b'] .pieza .cara:not(.marcada):hover { fill: color-mix(in srgb, var(--od-realizado) 25%, white); }
 }
 
 /* Panel de hallazgos */
@@ -69,8 +69,8 @@
 .od-hallazgo-pieza:hover { border-color: var(--lavanda-osc); color: var(--lavanda-osc); }
 .od-det { margin: 0; font-size: var(--t-xs); line-height: 1.4; padding-left: 12px; position: relative; }
 .od-det::before { content: ''; position: absolute; left: 0; top: 0.35em; width: 6px; height: 6px; border-radius: 2px; }
-.od-det-r::before { background: var(--od-rojo); }
-.od-det-b::before { background: var(--od-azul); }
+.od-det-r::before { background: var(--od-a-realizar); }
+.od-det-b::before { background: var(--od-realizado); }
 .od-det + .od-det { margin-top: 3px; }
 .od-detalle .texto-suave { font-size: var(--t-s); margin: 0; }
 .od-leyenda { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--linea); font-size: var(--t-xs); }
@@ -78,8 +78,8 @@
 .od-leyenda ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; color: var(--tinta-2); }
 .od-leyenda li { display: flex; align-items: center; gap: 10px; }
 .ley { width: 14px; height: 14px; border-radius: 4px; flex: none; }
-.ley-r { background: var(--od-rojo); }
-.ley-b { background: var(--od-azul); }
+.ley-r { background: var(--od-a-realizar); }
+.ley-b { background: var(--od-realizado); }
 .ley-icono { width: 16px; height: 16px; flex: none; color: var(--tinta-2); display: grid; }
 
 /* Editor de pieza (hoja) */

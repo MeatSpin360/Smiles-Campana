@@ -31,9 +31,11 @@
   --aviso: #8a5a00;
   --aviso-claro: #fdf0d5;
 
-  /* Odontograma: convención clínica */
+  /* Odontograma: convención clínica (desde el 14/11/2026: azul = a realizar, rojo = realizado) */
   --od-rojo: #d22a3c;
   --od-azul: #1d5ad4;
+  --od-a-realizar: var(--od-azul);
+  --od-realizado: var(--od-rojo);
 
   /* Tipografía */
   --fuente: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;

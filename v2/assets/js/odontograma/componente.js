@@ -194,9 +194,9 @@ function leyenda() {
   return h('details.od-leyenda',
     h('summary', 'Referencias'),
     h('ul',
-      h('li', h('span.ley.ley-r'), 'Rojo: tratamiento a realizar'),
-      h('li', h('span.ley.ley-b'), 'Azul: tratamiento realizado'),
-      h('li', h('span.ley-icono', { html: ICONOS.extraccion }), 'Cruz roja: extracción indicada. Azul: pieza ausente'),
+      h('li', h('span.ley.ley-r'), 'Azul: tratamiento a realizar'),
+      h('li', h('span.ley.ley-b'), 'Rojo: tratamiento realizado'),
+      h('li', h('span.ley-icono', { html: ICONOS.extraccion }), 'Cruz azul: extracción indicada. Roja: pieza ausente'),
       h('li', h('span.ley-icono', { html: ICONOS.corona }), 'Círculo: corona'),
       h('li', h('span.ley-icono', { html: ICONOS.conducto }), 'Línea en la raíz: tratamiento de conducto'),
       h('li', h('span.ley-icono', { html: ICONOS.implante }), 'Raíz con líneas: implante')));

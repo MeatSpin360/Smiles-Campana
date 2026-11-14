@@ -4,10 +4,12 @@
 // {
 //   temporales: false,                       // si se muestran las piezas temporarias
 //   piezas: {
-//     "16": { caras: { O: "r", D: "r" },     // r = a realizar (rojo), b = realizado (azul)
+//     "16": { caras: { O: "r", D: "r" },     // r = a realizar (se ve azul), b = realizado (se ve rojo)
 //             marcas: { corona: "b" } }       // marcas de pieza completa
 //   }
 // }
+// Las letras r y b vienen de los colores originales (rojo/azul). El 14/11/2026 se invirtieron los colores a pedido
+// de la odontóloga; las letras guardadas siguen significando lo mismo (no hubo que tocar datos: no había ninguno).
 
 export const PERMANENTES = {
   supIzq: [18, 17, 16, 15, 14, 13, 12, 11], // cuadrante 1 (derecha del paciente)
@@ -25,8 +27,8 @@ export const TEMPORARIAS = {
 export const CARAS = ['V', 'L', 'M', 'D', 'O'];
 
 export const COLORES = {
-  r: { nombre: 'A realizar', css: 'var(--od-rojo)' },
-  b: { nombre: 'Realizado', css: 'var(--od-azul)' },
+  r: { nombre: 'A realizar', css: 'var(--od-a-realizar)' },
+  b: { nombre: 'Realizado', css: 'var(--od-realizado)' },
 };
 
 export const MARCAS = {

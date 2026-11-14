@@ -81,12 +81,15 @@ export function enlaceCorreo(email, asunto = '', texto = '') {
  * Selector de día y horario a partir de la agenda real.
  * alElegir(iso) se llama cuando se toca un horario.
  * sobreturno: muestra los huecos de sobreturno (solo personal) en lugar de los horarios de la agenda.
+ * conFecha (solo personal): permite buscar desde cualquier fecha futura, sin el límite de días que tienen los
+ * pacientes (por ejemplo, el control del mes que viene de un plan de tratamiento). Muestra `dias` días desde esa fecha.
  */
-export function selectorHorario({ api, dias, alElegir, sobreturno = false }) {
-  const el = h('div.selector-horario', cargando());
+export function selectorHorario({ api, dias, alElegir, sobreturno = false, conFecha = false }) {
+  const contenido = h('div', cargando());
   let datos = [];
   let fechaSel = null;
   let isoSel = null;
+  let pedido = 0; // descarta respuestas viejas si se cambia la fecha rápido
 
   const cintaDias = h('div.cinta-dias', { role: 'tablist', 'aria-label': 'Días con horarios libres' });
   const grilla = h('div.grilla-horarios');
@@ -110,24 +113,53 @@ export function selectorHorario({ api, dias, alElegir, sobreturno = false }) {
     }, hora(iso))));
   }
 
-  (async () => {
+  async function cargar(desde) {
+    const este = ++pedido;
+    vaciar(contenido, cargando());
     try {
-      datos = sobreturno ? await api.horariosSobreturno(hoy(), dias) : await api.horariosLibres(hoy(), dias);
+      const r = sobreturno ? await api.horariosSobreturno(desde, dias) : await api.horariosLibres(desde, dias);
+      if (este !== pedido) return;
+      datos = r;
+      isoSel = null;
       if (!datos.length) {
-        vaciar(el, sobreturno
-          ? h('p.texto-suave', 'No hay huecos para sobreturnos en los próximos días.')
-          : h('div.vacio', h('p', 'No quedan horarios libres en los próximos días.'), linkWhatsapp('Consultar por WhatsApp')));
+        vaciar(contenido, conFecha
+          ? h('p.texto-suave', sobreturno ? 'No hay huecos para sobreturnos en esos días. Probá desde otra fecha.' : 'No hay horarios libres en esos días. Probá desde otra fecha.')
+          : sobreturno
+            ? h('p.texto-suave', 'No hay huecos para sobreturnos en los próximos días.')
+            : h('div.vacio', h('p', 'No quedan horarios libres en los próximos días.'), linkWhatsapp('Consultar por WhatsApp')));
         return;
       }
       fechaSel = datos[0].fecha;
-      vaciar(el, cintaDias, tituloDia, grilla);
+      vaciar(contenido, cintaDias, tituloDia, grilla);
       pintar();
     } catch (e) {
-      vaciar(el, h('p.error-campo', mensajeError(e)));
+      if (este === pedido) vaciar(contenido, h('p.error-campo', mensajeError(e)));
     }
-  })();
+  }
 
-  return el;
+  if (!conFecha) {
+    cargar(hoy());
+    return h('div.selector-horario', contenido);
+  }
+
+  // Personal: buscar desde cualquier fecha (la agenda no tiene límite hacia adelante para el consultorio)
+  const desde = h('input', { type: 'date', min: hoy(), value: hoy(), 'aria-label': 'Buscar horarios desde' });
+  const ir = (f) => { desde.value = f; cargar(f); };
+  desde.onchange = () => { if (desde.value && desde.value >= hoy()) cargar(desde.value); };
+  const atajo = (texto, f) => h('button.chip-atajo', { type: 'button', onclick: () => ir(f) }, texto);
+  const enMeses = (n) => {
+    const [a, m, d] = hoy().split('-').map(Number);
+    const x = new Date(Date.UTC(a, m - 1 + n, 1));
+    const ultimo = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate();
+    x.setUTCDate(Math.min(d, ultimo));
+    return x.toISOString().slice(0, 10);
+  };
+  cargar(hoy());
+  return h('div.selector-horario',
+    h('div.buscar-desde',
+      h('label.campo', h('span', 'Buscar desde'), desde),
+      h('div.atajos-fecha', atajo('Hoy', hoy()), atajo('En 1 mes', enMeses(1)), atajo('En 2 meses', enMeses(2)))),
+    contenido);
 }
 
 export function avisoSinFicha() {

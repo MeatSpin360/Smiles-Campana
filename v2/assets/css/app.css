@@ -154,6 +154,12 @@ body { background: var(--esmalte); }
 .chip-dia[aria-selected='true'] { background: var(--lavanda-osc); border-color: var(--lavanda-osc); color: #fff; }
 .chip-dia[aria-selected='true'] span { color: rgb(255 255 255 / 0.8); }
 .titulo-dia { font-size: var(--t-s); font-weight: 600; color: var(--tinta-2); margin: 10px 0 10px; }
+/* Personal: buscar horarios desde cualquier fecha (comunes.js, selectorHorario con conFecha) */
+.buscar-desde { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-bottom: 12px; }
+.buscar-desde .campo { margin: 0; flex: 0 1 190px; }
+.atajos-fecha { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
+.chip-atajo { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--linea-fuerte); background: var(--papel); color: var(--tinta); font: inherit; font-size: var(--t-s); cursor: pointer; }
+.chip-atajo:hover { border-color: var(--lavanda-osc); color: var(--lavanda-osc); }
 .grilla-horarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .chip-hora { min-height: 46px; border-radius: 12px; border: 1.5px solid var(--linea-fuerte); background: var(--papel); cursor: pointer; font-weight: 600; font-variant-numeric: tabular-nums; }
 .chip-hora:hover { border-color: var(--lavanda-osc); color: var(--lavanda-osc); }

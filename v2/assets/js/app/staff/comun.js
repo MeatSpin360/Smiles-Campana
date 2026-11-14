@@ -130,7 +130,7 @@ export function darTurno(api, { paciente = null, inicio = null, dias = 30, sobre
       if (!pac) partes.push(h('h3.titulo-paso', 'Paciente'), buscadorPaciente({ api, alElegir: (p) => { pac = p; pintar(); } }));
       else if (!iso) {
         partes.push(tipo, h('h3.titulo-paso', esSobreturno ? 'Hueco para el sobreturno' : 'Horario'),
-          selectorHorario({ api, dias, sobreturno: esSobreturno, alElegir: (x) => { iso = x; pintar(); } }));
+          selectorHorario({ api, dias, sobreturno: esSobreturno, conFecha: true, alElegir: (x) => { iso = x; pintar(); } }));
       }
       if (pac && iso) partes.push(selectMotivo());
       vaciar(cuerpo, partes);

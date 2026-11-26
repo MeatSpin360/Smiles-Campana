@@ -25,7 +25,8 @@ export const ACCIONES = {
   ausente: [['atendido', 'Atendido'], ['confirmado', 'Volver a confirmado']],
 };
 
-export const MOTIVOS = ['Consulta', 'Control de ortodoncia', 'Limpieza', 'Dolor o urgencia', 'Estética', 'Otro'];
+// Motivos que elige el personal al dar un turno. El paciente no elige: su pedido queda como "Consulta".
+export const MOTIVOS = ['Consulta', 'Control de ortodoncia', 'Guardia de ortodoncia', 'Limpieza', 'Dolor o urgencia', 'Estética', 'Otro'];
 
 export const nombreCompleto = (p) => (p ? `${p.apellido}, ${p.nombre}` : 'Paciente sin datos');
 

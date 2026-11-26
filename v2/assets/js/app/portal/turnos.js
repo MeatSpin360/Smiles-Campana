@@ -1,7 +1,7 @@
 import { h } from '../../lib/dom.js';
 import { aviso, confirmar, conCarga, hoja } from '../../lib/ui.js';
 import { fechaLarga, hora, mayuscula, partes, hoy } from '../../lib/dates.js';
-import { encabezado, etiquetaEstado, bloqueFecha, selectorHorario, avisoSinFicha, MOTIVOS, linkWhatsapp } from '../comunes.js';
+import { encabezado, etiquetaEstado, bloqueFecha, selectorHorario, avisoSinFicha, linkWhatsapp } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
 import { AVISOS } from '../../../../config.js';
 
@@ -109,14 +109,8 @@ export async function pedirTurno(ctx) {
           linkWhatsapp('Escribir por WhatsApp'))));
   }
 
-  let motivo = MOTIVOS[0];
-  const motivos = h('div.chips-motivo', { role: 'radiogroup', 'aria-label': 'Motivo' }, MOTIVOS.map((m) => h('button.chip', {
-    type: 'button', role: 'radio', 'aria-checked': String(m === motivo),
-    onclick: (e) => {
-      motivo = m;
-      motivos.querySelectorAll('.chip').forEach((b) => b.setAttribute('aria-checked', String(b === e.currentTarget)));
-    },
-  }, m)));
+  // El paciente no elige motivo: el pedido queda como "Consulta" (las urgencias, por WhatsApp)
+  const motivo = 'Consulta';
 
   const confirmarPedido = (iso) => {
     const boton = h('button.btn.btn-primario', { type: 'button' }, 'Pedir este turno');
@@ -127,7 +121,7 @@ export async function pedirTurno(ctx) {
       cuerpo: [
         h('div.resumen-turno',
           bloqueFecha(iso),
-          h('div', h('strong', `${mayuscula(fechaLarga(iso))}`), h('p', `${hora(iso)} h, ${agenda.duracion} minutos`), h('p.texto-suave', motivo))),
+          h('div', h('strong', `${mayuscula(fechaLarga(iso))}`), h('p', `${hora(iso)} h, ${agenda.duracion} minutos`))),
         h('p.texto-suave.nota-chica.nota-pedido', 'El horario queda reservado para vos mientras el consultorio confirma el turno.'),
       ],
       pie: [volver, boton],
@@ -143,9 +137,10 @@ export async function pedirTurno(ctx) {
 
   return h('div',
     encabezado('Pedir turno', `Elegí día y horario; el consultorio confirma cada pedido. Los turnos duran ${agenda.duracion} minutos.`),
+    h('div.nota.nota-aviso', h('span.nota-icono', { html: ICONOS.alerta }),
+      h('div', h('strong', 'En caso de urgencia, solicitá el turno por WhatsApp'),
+        linkWhatsapp('Escribir por WhatsApp', 'Hola, necesito un turno de urgencia.'))),
     h('section.panel',
-      h('h2.titulo-paso', '¿Para qué es el turno?'),
-      motivos,
       h('h2.titulo-paso', 'Elegí día y horario'),
       selectorHorario({ api: ctx.api, dias: agenda.diasVisibles, alElegir: confirmarPedido })),
     h('p.texto-suave.nota-pie', '¿No encontrás un horario que te sirva? ', linkWhatsapp('Consultanos')));

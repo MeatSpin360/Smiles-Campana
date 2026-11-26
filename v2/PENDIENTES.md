@@ -37,6 +37,14 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 - [x] **El personal da turnos en cualquier fecha** (13/11/2026): al dar turno o cambiar un horario, *Buscar desde* permite elegir cualquier fecha futura, con atajos *En 1 mes* y *En 2 meses* (controles de planes de tratamiento). El límite de *Días que se pueden reservar* (Horarios) es solo para los pacientes.
 - [x] **Sobreturnos**: 30 minutos, solo los da el personal, en huecos libres, hasta 1 hora antes o después de cada franja y también en horarios bloqueados. Se ven en dorado en *Hoy*, la agenda y la ficha.
 - [x] Al cancelar, el personal indica **quién pide la cancelación**: si fue el paciente (por WhatsApp o teléfono), le llega "Cancelamos tu turno, como nos pediste" y no suma a su límite diario; si fue el consultorio, el aviso con disculpas.
+- [x] **Planes de tratamiento anteriores** (26/11/2026): en la pestaña *Planes*, "Subir plan anterior" con un Word
+  (.docx) o un PDF. El texto pasa a la página (títulos, negrita, subrayado, listas y tablas; logos, colores y tipos de
+  letra no) y se edita ahí. El archivo original no se guarda. Se imprimen con el encabezado del consultorio y, con
+  "Visible para el paciente", se ven en *Mi plan*. Un PDF escaneado (imagen) no tiene texto: se carga a mano.
+  Librerías: lector de Word propio (`lib/texto-rico.js`); PDF con pdf.js 4.10.38 (`assets/vendor/pdf.min.mjs` y
+  `pdf.worker.min.mjs`).
+- [x] **Evoluciones editables** (26/11/2026): odontología y admin, botón del lápiz en cada evolución. Queda la marca
+  **"Editado"** (al pasar el mouse: cuándo y quién). La versión anterior no se guarda; el registro de acciones anota la edición.
 - [x] **Colores del odontograma** (14/11/2026): **azul = a realizar, rojo = realizado** (antes era al revés). No había odontogramas cargados, así que no hubo que ajustar datos.
 - [x] **Odontograma**: el último registro se puede **corregir** (quien lo creó o un admin); queda marcado "Corregido el …" y lo que tenía antes se guarda en la base. **Borrarlo** solo dentro de las 48 h de creado.
 - [x] **Eliminar paciente** (solo admin, solo etapa de pruebas): borra la ficha con todo lo suyo y su cuenta de Mi espacio; se confirma escribiendo el DNI.
@@ -119,11 +127,10 @@ Registro de lo acordado para después de poner el sitio online. El orden es el s
 ## Etapa 5: historia clínica para el paciente (EN PAUSA)
 
 - [x] **Por ahora el paciente no ve su historia clínica:** en *Mi espacio → Odontograma* aparece un cartel "En desarrollo", y la base tampoco le devuelve el odontograma (política "ver odontogramas", migración p22).
-- [ ] En *Mi espacio*, reemplazar "Odontograma" por **"Historia clínica"**. El paciente no ve el odontograma.
-- [ ] **Resumen comprensible** de su historia clínica, sin lenguaje técnico, generado con IA.
-  - El odontólogo lo revisa y lo aprueba antes de que el paciente lo vea.
-  - La generación corre en un servidor (la clave del servicio de IA no puede estar en el navegador).
-  - Enviar datos clínicos a un servicio de IA requiere informarlo al paciente en el consentimiento.
+- [x] En *Mi espacio*, "Odontograma" pasó a llamarse **"Historia clínica"** (26/11/2026). El paciente no ve el odontograma.
+- [x] **Resumen de historia clínica redactado por la odontóloga** (sin IA, decidido el 26/11/2026): en la ficha, pestaña
+  *Historia clínica*, bloque "Resumen de historia clínica" con editor de texto e impresión. Con **"Visible para el
+  paciente"** lo ve en *Mi espacio → Historia clínica*; si no, sigue el cartel "En desarrollo". (Migración p24.)
 - [x] **Fotos del tratamiento** en *Mis fotos* (las que marca odontología).
 - [x] **Mi plan**: el paciente ve sus planes de tratamiento desde que se le proponen (no borradores ni descartados), con etapas, precios, descuentos, total, forma de pago y observaciones, y lo puede imprimir o guardar en PDF. Solo ver.
 - ~~Comparación antes y después de fotos~~: descartado (alcanza con *Mis fotos*).

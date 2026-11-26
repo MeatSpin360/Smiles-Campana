@@ -6,9 +6,9 @@ export const TIPOS = [
   { id: 'turnos', texto: 'Turnos', prefijos: ['turno'] },
   { id: 'pacientes', texto: 'Fichas de pacientes', prefijos: ['paciente'] },
   { id: 'odontograma', texto: 'Odontograma', prefijos: ['odontograma'] },
-  { id: 'historia', texto: 'Historia clínica', prefijos: ['antecedentes', 'evolucion'] },
+  { id: 'historia', texto: 'Historia clínica', prefijos: ['antecedentes', 'evolucion', 'historia'] },
   { id: 'fotos', texto: 'Fotos', prefijos: ['foto', 'fotos'] },
-  { id: 'planes', texto: 'Planes de tratamiento', prefijos: ['plan'] },
+  { id: 'planes', texto: 'Planes de tratamiento', prefijos: ['plan', 'plan_anterior'] },
   { id: 'precios', texto: 'Lista de precios', prefijos: ['precio', 'precios'] },
   { id: 'pagos', texto: 'Pagos', prefijos: ['pago'] },
   { id: 'documentos', texto: 'Documentos y plantillas', prefijos: ['documento', 'plantilla'] },
@@ -68,6 +68,10 @@ export function describir({ accion, detalle: d = {} }) {
 
     case 'antecedentes.actualizados': return { texto: 'Actualizó los antecedentes', extra: '' };
     case 'evolucion.registrada': return { texto: 'Registró una evolución', extra: d.piezas ? `Piezas ${d.piezas}` : '' };
+    case 'evolucion.editada': return { texto: 'Editó una evolución', extra: d.del ? `Evolución del ${fechaCorta(d.del)}` : '' };
+    case 'historia.editada': return { texto: 'Editó el resumen de historia clínica' };
+    case 'historia.visible': return { texto: 'Mostró el resumen de historia clínica al paciente' };
+    case 'historia.oculta': return { texto: 'Ocultó el resumen de historia clínica al paciente' };
     case 'odontograma.registrado': return { texto: 'Registró el odontograma', extra: d.nota || '' };
     case 'odontograma.corregido': return { texto: 'Corrigió el odontograma', extra: `Registro del ${fechaCorta(d.registro_del)}` };
     case 'odontograma.borrado': return { texto: 'Borró un registro del odontograma', extra: `Registro del ${fechaCorta(d.registro_del)}` };
@@ -85,6 +89,11 @@ export function describir({ accion, detalle: d = {} }) {
     case 'plan.editado': return { texto: 'Modificó un plan de tratamiento', extra: `"${d.titulo}"${d.total !== d.total_antes ? ` · ${pesos(d.total_antes)} → ${pesos(d.total)}` : ''}` };
     case 'plan.estado': return { texto: 'Cambió el estado de un plan', extra: `"${d.titulo}": ${ESTADOS_PLAN[d.de] || d.de} → ${ESTADOS_PLAN[d.a] || d.a}` };
     case 'plan.borrado': return { texto: 'Borró un plan (borrador)', extra: `"${d.titulo}"` };
+    case 'plan_anterior.subido': return { texto: 'Subió un plan anterior', extra: [`"${d.titulo}"`, d.archivo ? `desde ${d.archivo}` : null].filter(Boolean).join(' · ') };
+    case 'plan_anterior.editado': return { texto: 'Editó un plan anterior', extra: `"${d.titulo}"` };
+    case 'plan_anterior.visible': return { texto: 'Mostró un plan anterior al paciente', extra: `"${d.titulo}"` };
+    case 'plan_anterior.oculto': return { texto: 'Ocultó un plan anterior al paciente', extra: `"${d.titulo}"` };
+    case 'plan_anterior.borrado': return { texto: 'Borró un plan anterior', extra: `"${d.titulo}"` };
 
     case 'precio.creado': return { texto: 'Agregó un servicio a la lista de precios', extra: `${d.servicio} · ${monto(d.precio, d.moneda)}` };
     case 'precio.cambiado': return { texto: 'Cambió un precio', extra: `${d.servicio}: ${monto(d.de, d.moneda_antes || d.moneda)} → ${monto(d.a, d.moneda)}` };

@@ -102,6 +102,8 @@ function cargar() {
   db.foto_secciones ??= [];
   db.plantillas ??= PLANTILLAS_INICIALES.map((x, i) => ({ id: id(), ...x, activa: true, orden: i, creado_en: ahora(), actualizado_en: null, actualizado_por_nombre: null }));
   db.documentos ??= [];
+  db.planes_anteriores ??= [];
+  db.historias ??= [];
   if (!db.pagos) {
     // Ejemplos: Ana debe una parte de la última consulta y Juan dejó una seña
     const [ana, juan] = db.pacientes;
@@ -300,6 +302,17 @@ export const api = {
     return espera(cargar().planes.filter((x) => x.paciente_id === p.id && ['propuesto', 'aceptado', 'en_curso', 'terminado'].includes(x.estado))
       .sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map((x) => ({ ...x })));
   },
+  async misPlanesAnteriores() {
+    const p = miPaciente();
+    if (!p) return [];
+    return espera(cargar().planes_anteriores.filter((x) => x.paciente_id === p.id && x.visible_paciente)
+      .sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map(({ id: i, titulo, contenido, creado_en, editado_en }) => ({ id: i, titulo, contenido, creado_en, editado_en })));
+  },
+  async miHistoriaClinica() {
+    const p = miPaciente();
+    const x = p && cargar().historias.find((y) => y.paciente_id === p.id && y.visible_paciente);
+    return espera(x ? { contenido: x.contenido, actualizado_en: x.actualizado_en } : null);
+  },
   async misTurnos() {
     const p = miPaciente();
     if (!p) return [];
@@ -384,6 +397,8 @@ export const api = {
     d.fotos = d.fotos.filter((x) => x.paciente_id !== pid);
     d.foto_secciones = d.foto_secciones.filter((x) => x.paciente_id !== pid);
     d.planes = d.planes.filter((x) => x.paciente_id !== pid);
+    d.planes_anteriores = d.planes_anteriores.filter((x) => x.paciente_id !== pid);
+    d.historias = d.historias.filter((x) => x.paciente_id !== pid);
     for (const g of d.pagos.filter((x) => x.paciente_id === pid)) archivos.borrar(`comprobante:${g.id}`).catch(() => {});
     d.pagos = d.pagos.filter((x) => x.paciente_id !== pid);
     for (const x of d.documentos.filter((y) => y.paciente_id === pid)) archivos.borrar(`documento:${x.id}`).catch(() => {});
@@ -616,6 +631,70 @@ export const api = {
     cargar().evoluciones.push(e);
     guardar();
     return espera(e);
+  },
+  async editarEvolucion(eid, { texto, piezas }) {
+    const u = requiere(...CLINICO);
+    if (!texto?.trim()) throw new Error('La evolución no puede quedar vacía.');
+    const e = cargar().evoluciones.find((x) => x.id === eid);
+    if ((e.texto !== texto) || ((e.piezas || '') !== (piezas || ''))) {
+      Object.assign(e, { texto, piezas: piezas || '', editado_en: ahora(), editado_por_nombre: nombreUsuario(u) });
+      anotar('evolucion.editada', e.paciente_id, { del: e.creado_en });
+    }
+    guardar();
+    return espera({ ...e });
+  },
+  async historiaClinica(pid) {
+    requiere(...CLINICO);
+    const x = cargar().historias.find((y) => y.paciente_id === pid);
+    return espera(x ? { ...x } : { paciente_id: pid, contenido: '', visible_paciente: false, actualizado_en: null });
+  },
+  async guardarHistoriaClinica(pid, { contenido, visible_paciente }) {
+    const u = requiere(...CLINICO);
+    const d = cargar();
+    let x = d.historias.find((y) => y.paciente_id === pid);
+    if (!x) d.historias.push((x = { paciente_id: pid, contenido: null, visible_paciente: false }));
+    if (x.contenido !== contenido) {
+      Object.assign(x, { contenido, actualizado_en: ahora(), actualizado_por_nombre: nombreUsuario(u) });
+      anotar('historia.editada', pid);
+    }
+    if (x.visible_paciente !== !!visible_paciente) anotar(visible_paciente ? 'historia.visible' : 'historia.oculta', pid);
+    x.visible_paciente = !!visible_paciente;
+    guardar();
+    return espera({ ...x });
+  },
+  async planesAnteriores(pid) {
+    requiere(...PERSONAL);
+    return espera(cargar().planes_anteriores.filter((x) => x.paciente_id === pid).sort((a, b) => b.creado_en.localeCompare(a.creado_en)).map((x) => ({ ...x })));
+  },
+  async guardarPlanAnterior(plan) {
+    const u = requiere(...PERSONAL);
+    const d = cargar();
+    if (!plan.titulo?.trim()) throw new Error('Escribí un título para el plan.');
+    let x = plan.id && d.planes_anteriores.find((y) => y.id === plan.id);
+    if (x) {
+      if (x.titulo !== plan.titulo || x.contenido !== plan.contenido) {
+        Object.assign(x, { titulo: plan.titulo, contenido: plan.contenido, editado_en: ahora(), editado_por_nombre: nombreUsuario(u) });
+        anotar('plan_anterior.editado', x.paciente_id, { titulo: x.titulo });
+      }
+      if (x.visible_paciente !== !!plan.visible_paciente) anotar(plan.visible_paciente ? 'plan_anterior.visible' : 'plan_anterior.oculto', x.paciente_id, { titulo: x.titulo });
+      x.visible_paciente = !!plan.visible_paciente;
+    } else {
+      x = { id: id(), paciente_id: plan.paciente_id, titulo: plan.titulo, contenido: plan.contenido, archivo_nombre: plan.archivo_nombre || null,
+        visible_paciente: !!plan.visible_paciente, creado_por: u.id, creado_por_nombre: nombreUsuario(u), creado_en: ahora(), editado_en: null, editado_por_nombre: null };
+      d.planes_anteriores.push(x);
+      anotar('plan_anterior.subido', x.paciente_id, { titulo: x.titulo, archivo: x.archivo_nombre });
+    }
+    guardar();
+    return espera({ ...x });
+  },
+  async borrarPlanAnterior(pid) {
+    requiere(...PERSONAL);
+    const d = cargar();
+    const x = d.planes_anteriores.find((y) => y.id === pid);
+    d.planes_anteriores = d.planes_anteriores.filter((y) => y !== x);
+    anotar('plan_anterior.borrado', x.paciente_id, { titulo: x.titulo });
+    guardar();
+    return espera();
   },
   async cuentasSinVincular() {
     requiere(...PERSONAL);

@@ -31,6 +31,8 @@ alter table precios disable trigger user;
 alter table pagos disable trigger user;
 alter table plantillas disable trigger user;
 alter table documentos disable trigger user;
+alter table planes_anteriores disable trigger user;
+alter table historias_clinicas disable trigger user;
 
 -- Perfiles: solo de cuentas que existen en este proyecto (recupera nombre y rol)
 insert into perfiles
@@ -108,6 +110,19 @@ from respaldo, jsonb_populate_recordset(null::planes, coalesce(t -> 'planes', '[
 where exists (select 1 from pacientes p where p.id = x.paciente_id)
 on conflict do nothing;
 
+-- Planes anteriores (Word/PDF) y resumen de historia clínica (copias anteriores a fines de noviembre de 2026 no los traen)
+insert into planes_anteriores
+select (jsonb_populate_record(x, jsonb_build_object('creado_por',
+          case when exists (select 1 from perfiles p where p.id = x.creado_por) then x.creado_por end))).*
+from respaldo, jsonb_populate_recordset(null::planes_anteriores, coalesce(t -> 'planes_anteriores', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
+insert into historias_clinicas
+select x.* from respaldo, jsonb_populate_recordset(null::historias_clinicas, coalesce(t -> 'historias_clinicas', '[]')) x
+where exists (select 1 from pacientes p where p.id = x.paciente_id)
+on conflict do nothing;
+
 -- Pagos (copias anteriores a noviembre de 2026 no los traen). Los comprobantes siguen en Cloudflare R2.
 insert into pagos
 select (jsonb_populate_record(x, jsonb_build_object('creado_por',
@@ -163,6 +178,8 @@ alter table precios enable trigger user;
 alter table pagos enable trigger user;
 alter table plantillas enable trigger user;
 alter table documentos enable trigger user;
+alter table planes_anteriores enable trigger user;
+alter table historias_clinicas enable trigger user;
 
 set local smiles.sin_registro = 'off';
 select anotar('sistema.restauracion', null, jsonb_build_object('copia_del', (select creado from respaldo)));
@@ -173,6 +190,8 @@ union all select 'turnos', count(*) from turnos
 union all select 'odontogramas', count(*) from odontogramas
 union all select 'evoluciones', count(*) from evoluciones
 union all select 'fotos', count(*) from fotos
-union all select 'planes', count(*) from planes;
+union all select 'planes', count(*) from planes
+union all select 'planes anteriores', count(*) from planes_anteriores
+union all select 'historias clínicas', count(*) from historias_clinicas;
 
 commit;

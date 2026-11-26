@@ -52,7 +52,7 @@ const MENU = {
     { ruta: '/', texto: 'Mis turnos', icono: 'calendario' },
     { ruta: '/mi-plan', texto: 'Mi plan', icono: 'nota' },
     { ruta: '/mis-fotos', texto: 'Mis fotos', icono: 'foto' },
-    { ruta: '/odontograma', texto: 'Odontograma', icono: 'diente' },
+    { ruta: '/odontograma', texto: 'Historia clínica', icono: 'diente' }, // (la ruta conserva el nombre viejo)
     { ruta: '/mis-datos', texto: 'Mis datos', icono: 'persona' },
   ],
   personal: [

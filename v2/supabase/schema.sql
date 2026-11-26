@@ -173,6 +173,21 @@ create table if not exists evoluciones (
   creado_en          timestamptz not null default now()
 );
 create index if not exists evoluciones_paciente on evoluciones (paciente_id, creado_en desc);
+-- Una evolución se puede editar (odontología y admin): queda marcada "Editado" con fecha y autor. La versión
+-- anterior no se guarda; el registro de acciones anota la edición.
+alter table evoluciones add column if not exists editado_en timestamptz;
+alter table evoluciones add column if not exists editado_por_nombre text;
+
+-- Resumen de la historia clínica que redacta la odontóloga (a partir de lo archivado en la ficha; sin IA).
+-- Uno por paciente. Si visible_paciente, el paciente lo ve en Mi espacio → Historia clínica.
+-- contenido: HTML simple del editor del sitio (párrafos, títulos, negrita, cursiva, listas); se limpia al mostrarlo.
+create table if not exists historias_clinicas (
+  paciente_id             uuid primary key references pacientes on delete cascade,
+  contenido               text not null default '' check (length(contenido) <= 200000),
+  visible_paciente        boolean not null default false,
+  actualizado_en          timestamptz not null default now(),
+  actualizado_por_nombre  text
+);
 
 -- Fotos clínicas, agrupadas en secciones (por ejemplo "Primera consulta 02/11/2026").
 -- Los archivos están en Cloudflare R2 (pacientes/<paciente_id>/<foto_id>.jpg y -mini.jpg); el Worker
@@ -318,6 +333,25 @@ create table if not exists planes (
 alter table planes add column if not exists descuento_monto numeric(12,2) not null default 0 check (descuento_monto >= 0);
 create index if not exists planes_paciente on planes (paciente_id, creado_en desc);
 create index if not exists planes_creado_por on planes (creado_por);
+
+-- Planes de tratamiento anteriores al sistema: se suben desde un Word o un PDF (el sitio pasa el texto a la
+-- página) y se editan ahí. Lo gestiona el personal, como los planes; el paciente los ve solo si visible_paciente.
+-- contenido: HTML simple del editor del sitio; se limpia al mostrarlo.
+create table if not exists planes_anteriores (
+  id                  uuid primary key default gen_random_uuid(),
+  paciente_id         uuid not null references pacientes on delete cascade,
+  titulo              text not null check (length(trim(titulo)) > 0),
+  contenido           text not null default '' check (length(contenido) <= 500000),
+  archivo_nombre      text,  -- del Word/PDF del que salió (el archivo no se guarda)
+  visible_paciente    boolean not null default false,
+  creado_por          uuid references perfiles(id),
+  creado_por_nombre   text,
+  creado_en           timestamptz not null default now(),
+  editado_en          timestamptz,
+  editado_por_nombre  text
+);
+create index if not exists planes_anteriores_paciente on planes_anteriores (paciente_id, creado_en desc);
+create index if not exists planes_anteriores_creado_por on planes_anteriores (creado_por);
 
 -- Pagos: lo que se le factura al paciente y lo que paga. Saldo = facturado - pagado (positivo: debe;
 -- negativo: a favor). Si "paga justo", la base copia el facturado en lo pagado.
@@ -583,6 +617,8 @@ alter table precios          enable row level security;
 alter table pagos            enable row level security;
 alter table plantillas       enable row level security;
 alter table documentos       enable row level security;
+alter table planes_anteriores  enable row level security;
+alter table historias_clinicas enable row level security;
 
 -- Borra políticas previas para poder re-ejecutar el script
 do $$ declare r record; begin
@@ -677,6 +713,12 @@ create policy "personal gestiona planes" on planes for all to authenticated
 create policy "paciente ve sus planes" on planes for select to authenticated
   using (paciente_id = (select mi_paciente_id()) and estado in ('propuesto', 'aceptado', 'en_curso', 'terminado'));
 
+-- planes anteriores (Word/PDF): como los planes; el paciente ve los marcados como visibles
+create policy "personal gestiona planes anteriores" on planes_anteriores for all to authenticated
+  using ((select es_personal())) with check ((select es_personal()));
+create policy "paciente ve sus planes anteriores" on planes_anteriores for select to authenticated
+  using (paciente_id = (select mi_paciente_id()) and visible_paciente);
+
 -- precios: los ve todo el personal (y contabilidad); los editan contabilidad y admin
 create policy "personal ve precios" on precios for select to authenticated
   using ((select es_personal()) or (select es_contable()));
@@ -709,6 +751,14 @@ create policy "clinico ve evoluciones" on evoluciones for select to authenticate
   using ((select es_clinico()));
 create policy "clinico registra evoluciones" on evoluciones for insert to authenticated
   with check ((select es_clinico()) and creado_por = (select auth.uid()));
+create policy "clinico edita evoluciones" on evoluciones for update to authenticated
+  using ((select es_clinico())) with check ((select es_clinico()));
+
+-- resumen de historia clínica: lo escriben odontología/admin; el paciente ve el suyo si está marcado visible
+create policy "clinico gestiona historias" on historias_clinicas for all to authenticated
+  using ((select es_clinico())) with check ((select es_clinico()));
+create policy "paciente ve su historia" on historias_clinicas for select to authenticated
+  using (paciente_id = (select mi_paciente_id()) and visible_paciente);
 
 -- ---------- Funciones que usan los pacientes y el personal ----------
 
@@ -936,6 +986,63 @@ create trigger validar_foto_seccion before update on foto_secciones for each row
 
 drop trigger if exists autor_plan on planes;
 create trigger autor_plan before insert on planes for each row execute function completar_autor();
+drop trigger if exists autor_plan_anterior on planes_anteriores;
+create trigger autor_plan_anterior before insert on planes_anteriores for each row execute function completar_autor();
+
+-- Evoluciones y planes anteriores editados: no cambian de paciente ni de autor; si cambia el contenido queda
+-- "Editado" con fecha y quién (la versión anterior no se guarda).
+create or replace function preparar_edicion() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_cambio boolean;
+begin
+  if tg_table_name = 'evoluciones' then
+    if length(trim(new.texto)) = 0 then
+      raise exception 'La evolución no puede quedar vacía.';
+    end if;
+    v_cambio := (new.texto, new.piezas) is distinct from (old.texto, old.piezas);
+  else
+    v_cambio := (new.titulo, new.contenido) is distinct from (old.titulo, old.contenido);
+  end if;
+  new.id := old.id;
+  new.paciente_id := old.paciente_id;
+  new.creado_por := old.creado_por;
+  new.creado_por_nombre := old.creado_por_nombre;
+  new.creado_en := old.creado_en;
+  if v_cambio then
+    new.editado_en := now();
+    new.editado_por_nombre := mi_nombre();
+  else
+    new.editado_en := old.editado_en;
+    new.editado_por_nombre := old.editado_por_nombre;
+  end if;
+  return new;
+end $$;
+revoke execute on function preparar_edicion() from public, anon, authenticated;
+drop trigger if exists preparar_edicion on evoluciones;
+create trigger preparar_edicion before update on evoluciones for each row execute function preparar_edicion();
+drop trigger if exists preparar_edicion on planes_anteriores;
+create trigger preparar_edicion before update on planes_anteriores for each row execute function preparar_edicion();
+
+-- Resumen de historia clínica: fecha y autor de la última modificación
+create or replace function preparar_historia() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'UPDATE' then
+    new.paciente_id := old.paciente_id;
+    if new.contenido is not distinct from old.contenido then
+      new.actualizado_en := old.actualizado_en;
+      new.actualizado_por_nombre := old.actualizado_por_nombre;
+      return new;
+    end if;
+  end if;
+  new.actualizado_en := now();
+  new.actualizado_por_nombre := mi_nombre();
+  return new;
+end $$;
+revoke execute on function preparar_historia() from public, anon, authenticated;
+drop trigger if exists preparar_historia on historias_clinicas;
+create trigger preparar_historia before insert or update on historias_clinicas for each row execute function preparar_historia();
 
 -- Planes: la base calcula el total, guarda quién lo modificó y cuándo se aceptó, y no deja borrar un plan
 -- que ya se le propuso al paciente (se marca "descartado" y queda en el historial).
@@ -1324,6 +1431,8 @@ begin
       'foto_secciones',  (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from foto_secciones x),
       'fotos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from fotos x),
       'planes',          (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from planes x),
+      'planes_anteriores', (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from planes_anteriores x),
+      'historias_clinicas', (select coalesce(jsonb_agg(to_jsonb(x) order by x.paciente_id), '[]') from historias_clinicas x),
       'precios',         (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.servicio), '[]') from precios x),
       'pagos',           (select coalesce(jsonb_agg(to_jsonb(x) order by x.creado_en), '[]') from pagos x),
       'plantillas',      (select coalesce(jsonb_agg(to_jsonb(x) order by x.orden, x.creado_en), '[]') from plantillas x),
@@ -1557,6 +1666,31 @@ begin
   when 'evoluciones' then
     if tg_op = 'INSERT' then
       perform anotar('evolucion.registrada', v_pac, jsonb_build_object('piezas', new.piezas));
+    elsif tg_op = 'UPDATE' and (new.texto, new.piezas) is distinct from (old.texto, old.piezas) then
+      perform anotar('evolucion.editada', v_pac, jsonb_build_object('del', new.creado_en));
+    end if;
+
+  when 'historias_clinicas' then
+    if tg_op = 'INSERT' or new.contenido is distinct from old.contenido then
+      perform anotar('historia.editada', v_pac);
+    end if;
+    if tg_op <> 'DELETE' and new.visible_paciente is distinct from (case when tg_op = 'UPDATE' then old.visible_paciente else false end) then
+      perform anotar(case when new.visible_paciente then 'historia.visible' else 'historia.oculta' end, v_pac);
+    end if;
+
+  when 'planes_anteriores' then
+    if tg_op = 'INSERT' then
+      perform anotar('plan_anterior.subido', v_pac, jsonb_build_object('titulo', new.titulo, 'archivo', new.archivo_nombre));
+    elsif tg_op = 'UPDATE' then
+      if (new.titulo, new.contenido) is distinct from (old.titulo, old.contenido) then
+        perform anotar('plan_anterior.editado', v_pac, jsonb_build_object('titulo', new.titulo));
+      end if;
+      if new.visible_paciente is distinct from old.visible_paciente then
+        perform anotar(case when new.visible_paciente then 'plan_anterior.visible' else 'plan_anterior.oculto' end, v_pac,
+          jsonb_build_object('titulo', new.titulo));
+      end if;
+    else
+      perform anotar('plan_anterior.borrado', v_pac, jsonb_build_object('titulo', old.titulo));
     end if;
 
   when 'foto_secciones' then
@@ -1695,7 +1829,8 @@ do $$
 declare t text;
 begin
   foreach t in array array['turnos', 'pacientes', 'antecedentes', 'odontogramas', 'evoluciones', 'foto_secciones',
-                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios', 'pagos', 'plantillas', 'documentos'] loop
+                           'fotos', 'perfiles', 'agenda_config', 'agenda_bloqueos', 'planes', 'precios', 'pagos', 'plantillas', 'documentos',
+                           'planes_anteriores', 'historias_clinicas'] loop
     execute format('drop trigger if exists registrar on %I', t);
     execute format('create trigger registrar after insert or update or delete on %I for each row execute function registrar_cambio()', t);
   end loop;

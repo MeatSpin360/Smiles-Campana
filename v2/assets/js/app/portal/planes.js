@@ -6,7 +6,8 @@ import { fechaCorta, hoy } from '../../lib/dates.js';
 import { encabezado, avisoSinFicha } from '../comunes.js';
 import { ICONOS } from '../iconos.js';
 import { ESTADOS_PLAN, pesos } from '../staff/registro-textos.js';
-import { imprimirPlan, subtotalItem, subtotalDe } from '../staff/planes.js';
+import { imprimirPlan, imprimirDocumento, subtotalItem, subtotalDe } from '../staff/planes.js';
+import { contenidoRico } from '../../lib/texto-rico.js';
 
 const AYUDA_ESTADO = {
   propuesto: 'Es la propuesta del consultorio. Si tenés dudas, consultalas en tu próxima visita.',
@@ -16,15 +17,27 @@ const AYUDA_ESTADO = {
 };
 
 export async function miPlan(ctx) {
-  const [ficha, planes] = await Promise.all([ctx.api.miFicha(), ctx.api.misPlanes()]);
+  const [ficha, planes, anteriores] = await Promise.all([ctx.api.miFicha(), ctx.api.misPlanes(), ctx.api.misPlanesAnteriores().catch(() => [])]);
   const titulo = 'Mi plan';
   if (!ficha) return h('div', encabezado(titulo), avisoSinFicha());
   const cabecera = encabezado(titulo, 'Tu plan de tratamiento con sus etapas y su presupuesto. Lo podés imprimir o guardar como PDF.');
-  if (!planes.length) {
+  if (!planes.length && !anteriores.length) {
     return h('div', cabecera, h('div.panel.vacio-turno', h('span.vacio-icono', { html: ICONOS.nota }),
       h('p', 'Todavía no tenés un plan de tratamiento. Cuando el consultorio te proponga uno, lo vas a ver acá.')));
   }
-  return h('div.mis-planes', cabecera, planes.map((plan) => tarjetaPlan(plan, ficha)));
+  return h('div.mis-planes', cabecera, planes.map((plan) => tarjetaPlan(plan, ficha)), anteriores.map((x) => tarjetaAnterior(x, ficha)));
+}
+
+/** Plan anterior al sistema (subido por el consultorio desde un Word o un PDF). */
+function tarjetaAnterior(plan, ficha) {
+  return h('section.panel.plan-paciente.plan-anterior-paciente',
+    h('div.plan-paciente-cabecera',
+      h('div', h('h2', plan.titulo || 'Plan de tratamiento'),
+        h('p.texto-suave.nota-chica', `Plan anterior · cargado el ${fechaCorta(plan.creado_en)}${plan.editado_en ? `, actualizado el ${fechaCorta(plan.editado_en)}` : ''}`))),
+    contenidoRico(plan.contenido),
+    h('div.plan-paciente-acciones',
+      h('button.btn.btn-secundario', { type: 'button', onclick: () => imprimirDocumento({ titulo: plan.titulo, subtitulo: 'Plan de tratamiento anterior', html: plan.contenido, p: ficha }) },
+        h('span.icono-btn', { html: ICONOS.nota }), 'Imprimir o guardar PDF')));
 }
 
 function tarjetaPlan(plan, ficha) {

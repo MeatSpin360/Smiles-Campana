@@ -7,6 +7,8 @@ import { fechaCorta, hoy, sumarDias, edad } from '../../lib/dates.js';
 import { ICONOS } from '../iconos.js';
 import { CONSULTORIO } from '../../../../config.js';
 import { ESTADOS_PLAN, pesos, monto } from './registro-textos.js';
+import { limpiarHtml } from '../../lib/texto-rico.js';
+import { panelPlanesAnteriores } from './planes-anteriores.js';
 
 const ESTADOS = Object.entries(ESTADOS_PLAN).map(([id, texto]) => ({ id, texto }));
 const DESCRIPCION_ESTADO = {
@@ -29,6 +31,9 @@ export async function vistaPlanes(ctx, p) {
   let planes = await ctx.api.planes(p.id);
   let salirSinGuardar = null;
 
+  // Planes anteriores al sistema (Word/PDF): debajo de los planes; al abrir uno, ocupa la pestaña
+  const anteriores = await panelPlanesAnteriores({ ctx, p, mostrar: (...el) => vaciar(raiz, ...el), volver: () => lista() });
+
   const lista = () => {
     window.removeEventListener('beforeunload', salirSinGuardar);
     const nuevo = h('button.btn.btn-primario', { type: 'button', onclick: () => editar(null) }, icono('mas'), 'Nuevo plan');
@@ -36,7 +41,7 @@ export async function vistaPlanes(ctx, p) {
       h('p.texto-suave.nota-chica', 'Presupuestos y etapas del tratamiento. Se imprimen o se guardan como PDF.')), nuevo);
     if (!planes.length) {
       vaciar(raiz, h('section.panel', cabecera, h('div.vacio-turno', h('span.vacio-icono', { html: ICONOS.nota }),
-        h('p', 'Todavía no hay planes de tratamiento para este paciente.'))));
+        h('p', 'Todavía no hay planes de tratamiento para este paciente.'))), anteriores.panel());
       return;
     }
     vaciar(raiz, h('section.panel', cabecera,
@@ -52,7 +57,8 @@ export async function vistaPlanes(ctx, p) {
         h('strong.tarjeta-plan-total', pesos(x.total)),
         h('div.tarjeta-plan-acciones',
           h('button.btn.btn-secundario.btn-chico', { type: 'button', onclick: () => imprimirPlan(x, p) }, icono('nota'), 'Imprimir'),
-          h('button.btn.btn-primario.btn-chico', { type: 'button', onclick: () => editar(x) }, 'Abrir')))))));
+          h('button.btn.btn-primario.btn-chico', { type: 'button', onclick: () => editar(x) }, 'Abrir')))))),
+      anteriores.panel());
   };
 
   async function editar(plan) {
@@ -336,7 +342,12 @@ ${plan.notas ? `<h3>Observaciones</h3><p class="texto">${esc(plan.notas)}</p>` :
 <footer>${esc(CONSULTORIO.nombre)} · ${esc(CONSULTORIO.direccion)} · ${esc(CONSULTORIO.telefono)}</footer>
 </body></html>`;
 
-  const marco = h('iframe.marco-impresion', { title: 'Impresión del plan', 'aria-hidden': 'true' });
+  imprimirHtml(html);
+}
+
+/** Abre la ventana de impresión con un documento completo (espera a que cargue el logo). */
+function imprimirHtml(html) {
+  const marco = h('iframe.marco-impresion', { title: 'Impresión', 'aria-hidden': 'true' });
   document.body.append(marco);
   const doc = marco.contentDocument;
   doc.open();
@@ -357,4 +368,53 @@ ${plan.notas ? `<h3>Observaciones</h3><p class="texto">${esc(plan.notas)}</p>` :
     logo.addEventListener('load', imprimir, { once: true });
     logo.addEventListener('error', imprimir, { once: true });
   }
+}
+
+/**
+ * Imprime un texto con formato (plan anterior subido de un Word/PDF, resumen de historia clínica) con el mismo
+ * encabezado que los planes: logo, datos del consultorio y del paciente.
+ */
+export function imprimirDocumento({ titulo, subtitulo = '', html, p }) {
+  const base = new URL('.', location.href).href;
+  const anios = p.fecha_nac ? edad(p.fecha_nac) : null;
+  const fecha = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
+  const doc = `<!doctype html><html lang="es"><head><meta charset="utf-8"><base href="${esc(base)}">
+<title>${esc(`${titulo} - ${p.apellido}, ${p.nombre}`)}</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #262140; font-size: 10.5pt; line-height: 1.5; margin: 0; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #8d8ac6; padding-bottom: 10px; }
+  header img { height: 58px; }
+  .consultorio { text-align: right; font-size: 9pt; color: #5d5875; }
+  .consultorio strong { color: #262140; font-size: 10.5pt; }
+  h1 { font-size: 16pt; margin: 18px 0 0; letter-spacing: 0.02em; text-transform: uppercase; }
+  .sub { color: #5d5875; margin: 2px 0 14px; font-size: 9.5pt; }
+  .paciente { display: grid; grid-template-columns: repeat(3, auto); gap: 4px 24px; justify-content: start; background: #f0eff9; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; }
+  .paciente span { color: #5d5875; font-size: 8.5pt; display: block; }
+  .contenido h2 { font-size: 13pt; margin: 16px 0 6px; }
+  .contenido h3 { font-size: 11.5pt; margin: 14px 0 4px; }
+  .contenido h4 { font-size: 10.5pt; margin: 12px 0 4px; }
+  .contenido p { margin: 0 0 8px; }
+  .contenido ul, .contenido ol { margin: 0 0 8px; padding-left: 22px; }
+  .contenido table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+  .contenido td, .contenido th { border: 1px solid #c6c4dc; padding: 5px 6px; vertical-align: top; text-align: left; }
+  footer { margin-top: 28px; font-size: 8pt; color: #8a86a0; text-align: center; }
+</style></head><body>
+<header>
+  <img src="assets/img/logo.png" alt="${esc(CONSULTORIO.nombre)}">
+  <div class="consultorio"><strong>${esc(CONSULTORIO.profesional)}</strong><br>${esc(CONSULTORIO.especialidad || '')}${CONSULTORIO.matricula ? ` · ${esc(CONSULTORIO.matricula)}` : ''}<br>
+  ${esc(CONSULTORIO.direccion)}<br>Tel. ${esc(CONSULTORIO.telefono)} · ${esc(CONSULTORIO.email)}</div>
+</header>
+<h1>${esc(titulo)}</h1>
+<p class="sub">${esc([subtitulo, `Impreso el ${fecha}`].filter(Boolean).join(' · '))}</p>
+<div class="paciente">
+  <div><span>Paciente</span>${esc(`${p.apellido}, ${p.nombre}`)}</div>
+  <div><span>DNI</span>${esc(p.dni || '')}</div>
+  <div><span>${anios != null ? 'Edad' : 'Teléfono'}</span>${esc(anios != null ? `${anios} años` : p.telefono || '')}</div>
+</div>
+<div class="contenido">${limpiarHtml(html)}</div>
+<footer>${esc(CONSULTORIO.nombre)} · ${esc(CONSULTORIO.direccion)} · ${esc(CONSULTORIO.telefono)}</footer>
+</body></html>`;
+  imprimirHtml(doc);
 }

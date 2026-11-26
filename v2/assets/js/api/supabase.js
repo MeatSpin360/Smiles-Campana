@@ -165,6 +165,14 @@ export const api = {
   async misPlanes() {
     return ok(await sb.from('planes').select('*').order('creado_en', { ascending: false }));
   },
+  /** Planes anteriores que el consultorio marcó como visibles (la base no devuelve los otros). */
+  async misPlanesAnteriores() {
+    return ok(await sb.from('planes_anteriores').select('id, titulo, contenido, creado_en, editado_en').order('creado_en', { ascending: false }));
+  },
+  /** Resumen de historia clínica, si el consultorio lo marcó como visible (si no, null). */
+  async miHistoriaClinica() {
+    return ok(await sb.from('historias_clinicas').select('contenido, actualizado_en').maybeSingle());
+  },
   async misTurnos() {
     return ok(await sb.from('turnos').select('*').order('inicio')).map(turnoDesdeDB);
   },
@@ -478,6 +486,31 @@ export const api = {
   },
   async agregarEvolucion(pacienteId, { texto, piezas }) {
     return ok(await sb.from('evoluciones').insert({ paciente_id: pacienteId, texto, piezas }).select().single());
+  },
+  /** Corrige una evolución (odontología y admin). La base la marca "Editado" con fecha y autor. */
+  async editarEvolucion(id, { texto, piezas }) {
+    return ok(await sb.from('evoluciones').update({ texto, piezas: piezas || null }).eq('id', id).select().single());
+  },
+  // --- Resumen de historia clínica (lo redacta la odontóloga) ---
+  async historiaClinica(pacienteId) {
+    return ok(await sb.from('historias_clinicas').select('*').eq('paciente_id', pacienteId).maybeSingle())
+      || { paciente_id: pacienteId, contenido: '', visible_paciente: false, actualizado_en: null };
+  },
+  async guardarHistoriaClinica(pacienteId, { contenido, visible_paciente }) {
+    return ok(await sb.from('historias_clinicas').upsert({ paciente_id: pacienteId, contenido, visible_paciente: !!visible_paciente }).select().single());
+  },
+  // --- Planes de tratamiento anteriores (subidos desde un Word o un PDF) ---
+  async planesAnteriores(pacienteId) {
+    return ok(await sb.from('planes_anteriores').select('*').eq('paciente_id', pacienteId).order('creado_en', { ascending: false }));
+  },
+  /** Crea (sin id) o actualiza un plan anterior. */
+  async guardarPlanAnterior(plan) {
+    const datos = { titulo: plan.titulo, contenido: plan.contenido, visible_paciente: !!plan.visible_paciente };
+    if (plan.id) return ok(await sb.from('planes_anteriores').update(datos).eq('id', plan.id).select().single());
+    return ok(await sb.from('planes_anteriores').insert({ ...datos, paciente_id: plan.paciente_id, archivo_nombre: plan.archivo_nombre || null }).select().single());
+  },
+  async borrarPlanAnterior(id) {
+    ok(await sb.from('planes_anteriores').delete().eq('id', id));
   },
   // --- Ventana de mantenimiento ---
   /**

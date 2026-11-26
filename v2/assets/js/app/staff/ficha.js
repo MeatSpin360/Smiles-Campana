@@ -8,7 +8,8 @@ import { formularioPaciente, validarPaciente, darTurno, lineaPaciente, puedeVerC
 import { confirmarTurno, cancelarTurno, cambiarTurno } from './acciones-turno.js';
 import { ICONOS } from '../iconos.js';
 import { vistaFotos } from './fotos.js';
-import { vistaPlanes } from './planes.js';
+import { vistaPlanes, imprimirDocumento } from './planes.js';
+import { contenidoRico, editorRico } from '../../lib/texto-rico.js';
 import { vistaPagos, cartelSaldo, VEN_SALDO } from './pagos.js';
 import { vistaDocumentos } from './documentos.js';
 
@@ -272,7 +273,7 @@ async function vistaOdontograma(ctx, p) {
 }
 
 async function vistaHistoria(ctx, p) {
-  const [ant, evoluciones] = await Promise.all([ctx.api.antecedentes(p.id), ctx.api.evoluciones(p.id)]);
+  const [ant, evoluciones, resumen] = await Promise.all([ctx.api.antecedentes(p.id), ctx.api.evoluciones(p.id), ctx.api.historiaClinica(p.id)]);
   const recargar = () => ctx.navegar(`/pacientes/${p.id}/historia`);
 
   const textoAnt = h('textarea', { name: 'antecedentes', rows: 4, placeholder: 'Alergias, medicación, enfermedades, embarazo, cirugías…' }, ant.texto || '');
@@ -303,13 +304,97 @@ async function vistaHistoria(ctx, p) {
       h('div.panel-cabecera', h('h2', 'Antecedentes'), ant.actualizado_en ? h('span.texto-suave.nota-chica', `Actualizado el ${fechaCorta(ant.actualizado_en)}`) : null),
       textoAnt,
       h('div.acciones-form', guardarAnt)),
+    panelResumenHistoria(ctx, p, resumen),
     h('section.panel',
       h('h2', 'Nueva evolución'),
       h('label.campo', h('span', 'Detalle'), texto),
       h('div.fila-campos.fila-evolucion', h('label.campo', h('span', 'Piezas (opcional)'), piezas), h('div.acciones-form', agregar))),
     h('section.seccion-app',
       h('h2', 'Evoluciones'),
-      evoluciones.length ? h('ol.linea-tiempo', evoluciones.map((e) => h('li',
-        h('div.lt-fecha', h('strong', fechaCorta(e.creado_en)), h('span', hora(e.creado_en))),
-        h('div.lt-cuerpo', h('p', e.texto), h('p.texto-suave.nota-chica', [e.piezas ? `Piezas ${e.piezas}` : null, e.creado_por_nombre].filter(Boolean).join('. ')))))) : h('p.texto-suave', 'Sin evoluciones registradas.')));
+      evoluciones.length ? h('ol.linea-tiempo', evoluciones.map((e) => itemEvolucion(ctx, e))) : h('p.texto-suave', 'Sin evoluciones registradas.')));
+}
+
+/** Marca "Editado" (al pasar el mouse: cuándo y quién). */
+function marcaEditado(en, por) {
+  return en ? h('span.marca-editado', { title: `Editado el ${fechaCorta(en)}, ${hora(en)} h${por ? ` por ${por}` : ''}` }, 'Editado') : null;
+}
+
+/** Una evolución de la línea de tiempo, con "Editar" (odontología y admin: los únicos que ven esta pestaña). */
+function itemEvolucion(ctx, e) {
+  const cuerpo = h('div.lt-cuerpo');
+  const lectura = () => vaciar(cuerpo,
+    h('p.lt-texto', e.texto),
+    h('div.lt-pie',
+      h('p.texto-suave.nota-chica', [e.piezas ? `Piezas ${e.piezas}` : null, e.creado_por_nombre].filter(Boolean).join('. ')),
+      marcaEditado(e.editado_en, e.editado_por_nombre),
+      h('button.btn-icono.btn-chico-icono', { type: 'button', title: 'Editar evolución', 'aria-label': 'Editar evolución', html: ICONOS.lapiz, onclick: edicion })));
+  function edicion() {
+    const t = h('textarea', { rows: Math.min(Math.max(e.texto.split('\n').length + 1, 3), 14) }, e.texto);
+    const pz = h('input', { value: e.piezas || '', placeholder: 'Por ejemplo: 16, 21' });
+    const guardar = h('button.btn.btn-primario.btn-chico', {
+      type: 'button',
+      onclick: () => {
+        if (!t.value.trim()) return aviso('La evolución no puede quedar vacía.', 'error');
+        return conCarga(guardar, async () => {
+          Object.assign(e, await ctx.api.editarEvolucion(e.id, { texto: t.value.trim(), piezas: pz.value.trim() }));
+          aviso('Evolución actualizada.');
+          lectura();
+        });
+      },
+    }, 'Guardar');
+    vaciar(cuerpo,
+      h('label.campo', h('span', 'Detalle'), t),
+      h('div.fila-campos.fila-evolucion',
+        h('label.campo', h('span', 'Piezas (opcional)'), pz),
+        h('div.acciones-form', h('button.btn.btn-secundario.btn-chico', { type: 'button', onclick: lectura }, 'Cancelar'), guardar)),
+      h('p.texto-suave.nota-chica', 'Al guardar queda marcada como "Editado". La versión anterior no se guarda.'));
+    t.focus();
+  }
+  lectura();
+  return h('li', h('div.lt-fecha', h('strong', fechaCorta(e.creado_en)), h('span', hora(e.creado_en))), cuerpo);
+}
+
+/**
+ * Resumen de historia clínica: lo redacta la odontóloga a partir de lo archivado en la ficha (sin IA).
+ * Con "Visible para el paciente", el paciente lo ve en Mi espacio → Historia clínica.
+ */
+function panelResumenHistoria(ctx, p, resumen) {
+  const panel = h('section.panel.panel-resumen-hc');
+  const imprimir = () => imprimirDocumento({ titulo: 'Historia clínica', subtitulo: 'Resumen', html: resumen.contenido, p });
+  const lectura = () => {
+    const hay = !!resumen.contenido;
+    vaciar(panel,
+      h('div.panel-cabecera',
+        h('div', h('h2', 'Resumen de historia clínica'),
+          h('p.texto-suave.nota-chica', hay
+            ? [`Actualizado el ${fechaCorta(resumen.actualizado_en)}${resumen.actualizado_por_nombre ? ` por ${resumen.actualizado_por_nombre}` : ''}`,
+              resumen.visible_paciente ? 'visible para el paciente' : 'el paciente no lo ve'].join(' · ')
+            : 'Lo redacta la odontóloga a partir de lo archivado en la ficha. Se puede mostrar al paciente en Mi espacio.')),
+        h('div.acciones-form',
+          hay ? h('button.btn.btn-secundario.btn-chico', { type: 'button', onclick: imprimir }, h('span.icono-btn', { html: ICONOS.nota }), 'Imprimir') : null,
+          h('button.btn.btn-primario.btn-chico', { type: 'button', onclick: edicion }, hay ? 'Editar' : 'Escribir resumen'))),
+      hay ? contenidoRico(resumen.contenido, 'resumen-hc') : null);
+  };
+  function edicion() {
+    const editor = editorRico({ html: resumen.contenido, etiqueta: 'Resumen de historia clínica', placeholder: 'Motivo de consulta, diagnóstico, tratamientos realizados, estado actual…' });
+    const visible = h('input', { type: 'checkbox', checked: !!resumen.visible_paciente });
+    const guardar = h('button.btn.btn-primario.btn-chico', {
+      type: 'button',
+      onclick: () => conCarga(guardar, async () => {
+        const contenido = editor.vacio() ? '' : editor.valor();
+        if (!contenido && visible.checked) throw new Error('El resumen está vacío: no se puede mostrar al paciente.');
+        Object.assign(resumen, await ctx.api.guardarHistoriaClinica(p.id, { contenido, visible_paciente: visible.checked }));
+        aviso('Resumen guardado.');
+        lectura();
+      }),
+    }, 'Guardar');
+    vaciar(panel,
+      h('div.panel-cabecera', h('h2', 'Resumen de historia clínica'),
+        h('div.acciones-form', h('button.btn.btn-secundario.btn-chico', { type: 'button', onclick: lectura }, 'Cancelar'), guardar)),
+      editor.el,
+      h('label.check-visible', visible, h('span', h('strong', 'Visible para el paciente'), ' · lo ve en Mi espacio → Historia clínica.')));
+    editor.enfocar();
+  }
+  lectura();
+  return panel;
 }
